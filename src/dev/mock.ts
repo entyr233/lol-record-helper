@@ -6,8 +6,8 @@ const mockSdk: WeGameLoginSdk = {
   logout: () => {
     console.warn("[lol-tft] mock logout");
   },
-  getUserInfo: () => ({ tgp_id: "000000", nick: "test", faceurl: "", channel: "qq", uin: 0 }),
-  getLoginUser: async () => ({ uin: 0 }),
+  getUserInfo: () => ({ tgp_id: "10001", nick: "测试召唤师（mock）", faceurl: "", channel: "qq", uin: 10001 }),
+  getLoginUser: async () => ({ uin: 10001 }),
   popup: () => undefined,
   onLogin: () => undefined,
   readyPromise: Promise.resolve()

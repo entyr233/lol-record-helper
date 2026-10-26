@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { MOCK_API_PREFIX, route } from "../dev/mockData";
+import { installDevLoginMock } from "../src/dev/mock";
 
 const { mountLolTft } = await import("../src/mount");
 
@@ -8,6 +9,7 @@ let host: HTMLElement;
 
 beforeEach(() => {
   window.location.hash = "";
+  installDevLoginMock();
   host = document.createElement("div");
   document.body.appendChild(host);
 
@@ -64,6 +66,26 @@ describe("整页冒烟（mock 数据）", () => {
     expect(shadow.querySelectorAll(".detail-player")).toHaveLength(10);
     expect(text).toContain("蓝方");
     expect(text).toContain("红方");
+
+    instance.unmount();
+  });
+
+  it("点「我的战绩」：路由守卫解析登录用户后重定向到自己的详情页", async () => {
+    const instance = mountLolTft({ host });
+    await instance.router.isReady();
+    await instance.router.push({ name: "area", params: { area: "1" } });
+
+    for (let i = 0; i < 12; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    // 旧实现（mock uin=0）会卡在「未能获取登录用户信息」
+    const shadow = host.shadowRoot as ShadowRoot;
+    const text = shadow.textContent || "";
+    expect(text).not.toContain("未能获取登录用户信息");
+    expect(instance.router.currentRoute.value.name).toBe("summary");
+    expect(text).toContain("测试召唤师（mock）");
 
     instance.unmount();
   });

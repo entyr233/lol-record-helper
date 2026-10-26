@@ -1,29 +1,29 @@
 <template>
   <div class="page">
-    <p v-if="error" class="state-text state-text--error">{{ error }}</p>
-    <p v-else class="state-text">正在读取登录信息…</p>
+    <p class="state-text state-text--error">{{ message }}</p>
+    <p class="state-text">
+      <button type="button" class="link-button" @click="reload">重新加载</button>
+    </p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
-import { getLoginUser, isSdkAvailable } from "../utils/weGameLogin";
+import { isSdkAvailable } from "../utils/weGameLogin";
 
-const props = defineProps<{ area: string }>();
-const router = useRouter();
-const error = ref("");
+/**
+ * 「我的战绩」的兜底页。
+ * 正常情况下路由守卫已经解析出登录用户并重定向到 summary；只有解析失败才会停在这里。
+ */
+const message = ref("正在读取登录信息…");
 
-onMounted(async () => {
-  if (!isSdkAvailable()) {
-    error.value = "未检测到 WeGame 登录 SDK，请在 WeGame 页面内使用";
-    return;
-  }
-  const user = await getLoginUser();
-  if (!user || !user.uin) {
-    error.value = "未能获取登录用户信息，请重新登录后重试";
-    return;
-  }
-  await router.replace({ name: "summary", params: { area: props.area, accountType: "1", id: String(user.uin) } });
+onMounted(() => {
+  message.value = isSdkAvailable()
+    ? "未能获取登录用户信息，请重新登录后重试"
+    : "未检测到 WeGame 登录 SDK，请在 WeGame 页面内使用";
 });
+
+function reload(): void {
+  window.location.reload();
+}
 </script>

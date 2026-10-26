@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { fileURLToPath, URL } from "node:url";
-import { mockApiPlugin } from "./dev/mockServer";
+import { mockApiPlugin } from "./dev/mockServer.ts";
 
 // two build modes:
 //   default  -> 独立演示/调试站点 (dist/index.html + assets)

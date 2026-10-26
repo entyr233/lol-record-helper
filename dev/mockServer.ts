@@ -1,5 +1,5 @@
 import type { Connect, Plugin } from "vite";
-import { MOCK_API_PREFIX, route } from "./mockData";
+import { MOCK_API_PREFIX, route } from "./mockData.ts";
 
 /**
  * 本地开发用的 WeGame 接口 mock（默认开启，见 lol-tft 的 README）。
