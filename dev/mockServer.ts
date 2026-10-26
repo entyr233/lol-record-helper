@@ -31,6 +31,31 @@ export function devApiPlugin(): Plugin {
           req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
         });
 
+      /** 用 GetBattleReport 探一次，8000102 表示 cookie 没被识别为登录态 */
+      const validateCookie = async (): Promise<{ ok: boolean; code?: number | string; reason?: string }> => {
+        try {
+          const res = await fetch(
+            "https://www.wegame.com.cn/api/v1/wegame.pallas.game.LolBattle/GetBattleReport",
+            {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                "trpc-caller": "wegame.pallas.web.LolBattle",
+                referer: "https://www.wegame.com.cn/home/",
+                cookie: devSession.cookie
+              },
+              body: JSON.stringify({ account_type: 1, area: 1, id: "0", from_src: "lol_helper" })
+            }
+          );
+          const data = (await res.json()) as { result?: { error_code?: number | string; error_message?: string } };
+          const code = data.result?.error_code;
+          const ok = String(code) !== "8000102";
+          return { ok, code, reason: ok ? undefined : "网关仍返回 8000102（未登录/缺少鉴权 cookie）" };
+        } catch (error) {
+          return { ok: false, reason: "校验请求失败：" + String(error).slice(0, 120) };
+        }
+      };
+
       const sendJson = (res: import("node:http").ServerResponse, payload: unknown) => {
         res.statusCode = 200;
         res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -52,7 +77,7 @@ export function devApiPlugin(): Plugin {
             sendJson(res, { mode: "mock" });
             return;
           }
-          void readBody(req).then((raw) => {
+          void readBody(req).then(async (raw) => {
             let cookie = raw;
             try {
               const parsed = JSON.parse(raw) as { cookie?: string };
@@ -61,13 +86,16 @@ export function devApiPlugin(): Plugin {
               /* 允许直接发纯文本 */
             }
             setCookie(cookie);
-            const ok = hasCookie();
+            if (!hasCookie()) {
+              sendJson(res, { mode: "mock", hasCookie: false, check: { ok: false, reason: "cookie 为空" } });
+              return;
+            }
+            // 用一次真实请求验证 cookie 是否被识别为登录态
+            const check = await validateCookie();
             logger.info(
-              ok
-                ? "[lol-tft] 已接收 cookie（" + devSession.cookie.length + " 字符），接口切到真实数据"
-                : "[lol-tft] cookie 为空，继续使用 mock"
+              "[lol-tft] 已接收 cookie（" + devSession.cookie.length + " 字符）校验结果：" + JSON.stringify(check)
             );
-            sendJson(res, { mode: ok ? "real" : "mock", hasCookie: ok });
+            sendJson(res, { mode: "real", hasCookie: true, check });
           });
           return;
         }

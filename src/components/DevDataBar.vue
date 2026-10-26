@@ -54,9 +54,16 @@ async function apply(): Promise<void> {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ cookie: cookieText.value.trim() })
     });
-    const data = (await res.json()) as { mode?: Mode };
-    if (data.mode === "real") {
+    const data = (await res.json()) as { mode?: Mode; check?: { ok: boolean; code?: number | string; reason?: string } };
+    if (data.mode === "real" && data.check && data.check.ok) {
       window.location.reload();
+      return;
+    }
+    if (data.mode === "real" && data.check) {
+      error.value =
+        "cookie 未被识别为登录态（错误码 " +
+        String(data.check.code ?? "-") +
+        "）。请从 www.wegame.com.cn 的「文档(document)请求」里复制完整 Cookie。";
       return;
     }
     error.value = "cookie 为空，未切换";
