@@ -1,0 +1,204 @@
+/** WeGame trpc 接口返回结构（依据 sample/*.json 实测样本） */
+
+export interface ApiResult {
+  error_code?: number | string;
+  error_message?: string;
+}
+
+export interface ApiEnvelope {
+  result?: ApiResult;
+}
+
+/** 对局列表项（snake_case） */
+export interface BattleSummary {
+  game_id: string;
+  game_start_time: string;
+  game_time_played: number;
+  map_id?: number;
+  game_queue_id: number;
+  was_mvp?: number;
+  was_svp?: number;
+  was_early_surrender?: number;
+  champion_id: number;
+  position?: string;
+  skin_index?: number;
+  game_score?: number;
+  team_id?: string;
+  win: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  gold_earned?: number;
+  was_surrender?: number;
+  was_afk?: number;
+  most_kills?: number;
+  most_assists?: number;
+  most_minions_killed?: number;
+  most_gold_earned?: number;
+  most_damage_dealt_to_champions?: number;
+  most_total_damage_taken?: number;
+  most_turrets_killed?: number;
+  double_kills?: number;
+  triple_kills?: number;
+  quadra_kills?: number;
+  penta_kills?: number;
+  unreal_kills?: number;
+  team_made_size?: number;
+  battle_type?: number;
+  win_with_less_teammate?: number;
+}
+
+/** 对局详情里的玩家（camelCase） */
+export interface BattleHonour {
+  isSvp?: boolean;
+  isMvp?: boolean;
+  isPentaKills?: boolean;
+}
+
+export interface PlayerDetail {
+  openid: string;
+  name: string;
+  championId: number;
+  level: number;
+  teamId: string;
+  teamMadeSize: number;
+  championsKilled: number;
+  numDeaths: number;
+  assists: number;
+  gameScore: number;
+  totalDamageToChampions: number;
+  totalDamageTaken: number;
+  magicDamageToChampions: number;
+  physicalDamageToChampions: number;
+  trueDemageToChampions: number;
+  goldEarned?: number;
+  minionsKilled?: number;
+  neutralMinionsKilled?: number;
+  sightWardsBoughtInGame?: number;
+  item0: number;
+  item1: number;
+  item2: number;
+  item3: number;
+  item4: number;
+  item5: number;
+  item6: number;
+  keystoneId: number;
+  perkSubStyle: number;
+  perkStyle?: number;
+  summonSpell1Id: number;
+  summonSpell2Id: number;
+  summonSpell1Cast?: number;
+  summonSpell2Cast?: number;
+  spell1Cast?: number;
+  spell2Cast?: number;
+  spell3Cast?: number;
+  spell4Cast?: number;
+  pentaKills?: number;
+  doubleKills?: number;
+  tripleKills?: number;
+  quadraKills?: number;
+  largestMultiKill?: number;
+  wasAfk?: number;
+  battleHonour: BattleHonour;
+  position?: string;
+  puuId?: string;
+  lolId?: string;
+}
+
+export interface TeamDetail {
+  teamId: string;
+  win: string;
+  teamElo: number;
+  totalKills: number;
+  totalDeaths: number;
+  totalAssists: number;
+  totalGoldEarned?: number;
+  totalBaronKills?: number;
+  totalDragonKills?: number;
+  totalTurretsKilled?: number;
+  isSurrender?: number;
+}
+
+export interface BattleDetail {
+  area_id: string;
+  game_id: string;
+  game_start_time: string;
+  game_time_played: number;
+  map_id: number;
+  game_queue_id: number;
+  game_mode?: string;
+  game_type?: string;
+  was_early_surrender?: number;
+  team_details: TeamDetail[];
+  player_details: PlayerDetail[];
+}
+
+export interface Summoner {
+  name: string;
+  icon_id: number;
+  level: number;
+  experience?: number;
+  praise?: number;
+  discredit?: number;
+}
+
+export interface BattleCount {
+  total_games: number;
+  total_wins: number;
+  total_losts: number;
+  total_arm_games: number;
+  total_arm_wins: number;
+  total_arm_losts: number;
+  /** 匹配（normal） */
+  total_match_games: number;
+  total_match_wins: number;
+  total_match_losts: number;
+  /** 排位（ranked） */
+  total_rank_games: number;
+  total_rank_wins: number;
+  total_rank_losts: number;
+}
+
+export interface PlayerSearchResult {
+  openid: string;
+  icon_id: number;
+  level: number;
+  area: number;
+}
+
+export interface UserKey {
+  area: number | string;
+  accountType: number | string;
+  id: string | number;
+}
+
+export interface RqOptions {
+  account_type: number;
+  area: number;
+  id: string;
+  from_src: string;
+}
+
+export interface GetBattleListResponse extends ApiEnvelope {
+  battles: BattleSummary[];
+}
+export interface GetBattleDetailResponse extends ApiEnvelope {
+  openid: string;
+  battle_detail: BattleDetail;
+}
+export interface GetSummonerInfoResponse extends ApiEnvelope {
+  summoner: Summoner;
+}
+export interface GetBattleReportResponse extends ApiEnvelope {
+  battle_count: BattleCount;
+}
+export interface SearchPlayerResponse extends ApiEnvelope {
+  players: PlayerSearchResult[];
+}
+
+export interface ChampionSpell {
+  spellKey: string;
+  name: string;
+  description: string;
+  abilityIconPath: string;
+}
