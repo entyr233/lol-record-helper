@@ -1,40 +1,52 @@
 // ==UserScript==
 // @name         LOL战绩查询
 // @namespace    mscststs
-// @version      0.14.0
-// @description  在 WeGame 页面内查询英雄联盟国服战绩（Vue 3 + Vite 重写版）
+// @version      __VERSION__
+// @description  在 WeGame 页面内查询英雄联盟国服战绩（无需任何配置，登录即用）
 // @author       mscststs
 // @match        https://www.wegame.com.cn/*
 // @match        https://wegame.com.cn/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wegame.com.cn
 // @license      ISC
-// @grant        GM_registerMenuCommand
-// @grant        unsafeWindow
+// @grant        none
+// @run-at       document-idle
 // @noframes
 // @downloadURL  https://update.greasyfork.org/scripts/454184/LOL%E6%88%98%E7%BB%A9%E6%9F%A5%E8%AF%A2.user.js
 // @updateURL    https://update.greasyfork.org/scripts/454184/LOL%E6%88%98%E7%BB%A9%E6%9F%A5%E8%AF%A2.meta.js
 // ==/UserScript==
 
 /**
- * 变更说明（v0.14）
- * 旧版注入 https://www.wegame.com.cn/ioi 整个页面，但该页面在 2026 年已下线（404）。
- * 现在改为：在任意 WeGame 页面右下角挂一个浮动入口，点开后全屏打开战绩查询，
- * 不再依赖宿主页面的 #content / #app 结构，也不修改宿主页面原有内容。
+ * 使用方式：装好脚本后，登录 https://www.wegame.com.cn/ ，右下角会出现「LOL 战绩」按钮。
  *
- * 数据来源是同源请求 /api/v1/wegame.pallas.game.LolBattle/*，
- * 浏览器会自动带上 wegame.com.cn 的登录 cookie —— 所以只要你在 WeGame 网站上登录过，
- * 脚本里拿到的就是真实数据。
+ * 为什么不用配置 cookie：脚本运行在 wegame 页面里，接口请求 /api/v1/wegame.pallas.game.LolBattle/*
+ * 是同源请求，浏览器会自动带上你的登录 cookie —— 和旧版脚本的体验一致。
+ *
+ * v0.15：改为单文件分发（UI 打包内联），不再依赖 lol-tft.pages.dev 上的远端 bundle。
  */
+
+/* ================= lol-tft UI bundle（构建时自动内联，勿手动编辑） ================= */
+/*__BUNDLE__*/
+/* ================= 以上为内联 bundle ================= */
+
 (function () {
   "use strict";
 
-  var BUNDLE_URL = "https://lol-tft.pages.dev/lol/lol.umd.js";
-  var STYLE_ID = "lol-tft-entry-style";
   var Z = "2147483000";
+  var STYLE_ID = "lol-tft-entry-style";
 
   var mounted = null;
   var overlay = null;
   var loading = false;
+
+  function getLib() {
+    try {
+      if (typeof LolTft !== "undefined" && LolTft && typeof LolTft.mountLolTft === "function") return LolTft;
+    } catch (e) { /* ignore */ }
+    try {
+      if (typeof unsafeWindow !== "undefined" && unsafeWindow.LolTft) return unsafeWindow.LolTft;
+    } catch (e) { /* ignore */ }
+    return window.LolTft || null;
+  }
 
   function injectStyle() {
     if (document.getElementById(STYLE_ID)) return;
@@ -49,34 +61,14 @@
       "#lol-tft-overlay{position:fixed;inset:0;z-index:" + Z + ";display:flex;flex-direction:column;",
       "background:#19212b;color:#ddd;}",
       "#lol-tft-overlay-head{display:flex;flex:none;align-items:center;gap:12px;padding:8px 16px;",
-      "background:#1a2026;border-bottom:1px solid #24292e;color:#b59758;font:13px/1.6 -apple-system,'Microsoft YaHei',sans-serif;}",
+      "background:#1a2026;border-bottom:1px solid #24292e;color:#b59758;",
+      "font:13px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;}",
       "#lol-tft-overlay-host{flex:1 1 auto;overflow:auto;}",
       ".lol-tft-overlay-close{margin-left:auto;padding:4px 12px;border:1px solid #3a4350;border-radius:4px;",
       "background:transparent;color:#b59758;cursor:pointer;font:13px/1.4 inherit;}",
       ".lol-tft-overlay-close:hover{background:rgba(255,255,255,.07);}"
     ].join("");
     (document.head || document.documentElement).appendChild(style);
-  }
-
-  function loadScript(src) {
-    return new Promise(function (resolve, reject) {
-      var script = document.createElement("script");
-      script.src = src;
-      script.async = true;
-      script.onload = function () { resolve(); };
-      script.onerror = function () { reject(new Error("脚本加载失败: " + src)); };
-      (document.head || document.documentElement).appendChild(script);
-    });
-  }
-
-  async function ensureBundle() {
-    var host = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
-    if (host.LolTft && typeof host.LolTft.mountLolTft === "function") return host.LolTft;
-    await loadScript(BUNDLE_URL);
-    if (!host.LolTft || typeof host.LolTft.mountLolTft !== "function") {
-      throw new Error("战绩脚本未正确导出 mountLolTft");
-    }
-    return host.LolTft;
   }
 
   function closePanel() {
@@ -91,10 +83,11 @@
     if (launcher) launcher.style.display = "";
   }
 
-  async function openPanel() {
+  function openPanel() {
     if (loading || overlay) return;
-    loading = true;
+    var lib = getLib();
     injectStyle();
+
     var launcher = document.getElementById("lol-tft-launcher");
     if (launcher) launcher.style.display = "none";
 
@@ -115,22 +108,20 @@
 
     var host = document.createElement("div");
     host.id = "lol-tft-overlay-host";
-    host.textContent = "加载中…";
-
     overlay.appendChild(head);
     overlay.appendChild(host);
     document.body.appendChild(overlay);
     document.documentElement.style.overflow = "hidden";
 
+    if (!lib) {
+      host.textContent = "战绩脚本未正确加载：bundle 缺失（请重新构建 userscript）";
+      return;
+    }
     try {
-      var lib = await ensureBundle();
-      host.textContent = "";
       mounted = lib.mountLolTft({ host: host });
     } catch (error) {
       host.textContent = "加载失败：" + (error && error.message ? error.message : String(error));
       console.error("[lol-tft]", error);
-    } finally {
-      loading = false;
     }
   }
 
@@ -141,8 +132,8 @@
     launcher.id = "lol-tft-launcher";
     launcher.type = "button";
     launcher.textContent = "LOL 战绩";
-    launcher.title = "打开 LOL 战绩查询";
-    launcher.addEventListener("click", function () { void openPanel(); });
+    launcher.title = "打开 LOL 战绩查询（同源请求，自动使用当前登录态）";
+    launcher.addEventListener("click", openPanel);
     document.body.appendChild(launcher);
   }
 
@@ -154,9 +145,5 @@
     document.addEventListener("DOMContentLoaded", mountLauncher);
   } else {
     mountLauncher();
-  }
-
-  if (typeof GM_registerMenuCommand === "function") {
-    GM_registerMenuCommand("打开 LOL 战绩查询", function () { void openPanel(); });
   }
 })();

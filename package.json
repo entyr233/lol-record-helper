@@ -11,7 +11,9 @@
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:userscript": "npm run build && node scripts/build-userscript.mjs",
+    "build:all": "npm run build:userscript && npm run build:app"
   },
   "engines": {
     "node": ">=20.19.0"
