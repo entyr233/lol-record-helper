@@ -31,7 +31,22 @@
 (function () {
   "use strict";
 
+  var VERSION = "__VERSION__";
   var Z = "2147483000";
+
+  function log() {
+    try {
+      var args = ["[lol-tft] v" + VERSION].concat([].slice.call(arguments));
+      console.log.apply(console, args);
+    } catch (e) { /* ignore */ }
+  }
+
+  function warn() {
+    try {
+      var args = ["[lol-tft] v" + VERSION].concat([].slice.call(arguments));
+      console.warn.apply(console, args);
+    } catch (e) { /* ignore */ }
+  }
   var STYLE_ID = "lol-tft-entry-style";
 
   var mounted = null;
@@ -127,23 +142,56 @@
 
   function mountLauncher() {
     if (document.getElementById("lol-tft-launcher")) return;
-    injectStyle();
-    var launcher = document.createElement("button");
-    launcher.id = "lol-tft-launcher";
-    launcher.type = "button";
-    launcher.textContent = "LOL 战绩";
-    launcher.title = "打开 LOL 战绩查询（同源请求，自动使用当前登录态）";
-    launcher.addEventListener("click", openPanel);
-    document.body.appendChild(launcher);
+    try {
+      injectStyle();
+      var launcher = document.createElement("button");
+      launcher.id = "lol-tft-launcher";
+      launcher.type = "button";
+      launcher.textContent = "LOL 战绩";
+      launcher.title = "打开 LOL 战绩查询（同源请求，自动使用当前登录态）";
+      launcher.addEventListener("click", openPanel);
+      var parent = document.body || document.documentElement;
+      if (!parent) {
+        warn("document.body 还不存在，稍后重试");
+        setTimeout(mountLauncher, 800);
+        return;
+      }
+      parent.appendChild(launcher);
+      log("入口按钮已挂载", parent === document.body ? "body" : "html");
+    } catch (error) {
+      warn("入口按钮挂载失败：", error);
+    }
+  }
+
+  /** 暴露到页面 window，便于在控制台手动调用排查：__LOL_TFT__.open() */
+  function expose() {
+    var api = { version: VERSION, open: openPanel, close: closePanel };
+    try { if (typeof unsafeWindow !== "undefined" && unsafeWindow) unsafeWindow.__LOL_TFT__ = api; } catch (e) { /* ignore */ }
+    try { window.__LOL_TFT__ = api; } catch (e) { /* ignore */ }
   }
 
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape" && overlay) closePanel();
   });
 
+  function bootstrap() {
+    try {
+      expose();
+      if (!document.body) {
+        warn("body 尚未就绪，等待 DOMContentLoaded");
+        document.addEventListener("DOMContentLoaded", mountLauncher, { once: true });
+        return;
+      }
+      mountLauncher();
+    } catch (error) {
+      warn("初始化失败：", error);
+    }
+  }
+
+  log("脚本已注入", location.href);
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", mountLauncher);
+    document.addEventListener("DOMContentLoaded", bootstrap, { once: true });
   } else {
-    mountLauncher();
+    bootstrap();
   }
 })();
