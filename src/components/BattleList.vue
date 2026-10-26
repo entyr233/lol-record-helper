@@ -21,7 +21,7 @@
           <ul class="battle-list-items">
             <li v-if="!battles.length && loading" class="state-text">加载中…</li>
             <li v-else-if="!battles.length && error" class="state-text state-text--error">
-              {{ error.message }}
+              {{ toErrorMessage(error) }}
             </li>
             <li v-else-if="!battles.length" class="state-text">暂无数据</li>
             <BattleListItem
@@ -63,6 +63,7 @@ import BattleDetail from "./BattleDetail.vue";
 import type { PlayerDetail } from "../api/types";
 import { toRqOptions } from "../composables/useUserInfo";
 import { useBattleList } from "../composables/useBattleList";
+import { toErrorMessage } from "../api/errors";
 
 const props = defineProps<{ area: string; accountType: string; id: string }>();
 const emit = defineEmits<{ openSummoner: [player: PlayerDetail] }>();

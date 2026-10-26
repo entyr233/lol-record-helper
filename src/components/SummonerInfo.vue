@@ -8,8 +8,9 @@
       </p>
       <p v-else-if="loading" class="state-text">加载中…</p>
       <p v-else-if="error" class="state-text state-text--error">
-        {{ error.message }}
+        {{ toErrorMessage(error) }}
         <button type="button" class="link-button" @click="reload">重试</button>
+        <button v-if="needsCaptcha" type="button" class="link-button" @click="openHelper">去 LOL 助手页</button>
       </p>
       <div v-else-if="summoner" class="summoner">
         <GameIcon class="summoner-avatar" kind="user" :id="summoner.icon_id" />
@@ -39,7 +40,7 @@ import { computed, onMounted } from "vue";
 import Panel from "./Panel.vue";
 import GameIcon from "./GameIcon.vue";
 import { lolBattleApi } from "../api/client";
-import { ApiError } from "../api/errors";
+import { ApiError, toErrorMessage } from "../api/errors";
 import { useAsyncData } from "../composables/useAsyncData";
 import { toRqOptions } from "../composables/useUserInfo";
 import { logout } from "../utils/weGameLogin";
@@ -58,6 +59,10 @@ const error = computed(() => summonerTask.error.value);
 const hidden = computed(() => {
   const err = summonerTask.error.value;
   return err instanceof ApiError && err.isHidden;
+});
+const needsCaptcha = computed(() => {
+  const err = summonerTask.error.value;
+  return err instanceof ApiError && err.needsCaptcha;
 });
 const authExpired = computed(() => {
   const err = summonerTask.error.value;
@@ -79,6 +84,10 @@ const countRows = computed(() => {
 function reload(): void {
   void summonerTask.run();
   void reportTask.run();
+}
+
+function openHelper(): void {
+  window.open("https://www.wegame.com.cn/helper/lol/", "_blank", "noopener");
 }
 
 function relogin(): void {

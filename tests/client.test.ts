@@ -43,7 +43,8 @@ describe("lolBattleApi", () => {
     expect(error).toBeInstanceOf(ApiError);
     const apiError = error as ApiError;
     expect(apiError.isUnauthenticated).toBe(true);
-    expect(apiError.message).toBe("登录状态已失效，请重新登录");
+    expect(apiError.message).toBe("登录状态已失效，请在 WeGame 页面重新登录");
+    expect(apiError.displayMessage).toContain("8000102");
   });
 
   it("未知错误码也给出非空提示", async () => {

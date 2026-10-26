@@ -28,7 +28,9 @@ describe.skipIf(!available)("单文件油猴脚本（构建产物）", () => {
     expect(code).toMatch(/@match\s+https:\/\/www\.wegame\.com\.cn\/\*/);
     // 不再通过 <script src> 加载远端 bundle（bundle 已内联）
     expect(code).not.toContain("BUNDLE_URL");
-    expect(code).not.toMatch(/createElement\(["']script["']\)/);
+    // 允许创建 <script>（仅用于加载 WeGame 登录 SDK），但不得再加载远端 UI bundle
+    expect(code).toContain("login.sdk.js");
+    expect(code).not.toContain("/lol/lol.umd.js");
     // 浏览器环境没有 Node 全局
     expect(code).not.toContain("process.env");
     expect(code).not.toContain("__dirname");

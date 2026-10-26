@@ -2,7 +2,7 @@
   <div class="battle-detail">
     <p v-if="loading" class="state-text">加载对局详情…</p>
     <div v-else-if="error" class="state-text state-text--error">
-      {{ error.message }}
+      {{ toErrorMessage(error) }}
       <button type="button" class="link-button" @click="run">重试</button>
     </div>
     <template v-else-if="detail">
@@ -32,6 +32,7 @@
 import { computed, watch } from "vue";
 import BattleDetailPlayer from "./BattleDetailPlayer.vue";
 import { lolBattleApi } from "../api/client";
+import { toErrorMessage } from "../api/errors";
 import type { PlayerDetail } from "../api/types";
 import { toRqOptions } from "../composables/useUserInfo";
 import { useAsyncData } from "../composables/useAsyncData";

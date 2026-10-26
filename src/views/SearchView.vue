@@ -2,7 +2,7 @@
   <div class="page">
     <Panel title="搜索结果">
       <p v-if="loading" class="state-text">搜索中…</p>
-      <p v-else-if="error" class="state-text state-text--error">{{ error.message }}</p>
+      <p v-else-if="error" class="state-text state-text--error">{{ toErrorMessage(error) }}</p>
       <template v-else-if="players.length">
         <p class="state-text search-hint">找到 {{ players.length }} 位同名玩家，点击其中一位查看战绩</p>
         <ul class="search-results">
@@ -28,6 +28,7 @@ import { useRouter } from "vue-router";
 import Panel from "../components/Panel.vue";
 import GameIcon from "../components/GameIcon.vue";
 import { lolBattleApi } from "../api/client";
+import { toErrorMessage } from "../api/errors";
 import { useAsyncData } from "../composables/useAsyncData";
 import { getAreaName } from "../const/areas";
 import type { PlayerSearchResult } from "../api/types";
