@@ -91,6 +91,11 @@ button {
 .header-button:hover {
   background-color: rgba(255, 255, 255, 0.06);
 }
+.header-button--login {
+  border: 1px solid #b59758;
+  border-radius: 4px;
+  font-weight: 600;
+}
 
 .header-spacer {
   flex: 1 1 auto;

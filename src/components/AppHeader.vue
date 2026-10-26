@@ -8,7 +8,10 @@
     <span class="header-divider"></span>
     <button v-if="currentArea" type="button" class="header-button" @click="goSelf">我的战绩</button>
     <span class="header-divider"></span>
-    <button type="button" class="header-button" @click="handleLogout">注销</button>
+    <button v-if="loggedIn" type="button" class="header-button" @click="handleLogout">注销</button>
+    <button v-else type="button" class="header-button header-button--login" @click="handleLogin">
+      {{ loggingIn ? "等待登录…" : "登录" }}
+    </button>
 
     <span class="header-spacer"></span>
 
@@ -31,7 +34,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { areas } from "../const/areas";
 import { readStorage, writeStorage } from "../utils/storage";
-import { logout } from "../utils/weGameLogin";
+import { isLoggedIn, isSdkAvailable, logout, triggerLogin, waitForLogin } from "../utils/weGameLogin";
 
 const DONATE_URL = "https://wsd.pages.interface.work/view?src=https%3A%2F%2Fpic.mscststs.com%2Fdonate.jpg";
 const SCRIPT_HOME = "https://greasyfork.org/zh-CN/scripts/454184";
@@ -42,6 +45,8 @@ const router = useRouter();
 
 const selectedArea = ref<number | "">(0);
 const keyword = ref("");
+const loggedIn = ref(true);
+const loggingIn = ref(false);
 
 const currentArea = computed(() => {
   const fromRoute = route.params.area;
@@ -49,6 +54,7 @@ const currentArea = computed(() => {
 });
 
 onMounted(() => {
+  loggedIn.value = isSdkAvailable() ? isLoggedIn() : false;
   const fromRoute = route.params.area;
   if (fromRoute) {
     selectedArea.value = Number(fromRoute) || 0;
@@ -74,6 +80,22 @@ function search(): void {
 function goSelf(): void {
   if (selectedArea.value === "") return;
   void router.replace({ name: "area", params: { area: String(selectedArea.value) } });
+}
+
+async function handleLogin(): Promise<void> {
+  if (!triggerLogin()) {
+    window.alert("当前页面没有可用的 WeGame 登录 SDK，请刷新页面后重试");
+    return;
+  }
+  loggingIn.value = true;
+  const ok = await waitForLogin();
+  loggingIn.value = false;
+  if (!ok) return;
+  loggedIn.value = true;
+  const area = selectedArea.value === "" ? 0 : Number(selectedArea.value);
+  if (area) {
+    void router.replace({ name: "area", params: { area: String(area) } });
+  }
 }
 
 function handleLogout(): void {

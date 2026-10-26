@@ -129,6 +129,26 @@ describe("整页冒烟（mock 数据）", () => {
     instance.unmount();
   });
 
+  it("未登录时顶栏显示「登录」入口（WeGame 页面本身没有登录按钮）", async () => {
+    const sdk = window.WegameLogin?.default;
+    const original = sdk?.isLogin;
+    if (sdk) sdk.isLogin = () => false;
+    try {
+      const instance = mountLolTft({ host });
+      await instance.router.isReady();
+      await flushPromises();
+      const shadow = host.shadowRoot as ShadowRoot;
+      response: {
+        // 顶栏应出现登录按钮、不应出现注销
+        expect(shadow.textContent).toContain("登录");
+        expect(shadow.textContent).not.toContain("注销");
+      }
+      instance.unmount();
+    } finally {
+      if (sdk && original) sdk.isLogin = original;
+    }
+  });
+
   it("切换「技能」tab 后渲染技能释放次数区", async () => {
     const instance = mountLolTft({ host });
     await instance.router.isReady();

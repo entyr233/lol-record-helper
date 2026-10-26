@@ -11,6 +11,7 @@
         {{ toErrorMessage(error) }}
         <button type="button" class="link-button" @click="reload">重试</button>
         <button v-if="needsCaptcha" type="button" class="link-button" @click="openHelper">去 LOL 助手页</button>
+        <button v-if="authExpired" type="button" class="link-button" @click="relogin">立即登录</button>
       </p>
       <div v-else-if="summoner" class="summoner">
         <GameIcon class="summoner-avatar" kind="user" :id="summoner.icon_id" />
@@ -43,7 +44,7 @@ import { lolBattleApi } from "../api/client";
 import { ApiError, toErrorMessage } from "../api/errors";
 import { useAsyncData } from "../composables/useAsyncData";
 import { toRqOptions } from "../composables/useUserInfo";
-import { logout } from "../utils/weGameLogin";
+import { logout, triggerLogin, waitForLogin } from "../utils/weGameLogin";
 
 const props = defineProps<{ area: string; accountType: string; id: string }>();
 
@@ -90,7 +91,14 @@ function openHelper(): void {
   window.open("https://www.wegame.com.cn/helper/lol/", "_blank", "noopener");
 }
 
-function relogin(): void {
+async function relogin(): Promise<void> {
+  if (triggerLogin()) {
+    const ok = await waitForLogin();
+    if (ok) {
+      window.location.reload();
+      return;
+    }
+  }
   logout();
   window.setTimeout(() => window.location.reload(), 300);
 }

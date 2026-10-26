@@ -9,6 +9,32 @@ export function isSdkAvailable(): boolean {
   return sdk() !== null;
 }
 
+export function isLoggedIn(): boolean {
+  return isLogin();
+}
+
+/** 拉起 WeGame 登录弹窗（网站页面本身没有登录按钮，只能由 SDK 弹） */
+export function triggerLogin(): boolean {
+  const api = sdk();
+  if (!api || typeof api.popup !== "function") return false;
+  try {
+    api.popup();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 轮询等待登录完成 */
+export async function waitForLogin(timeoutMs = 180000): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (isLogin()) return true;
+    await new Promise((resolve) => setTimeout(resolve, 800));
+  }
+  return false;
+}
+
 export function isLogin(): boolean {
   const api = sdk();
   try {
