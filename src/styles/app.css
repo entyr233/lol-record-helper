@@ -716,6 +716,11 @@ button {
 }
 
 /* ---------- search ---------- */
+.search-hint {
+  min-height: auto;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
 .search-results {
   margin: 0;
   padding: 0;
@@ -749,5 +754,75 @@ button {
   color: #9aa4b2;
 }
 .search-level {
+  min-width: 96px;
   color: #9aa4b2;
+}
+.search-arrow {
+  margin-left: auto;
+  color: #b59758;
+  font-size: 13px;
+  opacity: 0.75;
+}
+.search-button:hover .search-arrow,
+.search-button:focus-visible .search-arrow {
+  opacity: 1;
+}
+
+
+/* ---------- 开发期数据源开关（仅 dev 渲染） ---------- */
+.dev-bar {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 99;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: 520px;
+  padding: 10px 12px;
+  background-color: #10161d;
+  border: 1px solid #2f3844;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+.dev-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #b58b3c;
+}
+.dev-bar--real .dev-dot {
+  background-color: #2fbf71;
+}
+.dev-text {
+  color: #cfd6df;
+}
+.dev-action {
+  padding: 3px 8px;
+  color: #b59758;
+  border: 1px solid #3a4350;
+  border-radius: 4px;
+}
+.dev-action:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+.dev-action:disabled {
+  color: #6c7683;
+  cursor: default;
+}
+.dev-input {
+  width: 100%;
+  padding: 6px 8px;
+  color: #cfd6df;
+  background-color: #0b1015;
+  border: 1px solid #3a4350;
+  border-radius: 4px;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+  resize: vertical;
+}
+.dev-error {
+  color: #e07070;
 }

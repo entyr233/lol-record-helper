@@ -63,6 +63,31 @@ npm run build:app    # 产出 dist/site/index.html —— 可直接打开的演�
 node scripts/sync-static-data.mjs
 ~~~
 
+## 数据源
+
+| 场景 | 数据 | 说明 |
+| --- | --- | --- |
+| 正式使用（油猴脚本） | **真实** | 脚本运行在 wegame 页面内，⟦/api/...⟧ 是同源请求，浏览器自动带登录 cookie |
+| 本地开发 | mock | 用 ⟦sample/*.json⟧ 扩展出的示例数据，在页面右下角有一个数据源状态条 |
+| 本地开发（真实） | **真实** | 在右下角状态条点「粘贴 Cookie」，把浏览器里 wegame 请求的 Cookie 整行贴进去即可，无需重启 |
+
+> 2026 年变更：WeGame 的 ⟦/ioi⟧ 战绩页已下线（404）。用户脚本从「接管整个页面」改为
+> 「任意 WeGame 页面右下角浮动入口 + 全屏面板」，不再依赖宿主 DOM 结构。
+
+### 段位 / LP / 常用英雄
+
+当前使用的 5 个接口（SearchPlayer / GetSummonerInfo / GetBattleReport / GetBattleList / GetBattleDetail）
+**不包含段位字段**。腾讯移动端另有 ⟦get_battle_topbar_info⟧（含段位/常用英雄），但需要 App 级签名，
+浏览器侧不可用。
+
+想确认网页接口族里是否还有段位方法，可用一次真实 cookie 跑探测脚本：
+
+~~~bash
+node scripts/probe-api.mjs "<从浏览器复制的 cookie>"
+~~~
+
+脚本会把「存在的方法」列出来（网关在鉴权后才校验方法名，所以必须有有效 cookie）。
+
 ## 合规与隐私
 
 - 本项目调用 WeGame 的私有接口，非官方授权，接口随时可能变更；仅用于个人查询自己的战绩

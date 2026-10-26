@@ -1,14 +1,15 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { fileURLToPath, URL } from "node:url";
-import { mockApiPlugin } from "./dev/mockServer.ts";
+import { devApiPlugin } from "./dev/mockServer.ts";
+import { devSession } from "./dev/devSession.ts";
 
 // two build modes:
 //   default  -> 独立演示/调试站点 (dist/index.html + assets)
 //   lib      -> 单文件 IIFE，供油猴脚本注入 (dist/lol/lol.umd.js)
 export default defineConfig(({ mode }) => {
   const shared = {
-    plugins: [vue(), mockApiPlugin()],
+    plugins: [vue(), devApiPlugin()],
     resolve: {
       alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) }
     },
@@ -57,7 +58,8 @@ export default defineConfig(({ mode }) => {
                 "user-agent",
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
               );
-              const cookie = process.env.LOL_TFT_COOKIE;
+              // 优先用运行时粘贴的 cookie，其次是环境变量
+              const cookie = devSession.cookie || process.env.LOL_TFT_COOKIE;
               if (cookie) proxyReq.setHeader("cookie", cookie);
             });
           }

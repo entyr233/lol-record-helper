@@ -53,6 +53,10 @@ export function mountLolTft(options: MountOptions = {}): MountedInstance {
     host,
     unmount: () => {
       app.unmount();
+      // createWebHashHistory() 会注册 popstate/hashchange 监听；
+      // 重复注入或测试中多次挂载时，不销毁会互相抢路由。
+      const history = router.options.history as unknown as { destroy?: () => void };
+      if (typeof history.destroy === "function") history.destroy();
       container.remove();
       style.remove();
     }

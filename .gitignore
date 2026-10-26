@@ -4,3 +4,4 @@ cookies
 *.local
 .DS_Store
 .vite
+.lol-tft-cookie*

@@ -7,8 +7,11 @@ const { mountLolTft } = await import("../src/mount");
 
 let host: HTMLElement;
 
-beforeEach(() => {
+beforeEach(async () => {
+  // jsdom 里改 location.hash 会异步派发 hashchange/popstate，
+  // 必须等它排空再挂载，否则会把新 router 的初始导航打回 "/"
   window.location.hash = "";
+  await new Promise((resolve) => setTimeout(resolve, 30));
   installDevLoginMock();
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -40,7 +43,7 @@ describe("整页冒烟（mock 数据）", () => {
   it("进入战绩页后渲染召唤师信息、对局列表与首局详情", async () => {
     const instance = mountLolTft({ host });
     await instance.router.isReady();
-    await instance.router.push({ name: "summary", params: { area: "1", accountType: "2", id: "mock" } });
+    await instance.router.push({ name: "summary", params: { area: "1", accountType: "2", id: "10001" } });
 
     for (let i = 0; i < 10; i++) {
       await flushPromises();
@@ -86,6 +89,42 @@ describe("整页冒烟（mock 数据）", () => {
     expect(text).not.toContain("未能获取登录用户信息");
     expect(instance.router.currentRoute.value.name).toBe("summary");
     expect(text).toContain("测试召唤师（mock）");
+
+    instance.unmount();
+  });
+
+  it("点搜索结果进入对应玩家的战绩页（数据随玩家变化）", async () => {
+    const instance = mountLolTft({ host });
+    await instance.router.isReady();
+    await instance.router.push({ name: "search", params: { nickname: "香辣鸡腿堡" } });
+
+    const shadow = host.shadowRoot as ShadowRoot;
+    let buttons = shadow.querySelectorAll(".search-button");
+    for (let i = 0; i < 60 && buttons.length === 0; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      await flushPromises();
+      buttons = shadow.querySelectorAll(".search-button");
+    }
+    expect(buttons.length).toBe(3);
+    // 结果区要有"可点击去哪"的提示
+    expect(shadow.textContent).toContain("点击其中一位查看战绩");
+
+    (buttons[0] as HTMLElement).click();
+    // 路由跳转涉及懒加载 chunk，用轮询等待
+    for (let i = 0; i < 60 && instance.router.currentRoute.value.name !== "summary"; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      await flushPromises();
+    }
+    expect(instance.router.currentRoute.value.name).toBe("summary");
+
+    for (let i = 0; i < 10; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    const text = shadow.textContent || "";
+    expect(text).toContain("香辣鸡腿堡");
+    expect(text).not.toContain("测试召唤师（mock）");
+    expect(shadow.querySelectorAll(".battle-list-item").length).toBe(10);
 
     instance.unmount();
   });
