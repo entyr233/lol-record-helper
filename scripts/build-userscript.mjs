@@ -12,6 +12,16 @@ if (!existsSync(BUNDLE)) {
   process.exit(1);
 }
 
+// 浏览器里没有 Node 全局：产物中一旦出现这些引用，脚本会在执行阶段直接抛错
+const rawBundle = readFileSync(BUNDLE, "utf8");
+const forbidden = ["process.env", "process.argv", "__dirname", "require("];
+const found = forbidden.filter((token) => rawBundle.includes(token));
+if (found.length > 0) {
+  console.error("构建产物包含浏览器不可用的 Node 引用：" + found.join(", "));
+  console.error("请在 vite.config.ts 的 define 中静态替换后重新构建。");
+  process.exit(1);
+}
+
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const template = readFileSync(TEMPLATE, "utf8");
 const bundle = readFileSync(BUNDLE, "utf8");

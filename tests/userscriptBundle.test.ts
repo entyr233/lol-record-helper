@@ -8,8 +8,15 @@ describe.skipIf(!available)("单文件油猴脚本（构建产物）", () => {
   it("内联 bundle 能执行，并导出 mountLolTft", () => {
     const code = readFileSync(FILE, "utf8");
     // 模拟 Tampermonkey 把整段脚本包在一个函数里执行
-    const factory = new Function(code + "\n;return (typeof LolTft !== 'undefined' ? LolTft : window.LolTft);");
-    const lib = factory() as { mountLolTft?: unknown } | null;
+    // 用形参遮蔽 Node 全局 process/require，模拟真实浏览器环境
+    const factory = new Function(
+      "process",
+      "require",
+      "module",
+      "exports",
+      code + "\n;return (typeof LolTft !== 'undefined' ? LolTft : window.LolTft);"
+    );
+    const lib = factory(undefined, undefined, undefined, undefined) as { mountLolTft?: unknown } | null;
 
     expect(lib).toBeTruthy();
     expect(typeof lib?.mountLolTft).toBe("function");
@@ -22,8 +29,12 @@ describe.skipIf(!available)("单文件油猴脚本（构建产物）", () => {
     // 不再通过 <script src> 加载远端 bundle（bundle 已内联）
     expect(code).not.toContain("BUNDLE_URL");
     expect(code).not.toMatch(/createElement\(["']script["']\)/);
+    // 浏览器环境没有 Node 全局
+    expect(code).not.toContain("process.env");
+    expect(code).not.toContain("__dirname");
 
-    new Function(code)();
+    const run = new Function("process", "require", "module", "exports", code);
+    run(undefined, undefined, undefined, undefined);
     const launcher = document.getElementById("lol-tft-launcher");
     expect(launcher).not.toBeNull();
     expect(launcher?.textContent).toContain("LOL 战绩");

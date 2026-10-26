@@ -10,6 +10,11 @@ import { devSession } from "./dev/devSession.ts";
 export default defineConfig(({ mode }) => {
   const shared = {
     plugins: [vue(), devApiPlugin()],
+    // lib 模式下 Vite 不会自动替换 process.env.NODE_ENV（留给库使用者决定），
+    // 但我们要产出直接在浏览器跑的单文件，必须静态替换掉，否则会 "process is not defined"
+    define: {
+      "process.env.NODE_ENV": JSON.stringify("production")
+    },
     resolve: {
       alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) }
     },
