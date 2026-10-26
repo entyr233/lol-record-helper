@@ -1,13 +1,14 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { fileURLToPath, URL } from "node:url";
+import { mockApiPlugin } from "./dev/mockServer";
 
 // two build modes:
 //   default  -> 独立演示/调试站点 (dist/index.html + assets)
 //   lib      -> 单文件 IIFE，供油猴脚本注入 (dist/lol/lol.umd.js)
 export default defineConfig(({ mode }) => {
   const shared = {
-    plugins: [vue()],
+    plugins: [vue(), mockApiPlugin()],
     resolve: {
       alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) }
     },
