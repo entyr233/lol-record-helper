@@ -63,6 +63,38 @@
     return window.LolTft || null;
   }
 
+  var LOGIN_SDK_URL = "https://www.wegame.com.cn/middle/login/login.sdk.js";
+
+  /** WeGame 登录 SDK 不是每个页面都加载，注入一个（旧版脚本同样依赖它） */
+  function ensureLoginSdk() {
+    return new Promise(function (resolve) {
+      try {
+        var host = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
+        if (host.WegameLogin && host.WegameLogin.default) {
+          resolve(true);
+          return;
+        }
+        var script = document.createElement("script");
+        script.src = LOGIN_SDK_URL;
+        script.async = true;
+        script.onload = function () {
+          resolve(!!(host.WegameLogin && host.WegameLogin.default));
+        };
+        script.onerror = function () {
+          warn("登录 SDK 加载失败（不影响搜索别人的战绩）");
+          resolve(false);
+        };
+        (document.head || document.documentElement).appendChild(script);
+        setTimeout(function () {
+          resolve(!!(host.WegameLogin && host.WegameLogin.default));
+        }, 4000);
+      } catch (error) {
+        warn("登录 SDK 注入异常：", error);
+        resolve(false);
+      }
+    });
+  }
+
   function injectStyle() {
     if (document.getElementById(STYLE_ID)) return;
     var style = document.createElement("style");
@@ -98,8 +130,9 @@
     if (launcher) launcher.style.display = "";
   }
 
-  function openPanel() {
+  async function openPanel() {
     if (loading || overlay) return;
+    loading = true;
     var lib = getLib();
     injectStyle();
 
@@ -116,7 +149,7 @@
     var closeBtn = document.createElement("button");
     closeBtn.type = "button";
     closeBtn.className = "lol-tft-overlay-close";
-    closeBtn.textContent = "关闭 (Esc)";
+    closeBtn.textContent = "✕ 关闭 (Esc)";
     closeBtn.addEventListener("click", closePanel);
     head.appendChild(title);
     head.appendChild(closeBtn);
@@ -130,13 +163,20 @@
 
     if (!lib) {
       host.textContent = "战绩脚本未正确加载：bundle 缺失（请重新构建 userscript）";
+      loading = false;
       return;
     }
     try {
+      host.textContent = "正在准备登录态…";
+      await ensureLoginSdk();
+      host.textContent = "";
       mounted = lib.mountLolTft({ host: host });
+      log("面板已挂载");
     } catch (error) {
       host.textContent = "加载失败：" + (error && error.message ? error.message : String(error));
       console.error("[lol-tft]", error);
+    } finally {
+      loading = false;
     }
   }
 

@@ -1,10 +1,11 @@
-import { createRouter, createWebHashHistory, type Router } from "vue-router";
+import { createMemoryHistory, createRouter, type Router } from "vue-router";
 import { getLoginUser, isSdkAvailable } from "../utils/weGameLogin";
 
 /** 每次挂载都新建 router：避免宿主页面重复注入时复用状态 */
 export function createLolRouter(): Router {
   return createRouter({
-    history: createWebHashHistory(),
+    // 用 memory history：面板是注入到别人页面里的，不应该改写宿主页地址栏
+    history: createMemoryHistory(),
     routes: [
       {
         path: "/",
