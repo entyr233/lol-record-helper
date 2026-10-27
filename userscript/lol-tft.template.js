@@ -15,6 +15,7 @@
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wegame.com.cn
 // @license      ISC
 // @grant        GM_xmlhttpRequest
+// @grant        GM_registerMenuCommand
 // @connect      mlol.qt.qq.com
 // @connect      lol.qq.com
 // @connect      game.gtimg.cn
@@ -41,6 +42,36 @@
   "use strict";
 
   var VERSION = "__VERSION__";
+
+  // ---------- 脚本管理器菜单（ScriptCat / Tampermonkey） ----------
+  // 注册后脚本列表里就能直接看到这些入口，不必进「编辑」界面找链接。
+  var PROJECT_HOME = "https://github.com/entyr233/lol-tft";
+
+  function openProjectUrl(url) {
+    try { window.open(url, "_blank", "noopener"); } catch (e) { /* 忽略 */ }
+  }
+
+  function registerMenuCommands() {
+    var commands = [
+      { title: "打开项目主页", run: function () { openProjectUrl(PROJECT_HOME); } },
+      { title: "反馈 / 问题", run: function () { openProjectUrl(PROJECT_HOME + "/issues"); } }
+    ];
+    try {
+      if (typeof GM_registerMenuCommand === "function") {
+        commands.forEach(function (command) {
+          GM_registerMenuCommand(command.title, command.run);
+        });
+        return;
+      }
+      if (typeof GM !== "undefined" && GM && typeof GM.registerMenuCommand === "function") {
+        commands.forEach(function (command) {
+          GM.registerMenuCommand(command.title, command.run);
+        });
+      }
+    } catch (e) { /* 菜单注册失败不影响主流程 */ }
+  }
+
+  registerMenuCommands();
 
   // ---------- lol.qq.com 桥接侧：替 wegame 面板做同源 mlol 请求 ----------
   // （掌盟接口 CORS 只放行 lol.qq.com；wegame 面板通过隐藏 iframe + postMessage 调用）
