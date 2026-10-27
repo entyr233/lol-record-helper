@@ -306,6 +306,14 @@ button {
   flex: none;
   min-width: 340px;
 }
+.summoner-base .count-row {
+  justify-content: flex-start;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.summoner-base .count-label {
+  min-width: 0;
+}
 .count-row {
   display: flex;
   align-items: baseline;
