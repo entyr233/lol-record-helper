@@ -52,6 +52,10 @@ const props = defineProps<{
   startTime?: number | string;
   /** 选中对局的队列 id（2400 = 海克斯大乱斗：无符文，有海克斯强化） */
   queueId?: number | string;
+  /** 掌盟源模式：详情走掌盟接口（用于 WeGame 侧隐藏战绩的玩家） */
+  mlolSource?: boolean;
+  /** 掌盟源模式下目标玩家的 mlol uuid */
+  mlolUuid?: string;
   mode: "概要" | "技能" | "伤害" | "海克斯";
 }>();
 
@@ -60,6 +64,15 @@ const isHexAram = computed(() => Number(props.queueId) === 2400);
 defineEmits<{ openSummoner: [player: PlayerDetail] }>();
 
 const request = useAsyncData(async (signal) => {
+  // 掌盟源：直接走掌盟详情（不经 wegame 回退链）
+  if (props.mlolSource) {
+    return await fetchMlolBattleDetail({
+      gameId: String(props.gameId ?? ""),
+      areaId: props.area,
+      startTime: props.startTime,
+      uuid: props.mlolUuid ?? ""
+    }, signal) as unknown as GetBattleDetailLike;
+  }
   const rq = toRqOptions({ area: props.area, accountType: props.accountType, id: props.id });
   const trail: string[] = [];
   const codeOf = (error: unknown): string => {
@@ -118,7 +131,7 @@ interface GetBattleDetailLike {
 const detail = computed<BattleDetail | null>(() => request.data.value?.battle_detail ?? null);
 const selfOpenid = computed(() => request.data.value?.openid ?? null);
 /** 掌盟数据源的玩家没有 wegame openid，点击跳转不可用 */
-const canOpenPlayer = computed(() => request.data.value?.openid !== null);
+const canOpenPlayer = computed(() => !props.mlolSource && request.data.value?.openid !== null);
 const loading = request.loading;
 const error = request.error;
 const run = request.run;

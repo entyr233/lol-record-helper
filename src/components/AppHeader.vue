@@ -8,6 +8,8 @@
     <span class="header-divider"></span>
     <button v-if="currentArea" type="button" class="header-button" :disabled="loggingIn" @click="goSelf">我的战绩</button>
     <span class="header-divider"></span>
+    <button type="button" class="header-button" @click="goMlol">掌盟查询</button>
+    <span class="header-divider"></span>
     <button v-if="loggedIn" type="button" class="header-button" @click="handleLogout">注销</button>
     <button v-else type="button" class="header-button header-button--login" :disabled="loggingIn" @click="handleLogin">
       {{ loggingIn ? "等待登录…" : "登录" }}
@@ -106,6 +108,9 @@ function goSelf(): Promise<void> {
     const user = await getLoginUser({ signal });
     await showSelf(user, signal);
   });
+}
+function goMlol(): void {
+  void router.push({ name: "mlol" });
 }
 
 function handleLogin(): Promise<void> {

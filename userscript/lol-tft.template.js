@@ -42,27 +42,42 @@
     return location.hostname === "lol.qq.com";
   }
 
+  function isGetIn(data) { return data.method === "GET"; }
+
   function installBridge() {
     var wegameOriginRe = /^https:\/\/(www\.)?wegame\.com\.cn$/;
     globalThis.addEventListener("message", function (event) {
       if (!wegameOriginRe.test(event.origin)) return;
       var data = event.data;
-      if (!data || data.type !== "lol-tft-detail-request") return;
+      if (!data || (data.type !== "lol-tft-detail-request" && data.type !== "lol-tft-mlol-request")) return;
+      if (!data.id) return;
 
+      var url;
       var form = new FormData();
-      form.append("uuid", data.uuid || "");
-      form.append("area_id", String(data.areaId || ""));
-      form.append("game_id", String(data.gameId || ""));
-      form.append("start_time", String(data.startTime || ""));
+      if (data.type === "lol-tft-detail-request") {
+        url = "https://mlol.qt.qq.com/go/battle_info/get_battle_detail_h5";
+        form.append("uuid", data.uuid || "");
+        form.append("area_id", String(data.areaId || ""));
+        form.append("game_id", String(data.gameId || ""));
+        form.append("start_time", String(data.startTime || ""));
+      } else {
+        // 通用掌盟接口：path 不含 /go 前缀；GET 时 query 参数也放 body 里由桥拼 URL
+        var path = String(data.path || "").replace(/^\/+/, "");
+        var body = data.body || {};
+        var isGet = data.method === "GET";
+        var qs = Object.keys(body).map(function (k) {
+          return encodeURIComponent(k) + "=" + encodeURIComponent(String(body[k]));
+        }).join("&");
+        url = "https://mlol.qt.qq.com/go/" + path + (isGet && qs ? "?" + qs : "");
+        if (!isGet) Object.keys(body).forEach(function (k) { form.append(k, String(body[k])); });
+      }
 
-      fetch("https://mlol.qt.qq.com/go/battle_info/get_battle_detail_h5", {
-        method: "POST",
-        credentials: "include",
-        body: form
-      }).then(function (r) { return r.text(); }).then(function (text) {
-        event.source.postMessage({ type: "lol-tft-detail-response", id: data.id, text: text }, event.origin);
+      var opt = { method: isGetIn(data) ? "GET" : "POST", credentials: "include" };
+      if (opt.method === "POST") opt.body = form;
+      fetch(url, opt).then(function (r) { return r.text(); }).then(function (text) {
+        event.source.postMessage({ type: "lol-tft-mlol-response", id: data.id, text: text }, event.origin);
       }).catch(function (error) {
-        event.source.postMessage({ type: "lol-tft-detail-response", id: data.id, error: String(error && error.message || error) }, event.origin);
+        event.source.postMessage({ type: "lol-tft-mlol-response", id: data.id, error: String(error && error.message || error) }, event.origin);
       });
     });
 

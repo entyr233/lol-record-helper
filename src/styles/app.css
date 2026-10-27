@@ -1202,3 +1202,65 @@ button {
 .stat-sub--kda.well { color: #e6c37a; }
 .stat-sub--kda.normal { color: #8f99a6; }
 .stat-sub--kda.bad { color: #7d8794; }
+
+.mlol-form {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+.mlol-input {
+  flex: 1;
+  padding: 8px 12px;
+  background-color: #1c232d;
+  border: 1px solid #2f3844;
+  border-radius: 4px;
+  color: #e8edf2;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.mlol-btn {
+  padding: 8px 18px;
+  background-color: rgba(181, 151, 88, 0.2);
+  border: 1px solid #b59758;
+  border-radius: 4px;
+  color: #e6c37a;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.mlol-btn:disabled {
+  opacity: 0.5;
+}
+.mlol-players {
+  margin: 8px 0;
+}
+.mlol-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+}
+.mlol-player:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.mlol-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.mlol-name {
+  color: #e8edf2;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 14px;
+}
+.mlol-desc {
+  color: #56606c;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.mlol-loaded {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}

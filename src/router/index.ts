@@ -13,6 +13,7 @@ export function createLolRouter(signal?: AbortSignal): Router {
         children: [
           { path: "", name: "bind-area", component: () => import("../views/BindAreaView.vue") },
           { path: "search/:nickname", name: "search", component: () => import("../views/SearchView.vue"), props: true },
+          { path: "mlol", name: "mlol", component: () => import("../components/MlolQueryView.vue") },
           {
             path: "area/:area",
             name: "area",

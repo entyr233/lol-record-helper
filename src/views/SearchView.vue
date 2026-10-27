@@ -10,7 +10,14 @@
         <button type="button" class="history-clear" @click="clearHistory">清空记录</button>
       </div>
       <p v-if="loading" class="state-text">搜索中…</p>
-      <p v-else-if="error" class="state-text state-text--error">{{ toErrorMessage(error) }}</p>
+      <template v-else-if="error">
+        <p class="state-text state-text--error">{{ toErrorMessage(error) }}</p>
+        <p v-if="isPrivacyError" class="state-text">
+          该玩家可能设置了战绩隐私。可尝试
+          <button type="button" class="link-button" @click="goMlol">掌盟源查询</button>
+          （输入其游戏昵称，掌盟搜索自带访问凭证）
+        </p>
+      </template>
       <template v-else-if="players.length">
         <p class="state-text search-hint">找到 {{ players.length }} 位同名玩家，点击其中一位查看战绩</p>
         <ul class="search-results">
@@ -82,6 +89,17 @@ onMounted(() => {
   rememberName(props.nickname);
   void task.run();
 });
+
+const isPrivacyError = computed(() => {
+  const err = task.error.value;
+  if (!err) return false;
+  const code = (err as { code?: unknown }).code;
+  return code === "8000009" || code === "8000021" || String((err as Error).message).includes("8000009") || String((err as Error).message).includes("8000021");
+});
+
+function goMlol(): void {
+  void router.push({ name: "mlol" });
+}
 
 function openPlayer(player: PlayerSearchResult): void {
   void router.push({

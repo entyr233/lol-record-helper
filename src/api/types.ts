@@ -48,6 +48,8 @@ export interface BattleSummary {
   win_with_less_teammate?: number;
   /** JSON 字符串：对局时段位快照 {"tier":"1","league_points":"43","rank":"1"} */
   game_level?: string;
+  /** 掌盟源对局直接给的模式名（优先于 queue id 映射显示） */
+  game_mode_name?: string;
   [key: string]: unknown;
 }
 
