@@ -46,12 +46,30 @@ describe("BattleListItem", () => {
         index: 3
       }
     });
-    expect(wrapper.text()).toContain("钻石");
+    expect(wrapper.text()).toContain("钻石Ⅱ");
     expect(wrapper.text()).not.toContain("未定级");
   });
 
   it("对局评价标签（battle_type 位掩码）", () => {
     const wrapper = mount(BattleListItem, { props: { battle: makeBattle({ battle_type: 256 }), index: 4 } });
     expect(wrapper.text()).toContain("碾压局");
+  });
+
+  it("LeaverWin 按统一口径显示胜利并带 win 类名", () => {
+    const wrapper = mount(BattleListItem, { props: { battle: makeBattle({ win: "LeaverWin" }), index: 5 } });
+    expect(wrapper.text()).toContain("胜利");
+    expect(wrapper.classes()).toContain("win");
+  });
+
+  it("LeaverFail 按统一口径显示失败并带 lose 类名", () => {
+    const wrapper = mount(BattleListItem, { props: { battle: makeBattle({ win: "LeaverFail" }), index: 6 } });
+    expect(wrapper.text()).toContain("失败");
+    expect(wrapper.classes()).toContain("lose");
+  });
+
+  it("was_early_surrender=1 时即使 win=Win 也优先判为重开", () => {
+    const wrapper = mount(BattleListItem, { props: { battle: makeBattle({ win: "Win", was_early_surrender: 1 }), index: 7 } });
+    expect(wrapper.text()).toContain("重开");
+    expect(wrapper.classes()).toContain("remake");
   });
 });

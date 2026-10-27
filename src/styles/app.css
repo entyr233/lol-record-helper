@@ -111,6 +111,20 @@ button {
   font-size: 11px;
   font-family: Consolas, Monaco, monospace;
 }
+/* 顶栏常驻的项目主页入口（原来只能去脚本编辑页里找链接） */
+.header-link {
+  padding: 6px 10px;
+  color: #8f99a6;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  border-radius: 4px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.header-link:hover {
+  color: #e6c37a;
+  background-color: rgba(255, 255, 255, 0.06);
+}
 .header-spacer {
   flex: 1 1 auto;
 }
@@ -127,6 +141,141 @@ button {
 }
 .header-search input::placeholder {
   color: #7a8390;
+}
+
+/* ---------- 顶栏常驻收藏入口 ---------- */
+.header-favorites {
+  position: relative;
+}
+.header-favorites > summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  color: #b59758;
+  border-radius: 4px;
+  cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+}
+.header-favorites > summary::-webkit-details-marker {
+  display: none;
+}
+.header-favorites > summary:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.header-favorites[open] > summary {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+.favorites-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  width: 240px;
+  max-height: 320px;
+  padding: 6px;
+  overflow: auto;
+  background-color: #1a2026;
+  border: 1px solid #2f3844;
+  border-radius: 6px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+.favorite-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.favorite-open {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 4px;
+  text-align: left;
+}
+.favorite-open:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.favorite-name {
+  overflow: hidden;
+  color: #e8edf2;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.favorite-area {
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.favorite-remove {
+  flex: none;
+  padding: 4px 8px;
+  color: #8f99a6;
+  font-size: 14px;
+  border-radius: 4px;
+}
+.favorite-remove:hover {
+  color: #e07070;
+  background-color: rgba(224, 112, 112, 0.12);
+}
+.favorites-empty {
+  margin: 0;
+  padding: 8px 10px;
+  color: #6c7683;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+/* 收藏分组 / 备注 / 拖拽排序 */
+.favorite-group + .favorite-group {
+  margin-top: 4px;
+}
+.favorite-group-title {
+  margin: 6px 8px 2px;
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.favorite-note {
+  overflow: hidden;
+  color: #8f99a6;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.favorite-note-edit {
+  flex: none;
+  padding: 4px 6px;
+  color: #8f99a6;
+  font-size: 12px;
+  border-radius: 4px;
+}
+.favorite-note-edit:hover {
+  color: #e6c37a;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.favorite-note-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 3px 6px;
+  color: #c6cfda;
+  background-color: #1c232d;
+  border: 1px solid #2f3844;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.favorite-row--dragging {
+  opacity: 0.5;
+}
+.landing-chip-star {
+  margin-right: 2px;
+  color: #e6c37a;
+  font-size: 10px;
 }
 
 /* ---------- layout ---------- */
@@ -166,8 +315,41 @@ button {
 }
 .page--summary {
   max-width: 1440px;
-  min-width: 1080px;
+  /* 不再强制 1080px：窄窗口由下方 1100px 断点接管为单列 */
+  min-width: 0;
   margin: 0 auto;
+}
+/* 正常状态下的刷新入口 + 更新时间（在总览之上，作用于总览与列表） */
+.summary-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  row-gap: 8px;
+  margin-bottom: 10px;
+}
+.summary-updated {
+  color: #6c7683;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.summary-refresh {
+  padding: 6px 14px;
+  color: #b59758;
+  background-color: #242c37;
+  border: 1px solid #2f3844;
+  border-radius: 14px;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.summary-refresh:hover:not(:disabled) {
+  background-color: rgba(181, 151, 88, 0.16);
+  border-color: #b59758;
+}
+.summary-refresh:disabled {
+  color: #56606c;
+  cursor: default;
 }
 .summary-battles {
   display: block;
@@ -229,8 +411,16 @@ button {
 .summoner {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: 20px;
   padding: 8px 0;
+}
+/* 左侧身份：头像 + 昵称/段位/更多资料 */
+.summoner-identity {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
 }
 .summoner-avatar {
   flex: none;
@@ -240,7 +430,8 @@ button {
   overflow: hidden;
 }
 .summoner-base {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
+  min-width: 240px;
 }
 .summoner-name {
   margin: 0 0 12px;
@@ -256,9 +447,65 @@ button {
   color: #6c7683;
   font-size: 12px;
 }
-.summoner-counts {
-  flex: none;
-  min-width: 340px;
+/* 右侧场次统计卡：填满身份区右侧的空白，四类场次横向铺开 */
+.summoner-stats {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  padding: 12px 16px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid #202831;
+  border-radius: 6px;
+}
+.summoner-stats-title {
+  margin: 0 0 6px;
+  color: #56606c;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+/* 四类场次：宽窗口一行铺开，窄窗口自动折行；列宽下限保证数字不被挤到卡片外 */
+.summoner-stat-grid {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 6px 24px;
+  align-content: center;
+  min-width: 0;
+}
+.summoner-stats .count-row {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  min-width: 0;
+  margin: 0;
+}
+.summoner-stats .count-label {
+  min-width: 64px;
+}
+.summoner-stats .count-rate {
+  margin-left: auto;
+  color: #8f99a6;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+/* 统计的加载/失败提示：只在有状态时渲染，不再保留 340px 空占位 */
+.summoner-report {
+  min-height: 0;
+  margin: 2px 0 4px;
+  font-size: 13px;
+}
+.summoner-report--error {
+  color: #e07070;
+}
+.summoner-base .count-row {
+  justify-content: flex-start;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.summoner-base .count-label {
+  min-width: 0;
 }
 .count-row {
   display: flex;
@@ -369,6 +616,26 @@ button {
   gap: 12px;
   min-height: 560px;
 }
+.mode-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.mode-filter-tab {
+  padding: 3px 10px;
+  background-color: #242c37;
+  border: 1px solid #2f3844;
+  border-radius: 12px;
+  color: #9aa4b2;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.mode-filter-tab--cur {
+  background-color: rgba(181, 151, 88, 0.2);
+  border-color: #b59758;
+  color: #e6c37a;
+}
 .battle-list-side {
   display: flex;
   flex: none;
@@ -382,6 +649,60 @@ button {
   padding: 0;
   overflow: auto;
   list-style: none;
+  outline: none;
+}
+.battle-list-items:focus-visible {
+  outline: 1px solid #b59758;
+  outline-offset: -1px;
+}
+/* 加载骨架屏 */
+.battle-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 78px;
+  padding: 10px 24px 10px 6px;
+}
+.skeleton-block,
+.skeleton-line {
+  background: linear-gradient(90deg, #1c232d 25%, #242c37 37%, #1c232d 63%);
+  background-size: 400% 100%;
+  border-radius: 4px;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+.skeleton-block--avatar {
+  flex: none;
+  width: 48px;
+  height: 48px;
+}
+.skeleton-lines {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+}
+.skeleton-line {
+  height: 10px;
+}
+.skeleton-line--short {
+  width: 45%;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+/* 原位重试按钮（首屏失败 / 翻页失败） */
+.list-retry {
+  margin-left: 8px;
+  padding: 2px 10px;
+  color: #e6c37a;
+  border: 1px solid rgba(181, 151, 88, 0.45);
+  border-radius: 10px;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.list-retry:hover {
+  background-color: rgba(181, 151, 88, 0.16);
 }
 .battle-list-detail {
   flex: 1 1 auto;
@@ -394,8 +715,8 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 60px;
-  padding: 4px 6px;
+  min-height: 78px;
+  padding: 10px 24px 10px 6px;
   border-radius: 4px;
   cursor: pointer;
 }
@@ -422,6 +743,15 @@ button {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
+  min-width: 0;
+  gap: 4px;
+  line-height: 1.5;
+}
+.battle-state-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 8px;
 }
 .battle-result {
   font-size: 15px;
@@ -438,6 +768,7 @@ button {
 }
 .battle-state-row2 {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 5px;
 }
@@ -462,6 +793,38 @@ button {
 .battle-time {
   color: #8f99a6;
   font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.battle-time {
+  overflow-wrap: anywhere;
+}
+.battle-kda {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  margin-left: auto;
+}
+.battle-kda-line {
+  color: #e8edf2;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+.battle-kda-line .d {
+  color: #ff6b6b;
+}
+.battle-kda-line i {
+  color: #56606c;
+  font-style: normal;
+  font-weight: 400;
+  margin: 0 3px;
+  font-size: 11px;
+}
+.battle-kda-sub {
+  color: #56606c;
+  font-size: 10px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
 .battle-index {
@@ -557,12 +920,87 @@ button {
 }
 
 /* ---------- player row ---------- */
+
+/* ---------- LeagueAkari 风格概要行：两行式数据块 ---------- */
 .detail-player {
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 44px;
-  padding: 4px 8px;
+  gap: 12px;
+  min-width: 0;
+  min-height: 80px;
+  padding: 8px 12px;
+}
+.dp-spells {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+.dp-mini-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dp-mini-col--hex {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+}
+.dp-stat {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 108px;
+}
+.dp-stat--kda {
+  min-width: 122px;
+}
+.stat-value {
+  color: #e8edf2;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+}
+.stat-value .kill,
+.stat-value .assist {
+  color: #e8edf2;
+}
+.stat-value .death {
+  color: #ff6b6b;
+}
+.stat-value .sep {
+  color: #56606c;
+  font-size: 11px;
+  font-weight: 400;
+  margin: 0 3px;
+}
+.stat-sub {
+  color: #8f99a6;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 12px;
+}
+.dp-crown {
+  position: absolute;
+  top: -4px;
+  left: -3px;
+  font-size: 11px;
+  line-height: 1;
+  z-index: 1;
+}
+.dp-summoner {
+  flex: 0 1 190px;
+  min-width: 140px;
+}
+
+/* 伤害四行柱状 / 技能三行数据需要更高行距，否则相邻行重叠 */
+.detail-player--tall {
+  min-height: 86px;
+}
+.detail-player--mid {
+  min-height: 60px;
 }
 .detail-player:hover {
   background-color: rgba(255, 255, 255, 0.06);
@@ -570,12 +1008,14 @@ button {
 .dp-champion {
   position: relative;
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
 }
 .dp-champion .game-icon {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  border: 1px solid #2f3844;
 }
 .dp-level {
   position: absolute;
@@ -587,7 +1027,20 @@ button {
   font-size: 11px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
-.dp-spells,
+.dp-augment-empty {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #3a4450;
+  border-radius: 3px;
+  background-color: #1c232d;
+}
+/* 掌盟源缺失字段：显示「未提供」，与真实 0 值区分 */
+.dp-missing {
+  color: #6c7683;
+  font-size: 11px;
+  font-style: italic;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
 .dp-runes {
   display: flex;
   flex: none;
@@ -596,9 +1049,9 @@ button {
 }
 .dp-spells .game-icon,
 .dp-runes .game-icon {
-  width: 18px;
-  height: 18px;
-  border-radius: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
   overflow: hidden;
 }
 .dp-runes .game-icon:first-child {
@@ -722,7 +1175,7 @@ button {
 .dp-items {
   display: flex;
   flex: none;
-  gap: 2px;
+  gap: 3px;
 }
 .dp-items .game-icon {
   width: 24px;
@@ -766,7 +1219,7 @@ button {
 }
 .dp-score {
   flex: none;
-  width: 60px;
+  width: 52px;
   color: #b59758;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
   font-size: 18px;
@@ -837,6 +1290,7 @@ button {
   padding: 8px 10px;
   border-radius: 4px;
   text-align: left;
+  cursor: pointer;
 }
 .search-button:hover {
   background-color: rgba(255, 255, 255, 0.08);
@@ -928,4 +1382,833 @@ button {
 }
 .dev-error {
   color: #e07070;
+}
+
+.dp-rank-inline {
+  color: #e6c37a;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.search-history {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.search-history-label {
+  color: #56606c;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.search-history-chip {
+  display: inline-flex;
+  align-items: center;
+  background-color: #242c37;
+  border: 1px solid #2f3844;
+  border-radius: 12px;
+}
+.search-history-chip .chip-main {
+  padding: 3px 4px 3px 10px;
+  color: #9aa4b2;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.search-history-chip--cur,
+.search-history-chip--cur .chip-main {
+  border-color: #b59758;
+  color: #e6c37a;
+}
+.chip-del {
+  padding: 3px 8px 3px 4px;
+  color: #56606c;
+  font-size: 12px;
+}
+.chip-del:hover {
+  color: #ff6b6b;
+}
+.history-clear {
+  padding: 3px 10px;
+  color: #56606c;
+  border: 1px dashed #2f3844;
+  border-radius: 12px;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.history-clear:hover {
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+}
+.copy-name {
+  margin-left: 8px;
+  padding: 1px 8px;
+  background-color: transparent;
+  border: 1px solid #2f3844;
+  border-radius: 3px;
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.copy-name:hover {
+  border-color: #b59758;
+  color: #e6c37a;
+}
+
+.stat-sub--kda.well { color: #e6c37a; }
+.stat-sub--kda.normal { color: #8f99a6; }
+.stat-sub--kda.bad { color: #7d8794; }
+
+.mlol-form {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+.mlol-input {
+  flex: 1;
+  padding: 8px 12px;
+  background-color: #1c232d;
+  border: 1px solid #2f3844;
+  border-radius: 4px;
+  color: #e8edf2;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.mlol-btn {
+  padding: 8px 18px;
+  background-color: rgba(181, 151, 88, 0.2);
+  border: 1px solid #b59758;
+  border-radius: 4px;
+  color: #e6c37a;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.mlol-btn:disabled {
+  opacity: 0.5;
+}
+.mlol-players {
+  margin: 8px 0;
+}
+.mlol-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+}
+.mlol-player:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.mlol-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.mlol-name {
+  color: #e8edf2;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 14px;
+}
+.mlol-desc {
+  color: #56606c;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.mlol-loaded {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ---------- 近期表现总览 ---------- */
+.recent-stats {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+/* 上半区：标题/模式/走势 + 右侧趋势卡与模式分布；用 grid 保证两张卡等高对齐 */
+.recent-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px 240px;
+  gap: 20px;
+  align-items: stretch;
+}
+.recent-top-main {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.recent-side {
+  display: flex;
+  flex: 0 0 240px;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid #202831;
+  border-radius: 6px;
+}
+.recent-side-title {
+  margin: 0 0 6px;
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+/* 走势色块下方：常用英雄 + 组队情况 + 场均摘要，列宽与上半区一致（1fr 240 240），
+   保证上下两行的卡片左右边缘、列分隔线完全对齐 */
+.recent-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px 240px;
+  gap: 20px;
+  align-items: stretch;
+  margin-top: 10px;
+}
+.recent-champs {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: center;
+  gap: 14px;
+  row-gap: 8px;
+  min-width: 0;
+}
+.recent-metrics {
+  flex: 0 0 360px;
+  min-height: 104px;
+  padding: 10px 14px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid #202831;
+  border-radius: 6px;
+}
+.recent-metrics-title {
+  margin: 0 0 6px;
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+/* 六项指标排成 3×2，比 2×3 更矮，和右侧卡片齐平 */
+.recent-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px 12px;
+}
+.recent-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: #8f99a6;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.recent-metric b {
+  color: #e8edf2;
+  font-size: 15px;
+  font-weight: 700;
+}
+/* 模式分布卡：各队列场次占比条 */
+.recent-queues {
+  display: flex;
+  flex: 0 0 240px;
+  flex-direction: column;
+  min-height: 104px;
+  padding: 10px 14px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid #202831;
+  border-radius: 6px;
+}
+.recent-queues-title {
+  margin: 0 0 8px;
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+/* 组队情况卡：单排/双排/三黑…占比 */
+.recent-teams {
+  flex: 0 0 200px;
+  min-height: 104px;
+  padding: 10px 14px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid #202831;
+  border-radius: 6px;
+}
+.recent-teams-title {
+  margin: 0 0 8px;
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+/* 走势色块两端的时间标注：左=最早，右=最新 */
+.recent-strip-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.strip-end {
+  flex: none;
+  color: #56606c;
+  font-size: 10px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  white-space: nowrap;
+}
+.recent-queue-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 11px;
+}
+.recent-queue-row:last-child {
+  margin-bottom: 0;
+}
+.recent-queue-name {
+  flex: 0 0 64px;
+  overflow: hidden;
+  color: #9aa4b2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent-queue-track {
+  flex: 1 1 auto;
+  height: 6px;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+}
+.recent-queue-fill {
+  display: block;
+  height: 100%;
+  background-color: #b59758;
+  border-radius: 3px;
+}
+.recent-queue-count {
+  flex: none;
+  color: #8f99a6;
+}
+.recent-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.recent-title {
+  color: #9aa4b2;
+  font-size: 13px;
+}
+.recent-wl {
+  color: #9aa4b2;
+  font-size: 14px;
+}
+.recent-wl .w { color: #4cd4a0; font-size: 20px; margin-right: 2px; }
+.recent-wl .l { color: #ff6b6b; font-size: 20px; margin: 0 2px; }
+.recent-remake {
+  color: #8f99a6;
+  font-size: 13px;
+}
+.recent-wr {
+  color: #e6c37a;
+  font-size: 20px;
+  font-weight: 700;
+}
+.recent-kda {
+  color: #e8edf2;
+  font-size: 20px;
+  font-weight: 700;
+}
+.recent-streak {
+  padding: 2px 10px;
+  background-color: rgba(230, 195, 122, 0.15);
+  border-radius: 10px;
+  color: #e6c37a;
+  font-size: 12px;
+}
+.recent-streak--lose {
+  background-color: rgba(224, 112, 112, 0.16);
+  color: #e07070;
+}
+.recent-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 8px 0;
+}
+/* 色块：18×6 的视觉细条 + 20×18 的透明热区（按钮本体无背景） */
+.strip-block {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  background: none;
+  border-radius: 3px;
+}
+.strip-bar {
+  display: block;
+  width: 18px;
+  height: 6px;
+  border-radius: 2px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.strip-bar--win {
+  background-color: #1dbaa9;
+}
+.strip-bar--lose {
+  background-color: #c15b5b;
+}
+.strip-bar--remake {
+  background-color: #6c7683;
+}
+.strip-block:hover .strip-bar {
+  transform: scaleY(1.8);
+}
+.strip-block--cur {
+  background-color: rgba(230, 195, 122, 0.12);
+}
+.strip-block--cur .strip-bar {
+  box-shadow: 0 0 0 1px #e6c37a;
+}
+/* 近期表现的模式切换（复用列表筛选 chip 的样式，只收一下上边距） */
+.recent-modes {
+  margin: 0 0 8px;
+}
+.recent-empty {
+  margin: 4px 0 0;
+  color: #8f99a6;
+  font-size: 13px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.recent-error {
+  margin: 8px 0 0;
+}
+/* 累计胜率迷你折线（左旧右新） */
+.recent-trend {
+  display: flex;
+  align-items: center;
+  margin: 2px 0 2px;
+}
+.recent-trend-chart {
+  display: block;
+}
+.recent-trend-chart svg {
+  display: block;
+}
+.trend-baseline {
+  stroke: rgba(255, 255, 255, 0.14);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.trend-line {
+  fill: none;
+  stroke: #e6c37a;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.trend-dot {
+  fill: #1dbaa9;
+}
+.recent-trend-dates {
+  display: block;
+  margin-top: 4px;
+  color: #56606b;
+  font-size: 10px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.recent-champs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  row-gap: 6px;
+}
+.recent-champ-filter-clear {
+  padding: 3px 9px;
+  color: #e6c37a;
+  background-color: rgba(181, 151, 88, 0.14);
+  border: 1px solid rgba(181, 151, 88, 0.45);
+  border-radius: 10px;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.recent-champ-filter-clear:hover {
+  background-color: rgba(181, 151, 88, 0.26);
+}
+.recent-champs-label {
+  color: #56606c;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.recent-champ {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.recent-champ .game-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.recent-champ-meta {
+  color: #9aa4b2;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+/* ---------- 首页（明确入口） ---------- */
+.page--landing {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 26px 30px;
+}
+.landing-sub {
+  margin-top: -8px;
+  color: #56606c;
+  font-size: 13px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.landing-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.landing-primary {
+  padding: 10px 26px;
+  background-color: rgba(181, 151, 88, 0.2);
+  border: 1px solid #b59758;
+  border-radius: 6px;
+  color: #e6c37a;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+}
+.landing-primary:disabled {
+  opacity: 0.45;
+}
+.landing-hint {
+  color: #56606c;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.landing-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 12px;
+}
+.landing-label {
+  margin-bottom: 8px;
+  color: #56606c;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.landing-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.landing-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 14px;
+  background-color: #242c37;
+  border: 1px solid #2f3844;
+  border-radius: 6px;
+  text-align: left;
+}
+.landing-chip--fav {
+  border-color: rgba(181, 151, 88, 0.45);
+}
+.landing-chip-name {
+  color: #e8edf2;
+  font-size: 13px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.landing-chip-area {
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.fav-star {
+  padding: 2px 6px;
+  color: #56606c;
+  font-size: 15px;
+}
+.fav-star--on {
+  color: #e6c37a;
+}
+
+/* ---------- 详情工具栏（页签+排序在右侧详情头部） ---------- */
+.detail-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+/* ---------- 窄窗口：单列 + 详情后置 ---------- */
+@media (max-width: 1100px) {
+  .page--summary {
+    min-width: 0;
+  }
+  .shell-content {
+    padding: 18px 20px 48px;
+  }
+  .app-header {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 75px;
+    padding: 8px 12px;
+    row-gap: 6px;
+  }
+  .summoner {
+    flex-wrap: wrap;
+  }
+  .summoner-identity {
+    width: 100%;
+  }
+  .summoner-base {
+    min-width: 0;
+  }
+  .summoner-stats {
+    max-width: none;
+    width: 100%;
+    margin-left: 0;
+  }
+  .summary-toolbar {
+    justify-content: flex-start;
+  }
+  .recent-stats {
+    flex-direction: column;
+    gap: 12px;
+  }
+  /* 窄窗口：主内容占满一行，卡片两两并排；再窄时单列 */
+  .recent-top {
+    grid-template-columns: 1fr 1fr;
+  }
+  .recent-top-main {
+    grid-column: 1 / -1;
+  }
+  .recent-bottom {
+    grid-template-columns: 1fr 1fr;
+  }
+  .recent-champs {
+    grid-column: 1 / -1;
+  }
+  .recent-metrics {
+    grid-column: 1 / -1;
+  }
+  .recent-headline {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .battle-list-body {
+    flex-direction: column;
+  }
+  .battle-list-side {
+    width: auto !important;
+    max-height: none !important;
+  }
+  .battle-list-detail {
+    min-width: 0 !important;
+  }
+  .detail-player {
+    min-height: 72px;
+    padding: 6px 10px;
+    gap: 10px;
+  }
+  .dp-stat {
+    min-width: 84px;
+  }
+  .dp-stat--kda {
+    min-width: 96px;
+  }
+  .dp-items .game-icon {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+/* ---------- 更窄的窗口：收紧内边距，顶栏与弹层靠右 ---------- */
+@media (max-width: 760px) {
+  .shell-content {
+    padding: 14px 12px 40px;
+  }
+  .summoner-avatar {
+    width: 76px;
+    height: 76px;
+  }
+  .header-search input {
+    width: 120px;
+  }
+  .header-divider {
+    display: none;
+  }
+  .header-favorites .favorites-pop {
+    left: auto;
+    right: 0;
+  }
+}
+
+.detail-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  row-gap: 4px;
+  margin-bottom: 8px;
+}
+.detail-summary .game-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.detail-summary-result {
+  color: #e8edf2;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+.detail-summary-result--win {
+  color: #09a95b;
+}
+.detail-summary-result--lose {
+  color: #db4c4c;
+}
+.detail-summary-result--remake {
+  color: #dddddd;
+}
+.detail-summary-name {
+  color: #b59758;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+}
+.detail-summary-meta {
+  color: #8f99a6;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 12px;
+}
+/* 数据来源徽标：WeGame / 掌盟公开数据 */
+.detail-source {
+  padding: 1px 8px;
+  color: #8f99a6;
+  border: 1px solid #2f3844;
+  border-radius: 10px;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.detail-source--mlol {
+  color: #e6c37a;
+  background-color: rgba(181, 151, 88, 0.1);
+  border-color: rgba(181, 151, 88, 0.5);
+}
+.detail-source-note {
+  color: #6c7683;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+/* 详情失败态：原因 + 操作 + 来源诊断 */
+.detail-error {
+  display: block;
+}
+.detail-error-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+.detail-error-hint {
+  margin: 0 0 6px;
+  color: #cfd6df;
+  font-size: 12px;
+}
+.detail-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.detail-error-debug {
+  margin-top: 8px;
+  color: #8f99a6;
+  font-size: 11px;
+}
+.detail-error-debug summary {
+  cursor: pointer;
+}
+.detail-error-trail {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: #6c7683;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+.mode-filter-select,
+.sort-select {
+  padding: 5px 10px;
+  background-color: #1c232d;
+  border: 1px solid #2f3844;
+  border-radius: 4px;
+  color: #c6cfda;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 12px;
+}
+.mode-filter-select option,
+.sort-select option {
+  background-color: #1c232d;
+  color: #c6cfda;
+}
+
+/* ---------- 交互补充：列表提示 + 键盘可达 ---------- */
+.list-notice {
+  margin: 0 0 6px;
+  padding: 4px 8px;
+  color: #e6c37a;
+  background-color: rgba(181, 151, 88, 0.12);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.strip-block:focus-visible,
+.fav-star:focus-visible,
+.favorite-open:focus-visible,
+.favorite-remove:focus-visible,
+.header-favorites > summary:focus-visible,
+.landing-chip:focus-visible,
+.recent-champ:focus-visible {
+  outline: 1px solid #b59758;
+  outline-offset: 1px;
+}
+/* 统一键盘焦点样式：Shadow DOM 内按钮/链接/输入/下拉都能看到焦点 */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid rgba(230, 195, 122, 0.7);
+  outline-offset: 2px;
+}
+/* 空态引导：给出下一步操作 */
+.battle-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.search-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.search-empty-hint {
+  color: #6c7683;
+  font-size: 12px;
 }

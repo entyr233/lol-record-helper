@@ -1,68 +1,82 @@
 <template>
-  <div class="detail-player" :class="{ 'detail-player--self': isSelf }">
+  <div class="detail-player" :class="{ 'detail-player--self': isSelf, 'detail-player--tall': mode === '伤害', 'detail-player--mid': mode === '技能' }">
     <span class="dp-champion">
       <GameIcon kind="champion" :id="player.championId" />
+      <span v-if="isTopDamage" class="dp-crown" title="全场输出最高">👑</span>
       <span class="dp-level" title="英雄等级">{{ player.level }}</span>
     </span>
 
     <span class="dp-spells">
-      <GameIcon kind="summon-spell" :id="player.summonSpell1Id" />
-      <GameIcon kind="summon-spell" :id="player.summonSpell2Id" />
-    </span>
-
-    <span class="dp-runes">
-      <GameIcon v-if="player.perkStyleUrl" kind="url" id="keystone" :src="player.perkStyleUrl" />
-      <GameIcon v-else kind="rune" :id="player.keystoneId" />
-      <GameIcon kind="rune" :id="player.perkSubStyle" />
+      <span class="dp-mini-col">
+        <GameIcon kind="summon-spell" :id="player.summonSpell1Id" />
+        <GameIcon kind="summon-spell" :id="player.summonSpell2Id" />
+      </span>
+      <span v-if="!hexAram" class="dp-mini-col">
+        <span v-if="runeMissing" class="dp-missing" :title="MISSING_TITLE">符文未提供</span>
+        <template v-else>
+          <GameIcon v-if="player.perkStyleUrl" kind="url" id="keystone" :src="player.perkStyleUrl" />
+          <GameIcon v-else kind="rune" :id="player.keystoneId ?? 0" />
+          <GameIcon kind="rune" :id="player.perkSubStyle ?? 0" />
+        </template>
+      </span>
+      <span v-else class="dp-mini-col dp-mini-col--hex" title="海克斯强化">
+        <template v-for="slot in augmentSlots.slice(0, 3)" :key="slot.id">
+          <GameIcon v-if="slot.icon" kind="url" :id="String(slot.id)" :src="slot.icon" :title="slot.name" />
+          <span v-else class="dp-augment-empty" :data-level="slot.level" />
+        </template>
+      </span>
     </span>
 
     <span class="dp-summoner">
       <button type="button" class="dp-name" @click="$emit('openSummoner', player)">{{ decodedName }}</button>
-      <span v-if="tierLabel" class="tag tag--tier" :title="tierLabel">{{ tierLabel }}</span>
       <span class="dp-tags">
-        <span v-if="teamLabel" class="tag tag--team">{{ teamLabel }}</span>
         <span v-if="player.battleHonour?.isSvp" class="tag tag--svp">SVP</span>
         <span v-if="player.battleHonour?.isMvp" class="tag tag--mvp">MVP</span>
         <span v-if="player.wasAfk" class="tag tag--afk">逃跑</span>
         <span v-if="player.battleHonour?.isPentaKills" class="tag tag--penta">
           五杀<template v-if="(player.pentaKills || 0) > 1">×{{ player.pentaKills }}</template>
         </span>
+        <span v-if="tierLabel" class="tag tag--tier" :title="tierLabel">{{ tierLabel }}</span>
+        <span v-if="teamLabel" class="tag tag--team">{{ teamLabel }}</span>
       </span>
+      <!-- 排序名次内联在昵称下方：不再单独占一列，避免窄窗口横向溢出 -->
+      <span v-if="rankInfo" class="dp-rank-inline">No.{{ rankInfo.rank }} · {{ rankInfo.label }}</span>
     </span>
 
     <template v-if="mode === '概要'">
-      <span class="dp-bars">
-        <Histogram
-          :value="player.totalDamageToChampions"
-          :max="maxValues.totalDamageToChampions"
-          color="#1dbaa9"
-          :text="formatThousands(player.totalDamageToChampions)"
-          :highlight="isTop('totalDamageToChampions')"
-        />
-        <Histogram
-          :value="player.totalDamageTaken"
-          :max="maxValues.totalDamageTaken"
-          color="#cccccc"
-          :text="formatThousands(player.totalDamageTaken)"
-          :highlight="isTop('totalDamageTaken')"
-        />
-      </span>
-      <span v-if="mode === '概要'" class="dp-misc">
-        <span class="dp-misc-line" title="补刀">补刀 {{ player.minionsKilled ?? "-" }}</span>
-        <span class="dp-misc-line" title="经济">经济 {{ formatThousands(player.goldEarned) }}</span>
-      </span>
-      <span class="dp-kda">
-        <span class="dp-kda-number">
-          <span class="kill">{{ player.championsKilled }}</span>
-          <span class="sep">/</span>
-          <span class="death">{{ player.numDeaths }}</span>
-          <span class="sep">/</span>
-          <span class="assist">{{ player.assists }}</span>
+      <span class="dp-stat dp-stat--kda" title="击杀/死亡/助攻">
+        <span class="stat-value">
+          <b class="kill">{{ player.championsKilled }}</b><i>/</i><b class="death">{{ player.numDeaths }}</b><i>/</i><b class="assist">{{ player.assists }}</b>
         </span>
-        <span class="dp-kda-ratio" :class="kdaClass">{{ kdaText }}</span>
+        <span class="stat-sub stat-sub--kda" :class="kdaClass">{{ kdaText }} · 参与{{ killParticipation }}%</span>
+      </span>
+      <span class="dp-stat" title="伤害占团队比例">
+        <template v-if="hasValue(player.totalDamageToChampions)">
+          <span class="stat-value">{{ damageShare }}%</span>
+          <span class="stat-sub">{{ formatThousands(player.totalDamageToChampions) }} 伤害</span>
+        </template>
+        <span v-else class="stat-value dp-missing" :title="MISSING_TITLE">未提供</span>
+      </span>
+      <span class="dp-stat" title="补刀/经济">
+        <span v-if="economyMissing" class="stat-value dp-missing" :title="MISSING_TITLE">未提供</span>
+        <template v-else>
+          <span
+            class="stat-value"
+            :class="{ 'dp-missing': !hasValue(player.minionsKilled) }"
+            :title="hasValue(player.minionsKilled) ? undefined : MISSING_TITLE"
+          >{{ hasValue(player.minionsKilled) ? player.minionsKilled : "未提供" }}</span>
+          <span
+            class="stat-sub"
+            :class="{ 'dp-missing': !hasValue(player.goldEarned) }"
+            :title="hasValue(player.goldEarned) ? undefined : MISSING_TITLE"
+          >{{ hasValue(player.goldEarned) ? "经济 " + formatThousands(player.goldEarned) : "经济 未提供" }}</span>
+        </template>
       </span>
       <span class="dp-items">
-        <GameIcon v-for="itemId in itemSlots" :key="itemId" kind="item" :id="itemId" />
+        <span v-if="itemsMissing" class="dp-missing" :title="MISSING_TITLE">装备未提供</span>
+        <template v-else>
+          <GameIcon v-for="itemId in itemSlots" :key="itemId" kind="item" :id="itemId ?? 0" />
+        </template>
       </span>
     </template>
 
@@ -89,35 +103,39 @@
       </span>
     </template>
 
-    <template v-else>
+    <template v-else-if="mode === '伤害'">
       <span class="dp-damage">
         <Histogram
-          :value="player.totalDamageToChampions"
+          :value="damageValue('totalDamageToChampions')"
           :max="maxValues.totalDamageToChampions"
           color="#c85f13"
-          :text="formatThousands(player.totalDamageToChampions)"
+          :text="damageText('totalDamageToChampions')"
           :highlight="isTop('totalDamageToChampions')"
+          :title="damageTitle('totalDamageToChampions', '对英雄总伤害')"
         />
         <Histogram
-          :value="player.magicDamageToChampions"
+          :value="damageValue('magicDamageToChampions')"
           :max="maxValues.magicDamageToChampions"
           color="#7574c9"
-          :text="formatThousands(player.magicDamageToChampions)"
+          :text="damageText('magicDamageToChampions')"
           :highlight="isTop('magicDamageToChampions')"
+          :title="damageTitle('magicDamageToChampions', '魔法伤害')"
         />
         <Histogram
-          :value="player.physicalDamageToChampions"
+          :value="damageValue('physicalDamageToChampions')"
           :max="maxValues.physicalDamageToChampions"
           color="#009cda"
-          :text="formatThousands(player.physicalDamageToChampions)"
+          :text="damageText('physicalDamageToChampions')"
           :highlight="isTop('physicalDamageToChampions')"
+          :title="damageTitle('physicalDamageToChampions', '物理伤害')"
         />
         <Histogram
-          :value="player.trueDemageToChampions"
+          :value="damageValue('trueDemageToChampions')"
           :max="maxValues.trueDemageToChampions"
           color="#cccccc"
-          :text="formatThousands(player.trueDemageToChampions)"
+          :text="damageText('trueDemageToChampions')"
           :highlight="isTop('trueDemageToChampions')"
+          :title="damageTitle('trueDemageToChampions', '真实伤害')"
         />
       </span>
     </template>
@@ -131,9 +149,10 @@ import { computed } from "vue";
 import GameIcon from "./GameIcon.vue";
 import Histogram from "./Histogram.vue";
 import type { PlayerDetail } from "../api/types";
-import { getTeamMadeName } from "../const/queues";
+import { getTeamMadeLabel } from "../const/queues";
 import { tierName } from "../const/tiers";
 import { formatGameScore, formatThousands, kdaRatio } from "../utils/format";
+import augmentMap from "../data/kiwi-augments.json";
 
 type DamageKey =
   | "totalDamageToChampions"
@@ -147,9 +166,35 @@ const props = defineProps<{
   players: PlayerDetail[];
   mode: "概要" | "技能" | "伤害";
   isSelf?: boolean;
+  /** 是否排位类队列：排位用单排/双排，其他模式用单人/双人开黑 */
+  ranked?: boolean;
+  /** 海克斯大乱斗（2400）：无符文，改显海克斯强化 */
+  hexAram?: boolean;
+  /** 排序模式的行内名次与对应数值 */
+  rankInfo?: { rank: number; label: string } | null;
+  /** 来源字段不完整（掌盟公开源等）：缺失字段显示「未提供」，不冒充 0 */
+  partial?: boolean;
 }>();
 
 defineEmits<{ openSummoner: [player: PlayerDetail] }>();
+
+/** 缺失字段的统一悬浮说明 */
+const MISSING_TITLE = "掌盟源未提供该字段";
+
+/** 字段是否有真实值：undefined/null 视为未提供，0 是有效值 */
+function hasValue(value: number | null | undefined): boolean {
+  return value !== null && value !== undefined && Number.isFinite(Number(value));
+}
+
+function damageValue(key: DamageKey): number {
+  return hasValue(props.player[key]) ? Number(props.player[key]) : 0;
+}
+function damageText(key: DamageKey): string {
+  return hasValue(props.player[key]) ? formatThousands(props.player[key]) : "";
+}
+function damageTitle(key: DamageKey, label: string): string {
+  return hasValue(props.player[key]) ? label : "未提供";
+}
 
 const DAMAGE_KEYS: DamageKey[] = [
   "totalDamageToChampions",
@@ -176,6 +221,18 @@ const maxValues = computed(() => {
   return result;
 });
 
+const AUGMENTS = augmentMap as Record<string, { name: string; icon: string; level: string }>;
+const augmentSlots = computed(() => {
+  const slots: Array<{ id: number; name: string; icon: string; level: string }> = [];
+  for (const key of ["playerAugment1", "playerAugment2", "playerAugment3", "playerAugment4", "playerAugment5", "playerAugment6"] as const) {
+    const id = Number(props.player[key] ?? 0);
+    if (!Number.isFinite(id) || id === 0) continue;
+    const info = AUGMENTS[String(id)];
+    slots.push({ id, name: info?.name ?? "", icon: info?.icon ?? "", level: info?.level ?? "" });
+  }
+  return slots;
+});
+
 const decodedName = computed(() => {
   try {
     return decodeURIComponent(props.player.name || "");
@@ -184,7 +241,15 @@ const decodedName = computed(() => {
   }
 });
 
-const teamLabel = computed(() => getTeamMadeName(props.player.teamMadeSize) ?? "");
+/** 来源字段是否不完整：详情来源标记或玩家自带标记任一为真即视为不完整 */
+const isPartial = computed(() => props.partial === true || props.player.partial === true);
+const teamLabel = computed(() => {
+  // 组队人数未知（undefined/null）或非正数时不显示徽标，不再用「单人」冒充
+  if (!hasValue(props.player.teamMadeSize)) return "";
+  const size = Number(props.player.teamMadeSize);
+  if (size <= 0) return "";
+  return getTeamMadeLabel(size, props.ranked ?? false) ?? "";
+});
 const tierLabel = computed(() => {
   const gl = props.player.gameLevel;
   if (!gl || !gl.tier || tierName(gl.tier) === "未定级") return "";
@@ -200,11 +265,42 @@ const itemSlots = computed(() => [
   props.player.item5,
   props.player.item6
 ]);
+/** 装备位全空（7 格都缺失或为 0）且来源字段不完整 → 显示「装备未提供」 */
+const itemsMissing = computed(() => isPartial.value && !itemSlots.value.some((id) => Number(id ?? 0) > 0));
+/** 补刀与经济同时缺失：整列只显示一次「未提供」，避免重复 */
+const economyMissing = computed(() => !hasValue(props.player.minionsKilled) && !hasValue(props.player.goldEarned));
+/** 符文全部缺失（无基石图标、无基石/副系 id）且来源字段不完整 → 显示「符文未提供」 */
+const runeMissing = computed(
+  () =>
+    isPartial.value &&
+    !props.player.perkStyleUrl &&
+    !(Number(props.player.keystoneId ?? 0) > 0) &&
+    !(Number(props.player.perkSubStyle ?? 0) > 0)
+);
 
 const kda = computed(() => kdaRatio(props.player.championsKilled, props.player.numDeaths, props.player.assists));
 const kdaText = computed(() => kda.value.toFixed(2) + " : 1");
 const kdaClass = computed(() => (kda.value >= 5 ? "well" : kda.value >= 3 ? "normal" : "bad"));
 const gameScore = computed(() => formatGameScore(props.player.gameScore));
+
+/** LeagueAkari 风格：参与击杀率与伤害团队占比（按同队 10 人内数据归一） */
+const teamKills = computed(() =>
+  props.players.filter((p) => p.teamId === props.player.teamId).reduce((sum, p) => sum + (p.championsKilled || 0), 0)
+);
+const killParticipation = computed(() => {
+  const tk = teamKills.value;
+  if (!tk) return 0;
+  return Math.round(((props.player.championsKilled + props.player.assists) / tk) * 100);
+});
+const teamDamage = computed(() =>
+  props.players.filter((p) => p.teamId === props.player.teamId).reduce((sum, p) => sum + (p.totalDamageToChampions || 0), 0)
+);
+const damageShare = computed(() => {
+  const td = teamDamage.value;
+  if (!td) return 0;
+  return Math.round(((props.player.totalDamageToChampions || 0) / td) * 100);
+});
+const isTopDamage = computed(() => isTop("totalDamageToChampions"));
 
 const activeSpells = computed(() => [
   { key: "q", label: "Q", count: props.player.spell1Cast },

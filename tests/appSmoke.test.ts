@@ -70,6 +70,9 @@ describe("整页冒烟（mock 数据）", () => {
     expect(shadow.querySelectorAll(".detail-player")).toHaveLength(10);
     expect(text).toContain("蓝方");
     expect(text).toContain("红方");
+    // 摘要里的英雄图标必须真的解析成组件（此前漏 import，图标静默不渲染）
+    expect(shadow.querySelectorAll(".detail-summary .game-icon--champion")).toHaveLength(1);
+    expect(shadow.querySelector(".detail-summary-name")?.textContent).toBeTruthy();
 
     instance.unmount();
   });
@@ -151,6 +154,140 @@ describe("整页冒烟（mock 数据）", () => {
     }
   });
 
+  it("切换排序后名次内联展示，不再出现独立名次列", async () => {
+    const instance = mountLolTft({ host });
+    await instance.router.isReady();
+    await instance.router.push({ name: "summary", params: { area: "1", accountType: "2", id: "10001" } });
+    for (let i = 0; i < 10; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    const shadow = host.shadowRoot as ShadowRoot;
+    const sortSelect = shadow.querySelector(".sort-select") as HTMLSelectElement | null;
+    expect(sortSelect).not.toBeNull();
+    sortSelect!.value = "damage";
+    sortSelect!.dispatchEvent(new Event("change"));
+    for (let i = 0; i < 10; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    // 名次 + 对应数值内联在昵称下方，避免多占一列把内容挤出面板
+    expect(shadow.querySelectorAll(".dp-rank-inline").length).toBe(10);
+    expect(shadow.querySelector(".dp-rank")).toBeNull();
+    instance.unmount();
+  });
+
+  it("顶栏提供 GitHub 主页入口", async () => {
+    const instance = mountLolTft({ host });
+    await instance.router.isReady();
+    await flushPromises();
+
+    const shadow = host.shadowRoot as ShadowRoot;
+    const link = shadow.querySelector(".header-link") as HTMLAnchorElement | null;
+    expect(link).not.toBeNull();
+    expect(link!.getAttribute("href")).toBe("https://github.com/entyr233/lol-tft");
+    expect(link!.getAttribute("target")).toBe("_blank");
+    expect(link!.getAttribute("rel")).toContain("noopener");
+    instance.unmount();
+  });
+
+  it("列表时间范围筛选会同步总览统计（近 7 天）", async () => {
+    const instance = mountLolTft({ host });
+    await instance.router.isReady();
+    await instance.router.push({ name: "summary", params: { area: "1", accountType: "2", id: "10001" } });
+    for (let i = 0; i < 10; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    const shadow = host.shadowRoot as ShadowRoot;
+    const selects = Array.from(shadow.querySelectorAll<HTMLSelectElement>(".mode-filter-select"));
+    const daysSelect = selects.find((select) =>
+      Array.from(select.options).some((option) => option.textContent?.includes("最近 7 天"))
+    );
+    expect(daysSelect).toBeTruthy();
+    daysSelect!.value = "7";
+    daysSelect!.dispatchEvent(new Event("change"));
+    for (let i = 0; i < 20; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    expect(shadow.querySelector(".recent-title")?.textContent).toContain("近 7 天");
+    expect(shadow.querySelector(".sample-note")?.textContent).toContain("符合条件");
+    instance.unmount();
+  });
+
+  it("总览与列表的模式筛选双向联动", async () => {
+    const instance = mountLolTft({ host });
+    await instance.router.isReady();
+    await instance.router.push({ name: "summary", params: { area: "1", accountType: "2", id: "10001" } });
+    for (let i = 0; i < 10; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    const shadow = host.shadowRoot as ShadowRoot;
+    const overviewChips = () => Array.from(shadow.querySelectorAll<HTMLElement>(".recent-modes .mode-filter-tab"));
+    const listTabs = () => Array.from(shadow.querySelectorAll<HTMLElement>(".battle-list-side .mode-filter-tab"));
+    const activeText = (items: HTMLElement[]) => items.find((item) => item.classList.contains("mode-filter-tab--cur"))?.textContent?.trim();
+
+    // 总览点「大乱斗」→ 列表模式切到同一项
+    overviewChips().find((chip) => chip.textContent?.trim() === "大乱斗")!.click();
+    for (let i = 0; i < 15; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(activeText(listTabs())).toBe("大乱斗");
+    expect(shadow.querySelector(".sample-note")?.textContent).toContain("符合条件");
+
+    // 列表点「单双排」→ 总览模式与统计标题跟随
+    listTabs().find((tab) => tab.textContent?.trim() === "单双排")!.click();
+    for (let i = 0; i < 15; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(activeText(overviewChips())).toBe("单双排");
+    expect(shadow.querySelector(".recent-title")?.textContent).toContain("单双排");
+
+    instance.unmount();
+  });
+
+  it("正常状态下「刷新战绩」可点击，显示更新时间并保留当前查看的比赛", async () => {
+    const instance = mountLolTft({ host });
+    await instance.router.isReady();
+    await instance.router.push({ name: "summary", params: { area: "1", accountType: "2", id: "10001" } });
+    for (let i = 0; i < 10; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    const shadow = host.shadowRoot as ShadowRoot;
+    const refreshButton = shadow.querySelector(".summary-refresh") as HTMLButtonElement | null;
+    expect(refreshButton).not.toBeNull();
+    expect(refreshButton!.disabled).toBe(false);
+    expect(shadow.querySelector(".summary-updated")?.textContent).toMatch(/更新于 \d{2}:\d{2}/);
+
+    const before = (shadow.querySelector(".battle-list-item.selected") as HTMLElement | null)?.getAttribute("data-game-id");
+    expect(before).toBeTruthy();
+
+    refreshButton!.click();
+    for (let i = 0; i < 20; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    // 刷新后：仍停在原来那场比赛，详情与更新时间都在
+    const after = (shadow.querySelector(".battle-list-item.selected") as HTMLElement | null)?.getAttribute("data-game-id");
+    expect(after).toBe(before);
+    expect(shadow.querySelector(".summary-updated")?.textContent).toMatch(/更新于 \d{2}:\d{2}/);
+    expect(refreshButton!.disabled).toBe(false);
+    expect(shadow.querySelectorAll(".detail-player")).toHaveLength(10);
+    instance.unmount();
+  });
+
   it("切换「技能」tab 后渲染技能释放次数区", async () => {
     const instance = mountLolTft({ host });
     await instance.router.isReady();
@@ -167,6 +304,70 @@ describe("整页冒烟（mock 数据）", () => {
     await flushPromises();
 
     expect(shadow.querySelectorAll(".cast").length).toBeGreaterThanOrEqual(6);
+    instance.unmount();
+  });
+
+  it("点击常用英雄后总览出现清除入口，列表同步进入英雄筛选态", async () => {
+    const instance = mountLolTft({ host });
+    await instance.router.isReady();
+    await instance.router.push({ name: "summary", params: { area: "1", accountType: "2", id: "10001" } });
+    for (let i = 0; i < 10; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    const shadow = host.shadowRoot as ShadowRoot;
+    const championButton = shadow.querySelector(".recent-champ") as HTMLElement | null;
+    expect(championButton).not.toBeNull();
+    championButton!.click();
+    for (let i = 0; i < 15; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    // 总览侧：出现“清除筛选：xx ×”，说明 activeChampion 真的传到了上层的 RecentStats
+    const clear = shadow.querySelector(".recent-champ-filter-clear") as HTMLElement | null;
+    expect(clear).not.toBeNull();
+    // 列表侧：英雄下拉进入筛选态，提示文案切到“符合条件”
+    expect((shadow.querySelector(".mode-filter-select") as HTMLSelectElement | null)?.value).not.toBe("");
+    expect(shadow.querySelector(".sample-note")?.textContent).toContain("符合条件");
+
+    // 清除后两侧一起回到默认态
+    clear!.click();
+    for (let i = 0; i < 15; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(shadow.querySelector(".recent-champ-filter-clear")).toBeNull();
+    expect((shadow.querySelector(".mode-filter-select") as HTMLSelectElement | null)?.value).toBe("");
+    instance.unmount();
+  });
+
+  it("点击走势色块定位到该场真实所在页并高亮（第 20 场 → 第 2 页）", async () => {
+    const instance = mountLolTft({ host });
+    await instance.router.isReady();
+    await instance.router.push({ name: "summary", params: { area: "1", accountType: "2", id: "10001" } });
+    for (let i = 0; i < 10; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    const shadow = host.shadowRoot as ShadowRoot;
+    const blocks = Array.from(shadow.querySelectorAll<HTMLElement>(".recent-strip .strip-block--btn"));
+    expect(blocks).toHaveLength(20);
+    // 色块从左到右由远到近：最左是第 20 场，落在列表第 2 页（旧实现只会加载第 1 页且不高亮）
+    blocks[0]!.click();
+    for (let i = 0; i < 20; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    expect(shadow.querySelector(".pager-indicator")?.textContent).toContain("第 2 页");
+    const selected = shadow.querySelector(".battle-list-item.selected");
+    expect(selected?.getAttribute("data-game-id")).toBe("10001-020");
+    // 选中态同步回总览：色块有且只有一个当前比赛高亮
+    expect(shadow.querySelectorAll(".recent-strip .strip-block--cur")).toHaveLength(1);
+    expect(shadow.querySelectorAll(".detail-player")).toHaveLength(10);
     instance.unmount();
   });
 });

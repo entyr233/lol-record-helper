@@ -2,21 +2,27 @@
 // @name         LOL战绩查询
 // @namespace    mscststs
 // @version      __VERSION__
-// @description  在 WeGame 页面内查询英雄联盟国服战绩（无需任何配置，登录即用）
+// @description  英雄联盟国服战绩查询，支持掌盟历史段位 HAR 导入与段位页链接查询
 // @author       mscststs
+// @homepage     https://github.com/entyr233/lol-tft
+// @homepageURL  https://github.com/entyr233/lol-tft
+// @supportURL   https://github.com/entyr233/lol-tft/issues
+// @source       https://github.com/entyr233/lol-tft
 // @match        https://www.wegame.com.cn/*
 // @match        https://wegame.com.cn/*
 // @match        https://lol.qq.com/*
+// @match        https://mlol.qt.qq.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wegame.com.cn
 // @license      ISC
 // @grant        GM_xmlhttpRequest
+// @grant        GM_registerMenuCommand
 // @connect      mlol.qt.qq.com
 // @connect      lol.qq.com
+// @connect      game.gtimg.cn
 // @connect      www.wegame.com.cn
 // @connect      wegame.com.cn
 // @run-at       document-idle
-// @downloadURL  https://update.greasyfork.org/scripts/454184/LOL%E6%88%98%E7%BB%A9%E6%9F%A5%E8%AF%A2.user.js
-// @updateURL    https://update.greasyfork.org/scripts/454184/LOL%E6%88%98%E7%BB%A9%E6%9F%A5%E8%AF%A2.meta.js
+// @updateURL    none
 // ==/UserScript==
 
 /**
@@ -37,33 +43,81 @@
 
   var VERSION = "__VERSION__";
 
+  // ---------- 脚本管理器菜单（ScriptCat / Tampermonkey） ----------
+  // 注册后脚本列表里就能直接看到这些入口，不必进「编辑」界面找链接。
+  var PROJECT_HOME = "https://github.com/entyr233/lol-tft";
+  // 菜单直达入口：装好脚本后从脚本管理器点一下就能跳到 WeGame 战绩页
+  var WEGAME_HOME = "https://www.wegame.com.cn/";
+
+  function openProjectUrl(url) {
+    try { window.open(url, "_blank", "noopener"); } catch (e) { /* 忽略 */ }
+  }
+
+  function registerMenuCommands() {
+    var commands = [
+      { title: "打开 WeGame 战绩页", run: function () { openProjectUrl(WEGAME_HOME); } },
+      { title: "打开项目主页", run: function () { openProjectUrl(PROJECT_HOME); } },
+      { title: "反馈 / 问题", run: function () { openProjectUrl(PROJECT_HOME + "/issues"); } }
+    ];
+    try {
+      if (typeof GM_registerMenuCommand === "function") {
+        commands.forEach(function (command) {
+          GM_registerMenuCommand(command.title, command.run);
+        });
+        return;
+      }
+      if (typeof GM !== "undefined" && GM && typeof GM.registerMenuCommand === "function") {
+        commands.forEach(function (command) {
+          GM.registerMenuCommand(command.title, command.run);
+        });
+      }
+    } catch (e) { /* 菜单注册失败不影响主流程 */ }
+  }
+
+  registerMenuCommands();
+
   // ---------- lol.qq.com 桥接侧：替 wegame 面板做同源 mlol 请求 ----------
   // （掌盟接口 CORS 只放行 lol.qq.com；wegame 面板通过隐藏 iframe + postMessage 调用）
   function isLolQqBridgeHost() {
-    return location.hostname === "lol.qq.com";
+    return location.hostname === "lol.qq.com" || location.hostname === "mlol.qt.qq.com";
   }
+
+  function isGetIn(data) { return data.method === "GET"; }
 
   function installBridge() {
     var wegameOriginRe = /^https:\/\/(www\.)?wegame\.com\.cn$/;
     globalThis.addEventListener("message", function (event) {
       if (!wegameOriginRe.test(event.origin)) return;
       var data = event.data;
-      if (!data || data.type !== "lol-tft-detail-request") return;
+      if (!data || (data.type !== "lol-tft-detail-request" && data.type !== "lol-tft-mlol-request")) return;
+      if (!data.id) return;
 
+      var url;
       var form = new FormData();
-      form.append("uuid", data.uuid || "");
-      form.append("area_id", String(data.areaId || ""));
-      form.append("game_id", String(data.gameId || ""));
-      form.append("start_time", String(data.startTime || ""));
+      if (data.type === "lol-tft-detail-request") {
+        url = "https://mlol.qt.qq.com/go/battle_info/get_battle_detail_h5";
+        form.append("uuid", data.uuid || "");
+        form.append("area_id", String(data.areaId || ""));
+        form.append("game_id", String(data.gameId || ""));
+        form.append("start_time", String(data.startTime || ""));
+      } else {
+        // 通用掌盟接口：path 不含 /go 前缀；GET 时 query 参数也放 body 里由桥拼 URL
+        var path = String(data.path || "").replace(/^\/+/, "");
+        var body = data.body || {};
+        var isGet = data.method === "GET";
+        var qs = Object.keys(body).map(function (k) {
+          return encodeURIComponent(k) + "=" + encodeURIComponent(String(body[k]));
+        }).join("&");
+        url = (sameOriginMlol ? "" : "https://mlol.qt.qq.com") + "/go/" + path + (isGet && qs ? "?" + qs : "");
+        if (!isGet) Object.keys(body).forEach(function (k) { form.append(k, String(body[k])); });
+      }
 
-      fetch("https://mlol.qt.qq.com/go/battle_info/get_battle_detail_h5", {
-        method: "POST",
-        credentials: "include",
-        body: form
-      }).then(function (r) { return r.text(); }).then(function (text) {
-        event.source.postMessage({ type: "lol-tft-detail-response", id: data.id, text: text }, event.origin);
+      var opt = { method: isGetIn(data) ? "GET" : "POST", credentials: "include" };
+      if (opt.method === "POST") opt.body = form;
+      fetch(url, opt).then(function (r) { return r.text().then(function (text) { return { text: text, status: r.status }; }); }).then(function (res) {
+        event.source.postMessage({ type: "lol-tft-mlol-response", id: data.id, text: res.text, status: res.status }, event.origin);
       }).catch(function (error) {
-        event.source.postMessage({ type: "lol-tft-detail-response", id: data.id, error: String(error && error.message || error) }, event.origin);
+        event.source.postMessage({ type: "lol-tft-mlol-response", id: data.id, error: String(error && error.message || error) }, event.origin);
       });
     });
 

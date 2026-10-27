@@ -14,34 +14,59 @@
         <button v-if="authExpired" type="button" class="link-button" @click="relogin">立即登录</button>
       </p>
       <div v-else-if="summoner" class="summoner">
-        <GameIcon class="summoner-avatar" kind="user" :id="summoner.icon_id" />
-        <div class="summoner-base">
-          <p class="summoner-name">{{ summoner.name }}</p>
-          <p class="summoner-line">
-            等级: {{ summoner.level }}
-            <span class="summoner-sub">({{ summoner.experience }})</span>
-          </p>
-          <p class="summoner-line">赞: {{ summoner.praise }} | 黑: {{ summoner.discredit }}</p>
-        </div>
-        <div class="summoner-counts">
-          <p v-if="reportLoading" class="state-text">统计加载中…</p>
-          <p v-else-if="reportError" class="state-text state-text--error">
-            统计加载失败：{{ toErrorMessage(reportError) }}
-            <button type="button" class="link-button" @click="retryReport">重试统计</button>
-          </p>
-          <template v-else>
-            <p v-if="tierText" class="count-row">
+        <div class="summoner-identity">
+          <GameIcon class="summoner-avatar" kind="user" :id="summoner.icon_id" />
+          <div class="summoner-base">
+            <p class="summoner-name">
+              {{ summoner.name }}
+              <button type="button" class="copy-name" @click="copyName">{{ copied ? "已复制" : "复制昵称" }}</button>
+              <button
+                type="button"
+                class="fav-star"
+                :class="{ 'fav-star--on': isFavorite }"
+                :title="isFavorite ? '取消收藏' : '收藏到首页'"
+                :aria-label="isFavorite ? '取消收藏' : '收藏到首页'"
+                @click="toggleFavorite"
+              >
+                {{ isFavorite ? "★" : "☆" }}
+              </button>
+            </p>
+            <p v-if="tierText" class="count-row count-row--tier">
               <span class="count-label">段位：</span>
               <span class="count-tier">{{ tierText }}</span>
             </p>
-            <p v-for="row in countRows" :key="row.label" class="count-row">
-              <span class="count-label">{{ row.label }}：</span>
-              <span class="count-total">{{ row.total }}</span>
-              <span class="count-win">{{ row.win }}</span>
-              <span class="count-lose">{{ row.lose }}</span>
+            <p class="summoner-line">
+              等级: {{ summoner.level }}
+              <span class="summoner-sub">({{ summoner.experience }})</span>
             </p>
-          </template>
+            <p class="summoner-line">赞: {{ summoner.praise }} | 黑: {{ summoner.discredit }}</p>
+          </div>
         </div>
+        <div class="summoner-stats">
+          <p class="summoner-stats-title">场次统计</p>
+          <div class="summoner-stat-grid">
+            <p v-if="reportLoading" class="summoner-report">统计加载中…</p>
+            <p v-else-if="reportError" class="summoner-report summoner-report--error">
+              统计加载失败：{{ toErrorMessage(reportError) }}
+              <button type="button" class="link-button" @click="retryReport">重试统计</button>
+            </p>
+            <template v-else>
+              <p v-for="row in countRows" :key="row.label" class="count-row count-row--stat">
+                <span class="count-label">{{ row.label }}</span>
+                <span class="count-total">{{ row.total }}</span>
+                <span class="count-win">{{ row.win }}</span>
+                <span class="count-lose">{{ row.lose }}</span>
+                <span class="count-rate">{{ rateOf(row) }}% 胜率</span>
+              </p>
+            </template>
+          </div>
+        </div>
+      </div>
+      <div class="summoner-recent">
+        <RecentStats ref="recentRef" :area="area" :account-type="accountType" :id="id" :active-champion="activeChampion"
+          :active-game-id="activeGameId" :mode="activeMode" :days="activeDays"
+          @focus-game="(g: BattleSummary) => emit('focusGame', g)" @filter-champion="(id: number | null) => emit('filterChampion', id)"
+          @mode-change="(mode: ModeFilter) => emit('modeChange', mode)" />
       </div>
       <p v-if="loginError" class="state-text state-text--error" role="alert">{{ loginError }}</p>
       <button v-if="loggingIn" type="button" class="link-button" @click="cancel">取消等待</button>
@@ -50,18 +75,54 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import Panel from "./Panel.vue";
 import GameIcon from "./GameIcon.vue";
+import RecentStats from "./RecentStats.vue";
 import { lolBattleApi } from "../api/client";
+import type { BattleSummary } from "../api/types";
 import { ApiError, toErrorMessage } from "../api/errors";
 import { useAsyncData } from "../composables/useAsyncData";
 import { toRqOptions } from "../composables/useUserInfo";
 import { triggerLogin, waitForLogin } from "../utils/weGameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
+import { useFavorites } from "../composables/useFavorites";
 import { tierLabel, tierOrder } from "../const/tiers";
+import type { ModeFilter } from "../const/modes";
+import type { DaysFilter } from "../composables/useBattleList";
 
-const props = defineProps<{ area: string; accountType: string; id: string }>();
+const props = defineProps<{
+  area: string;
+  accountType: string;
+  id: string;
+  activeChampion?: number | null;
+  activeGameId?: string | null;
+  /** 与列表共享的模式筛选（透传给近期表现） */
+  activeMode?: ModeFilter;
+  /** 与列表共享的时间范围（透传给近期表现） */
+  activeDays?: DaysFilter;
+}>();
+
+const emit = defineEmits<{
+  focusGame: [game: BattleSummary];
+  filterChampion: [id: number | null];
+  modeChange: [mode: ModeFilter];
+}>();
+
+const { isFavorite: isFavoriteEntry, toggle: toggleFavoriteEntry } = useFavorites();
+const favoriteTarget = computed(() => ({ area: props.area, accountType: props.accountType, id: props.id }));
+const isFavorite = computed(() => isFavoriteEntry(favoriteTarget.value));
+
+function toggleFavorite(): void {
+  toggleFavoriteEntry({
+    name: summoner.value?.name ?? props.id,
+    area: Number(props.area) || 0,
+    accountType: props.accountType,
+    id: props.id,
+    level: summoner.value?.level
+  });
+}
+
 const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
 
 const rqOptions = computed(() => toRqOptions({ area: props.area, accountType: props.accountType, id: props.id }));
@@ -83,6 +144,19 @@ const needsCaptcha = computed(() => {
   const err = summonerTask.error.value;
   return err instanceof ApiError && err.needsCaptcha;
 });
+const copied = ref(false);
+let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+async function copyName(): Promise<void> {
+  const name = summoner.value?.name;
+  if (!name) return;
+  try {
+    await navigator.clipboard.writeText(name);
+    copied.value = true;
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(() => { copied.value = false; }, 1500);
+  } catch { /* 剪贴板不可用时静默 */ }
+}
+
 const authExpired = computed(() => {
   const err = summonerTask.error.value;
   return err instanceof ApiError && err.isUnauthenticated;
@@ -90,10 +164,10 @@ const authExpired = computed(() => {
 
 /** 段位：summoner.season 优先（现任接口随资料返回），season_list 兜底（数字越小段位越高） */
 const tierText = computed(() => {
-  const candidates: Array<{ tier?: number; win_point?: number | string }> = [];
+  const candidates: Array<{ tier?: number; win_point?: number | string; queue?: number }> = [];
   const ownSeason = summoner.value?.season;
-  if (ownSeason && ownSeason.tier !== undefined) candidates.push({ tier: ownSeason.tier, win_point: ownSeason.win_point });
-  for (const entry of counts.value?.season_list ?? []) candidates.push({ tier: entry.tier, win_point: entry.win_point });
+  if (ownSeason && ownSeason.tier !== undefined) candidates.push({ tier: ownSeason.tier, win_point: ownSeason.win_point, queue: ownSeason.queue });
+  for (const entry of counts.value?.season_list ?? []) candidates.push({ tier: entry.tier, win_point: entry.win_point, queue: Number(entry.queue) || 0 });
   if (candidates.length === 0) return "";
   const best = candidates.slice().sort((a, b) => tierOrder(a.tier) - tierOrder(b.tier))[0];
   const label = tierLabel(best.tier, (best as { queue?: number }).queue);
@@ -113,6 +187,12 @@ const countRows = computed(() => {
     { label: "排位", total: value.total_rank_games, win: value.total_rank_wins, lose: value.total_rank_losts }
   ];
 });
+
+/** 各分类胜率：分母用「胜+负」，与近期表现的口径一致 */
+function rateOf(row: { win: number; lose: number }): number {
+  const decided = row.win + row.lose;
+  return decided ? Math.round((row.win / decided) * 100) : 0;
+}
 
 function reload(): void {
   void summonerTask.run();
@@ -138,5 +218,20 @@ function relogin(): Promise<void> {
 onMounted(() => {
   void summonerTask.run();
   void reportTask.run();
+});
+
+/** 近期表现的刷新句柄（与“刷新战绩”按钮联动） */
+const recentRef = ref<InstanceType<typeof RecentStats> | null>(null);
+
+/** 主动刷新：召唤师资料 + 场次统计 + 近期表现一起更新 */
+defineExpose({
+  refresh: async (): Promise<string[]> => {
+    const [, , recentSucceeded] = await Promise.all([summonerTask.run(), reportTask.run(), recentRef.value?.reload()]);
+    const failures: string[] = [];
+    if (summonerTask.error.value) failures.push("召唤师资料");
+    if (reportTask.error.value) failures.push("场次统计");
+    if (recentSucceeded === false) failures.push("近期表现");
+    return failures;
+  }
 });
 </script>

@@ -109,9 +109,11 @@ export function battlesFor(player: MockPlayer): SampleBattle[] {
 
   const total = 28;
   const offset = player.seed % total;
+  const now = Date.now();
   const list = Array.from({ length: total }, (_, index) => {
     const sourceIndex = (index + offset) % total;
-    const startedAt = 1761400000000 - index * 47 * 60 * 1000;
+    // 以「当前时间」为起点：让近 7/30 天筛选、按天趋势在本地 mock 里也有意义
+    const startedAt = now - index * 47 * 60 * 1000;
     const lose = (sourceIndex + player.seed) % 3 === 2;
     return {
       ...TEMPLATE,
@@ -136,20 +138,39 @@ export function battlesFor(player: MockPlayer): SampleBattle[] {
   return list;
 }
 
-export function mockDetail(gameId: string): SampleDetail {
+/**
+ * 详情 mock：把「被查看玩家」真正写进十人名单里（英雄/胜负与列表同一场的数值一致）。
+ * 之前固定返回样本自带的 openid/队伍，会导致详情摘要里的人不是列表里的玩家、胜负也对不上。
+ */
+export function mockDetail(gameId: string, viewerId?: string): SampleDetail {
   const detail = JSON.parse(JSON.stringify(baseDetail)) as SampleDetail;
   detail.battle_detail.game_id = gameId;
-  const battle = getBattleListAll().find((item) => item.game_id === gameId);
+  const viewer = getPlayer(viewerId || "10001");
+  const battle = battlesFor(viewer).find((item) => item.game_id === gameId);
   if (battle) {
     detail.battle_detail.game_start_time = battle.game_start_time;
     detail.battle_detail.game_time_played = battle.game_time_played;
     detail.battle_detail.game_queue_id = battle.game_queue_id;
+    detail.battle_detail.was_early_surrender = Number(battle.was_early_surrender) || 0;
+  }
+  const players = detail.battle_detail.player_details;
+  const teams = detail.battle_detail.team_details;
+  const homeTeam = String(teams[0]?.teamId ?? "");
+  const viewed = players.find((item) => item.teamId === homeTeam) ?? players[0];
+  if (viewed) {
+    viewed.openid = viewer.openid;
+    viewed.name = viewer.name;
+    if (battle) viewed.championId = battle.champion_id;
+  }
+  detail.openid = viewer.openid;
+  if (battle) {
+    // 胜负与列表同口径（LeaverWin 也算胜）；重开由 was_early_surrender 表达
+    const viewerWin = battle.win === "Win" || battle.win === "LeaverWin";
+    for (const team of teams) {
+      team.win = (String(team.teamId) === homeTeam) === viewerWin ? "Win" : "Fail";
+    }
   }
   return detail;
-}
-
-function getBattleListAll(): SampleBattle[] {
-  return battlesFor(getPlayer("10001"));
 }
 
 export function summonerFor(player: MockPlayer) {
@@ -233,7 +254,7 @@ export function route(method: string, body: Record<string, unknown>): unknown {
       };
     }
     case "GetBattleDetail":
-      return mockDetail(String(body.game_id ?? ""));
+      return mockDetail(String(body.game_id ?? ""), String(body.id ?? ""));
     case "GetBattleOverview":
       return { result: { error_code: 0, error_message: "" }, ...overviewFor(getPlayer(String(body.id ?? ""), Number(body.area) || 1)) };
     case "GetSummonerInfo": {

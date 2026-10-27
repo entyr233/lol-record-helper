@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { barPercent, formatDuration, formatGameScore, kdaRatio } from "../src/utils/format";
+import { barPercent, formatBattleDate, formatDuration, formatGameScore, kdaRatio } from "../src/utils/format";
+
+describe("formatBattleDate", () => {
+  it("秒与毫秒时间戳显示同一本地日期，月日补零", () => {
+    const timestamp = new Date(2026, 0, 5, 12).getTime();
+    expect(formatBattleDate(timestamp)).toBe("2026-01-05");
+    expect(formatBattleDate(String(timestamp / 1000))).toBe("2026-01-05");
+  });
+
+  it("缺失、非数值与非正时间戳不显示日期", () => {
+    for (const value of [undefined, null, "", "invalid", Number.NaN, Infinity, 0, -1]) {
+      expect(formatBattleDate(value)).toBe("");
+    }
+  });
+});
 
 describe("formatDuration", () => {
   it("0 秒返回 0秒（旧实现返回空串）", () => {

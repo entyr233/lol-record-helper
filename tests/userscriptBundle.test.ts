@@ -15,8 +15,18 @@ describe.skipIf(!available)("单文件油猴脚本（构建产物）", () => {
     expect(code).not.toContain("__VERSION__");
     expect(code).not.toContain("__BUNDLE__");
     expect(code).toContain("__LOL_TFT__"); // Runtime debugging API is not a build placeholder.
-    expect(metadata).toMatch(/^\/\/ @downloadURL[ \t]+https:\/\/update\.greasyfork\.org\/scripts\/454184\/[^\r\n]+\.user\.js\r?$/m);
-    expect(metadata).toMatch(/^\/\/ @updateURL[ \t]+https:\/\/update\.greasyfork\.org\/scripts\/454184\/[^\r\n]+\.meta\.js\r?$/m);
+    expect(metadata).not.toContain("@downloadURL");
+    expect(metadata).toMatch(/^\/\/ @updateURL[ \t]+none\r?$/m);
+    // 脚本管理器里能直接看到项目主页/支持入口（无需进编辑界面）
+    expect(metadata).toMatch(/^\/\/ @homepageURL[ \t]+https:\/\/github\.com\/entyr233\/lol-tft\r?$/m);
+    expect(metadata).toMatch(/^\/\/ @supportURL[ \t]+https:\/\/github\.com\/entyr233\/lol-tft\/issues\r?$/m);
+    // 注册脚本菜单命令，ScriptCat 的脚本列表里才会出现可点的「打开项目主页/反馈」菜单项
+    expect(metadata).toMatch(/^\/\/ @grant[ \t]+GM_registerMenuCommand\r?$/m);
+    expect(code).toContain("GM_registerMenuCommand");
+    expect(code).toContain("打开 WeGame 战绩页");
+    expect(code).toContain("https://www.wegame.com.cn/");
+    expect(code).toContain("打开项目主页");
+    expect(code).toContain("https://github.com/entyr233/lol-tft/issues");
   });
 
   it("内联 bundle 能执行，并导出 mountLolTft", () => {

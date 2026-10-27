@@ -3,7 +3,7 @@
     <img
       class="game-icon-img"
       :src="src"
-      :title="title"
+      :title="failed ? '图标加载失败' : title"
       :alt="title || kind"
       loading="lazy"
       decoding="async"
@@ -33,6 +33,8 @@ const props = defineProps<{
   championId?: number;
   /** kind="url" 时直接作为图标地址 */
   src?: string;
+  /** 悬停提示（海克斯强化的中文名等） */
+  title?: string;
 }>();
 
 const FALLBACK_ICON =
@@ -66,8 +68,9 @@ const baseSrc = computed(() => {
 const src = computed(() => (failed.value ? FALLBACK_ICON : spellIcon.value || baseSrc.value));
 
 const title = computed(() => {
+  // 明确传入的 title 优先（例如海克斯强化名称、装备自定义说明）
+  if (props.title) return props.title;
   if (spellTitle.value) return spellTitle.value;
-  if (props.kind === "url") return "";
   if (props.kind === "rune") return getRuneInfo(props.id)?.name ?? "";
   if (props.kind === "item") return getItemName(props.id) ?? "";
   return "";

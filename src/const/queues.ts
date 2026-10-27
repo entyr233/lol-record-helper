@@ -18,7 +18,7 @@ const QUEUES: Record<number, string> = {
   1030: "奥德赛", 1040: "奥德赛", 1050: "奥德赛", 1060: "奥德赛", 1070: "奥德赛",
   1090: "云顶匹配赛", 1100: "云顶排位赛", 1200: "极限闪击", 1400: "终极魔典",
   1900: "无限火力", 2000: "新手教程", 2010: "新手教程", 2020: "新手教程",
-  2400: "匹配赛"
+  2400: "海克斯大乱斗"
 };
 
 export function getQueueName(id: number | string): string {
@@ -29,4 +29,28 @@ export function getQueueName(id: number | string): string {
 export function getTeamMadeName(size: number | string): string | undefined {
   const map: Record<number, string> = { 2: "双排", 3: "三黑", 4: "四黑", 5: "五黑" };
   return map[Number(size)];
+}
+
+/** 排位类队列（单双排 / 灵活组排）：只有这些模式才用「单排/双排」的说法 */
+const RANKED_QUEUES = new Set([420, 421, 422, 440, 441, 442, 470]);
+
+export function isRankedQueue(id: number | string): boolean {
+  return RANKED_QUEUES.has(Number(id));
+}
+
+/**
+ * 组队人数标签：排位用「单排/双排/三排…」，其他模式用「单人/双人开黑/三人开黑…」。
+ * size 为预组队人数（1 = 单独进入）。
+ */
+export function getTeamMadeLabel(size: number | string, ranked: boolean): string | undefined {
+  const count = Number(size);
+  const rankedLabels: Record<number, string> = { 1: "单排", 2: "双排", 3: "三排", 4: "四排", 5: "五排" };
+  const normalLabels: Record<number, string> = {
+    1: "单人",
+    2: "双人开黑",
+    3: "三人开黑",
+    4: "四人开黑",
+    5: "五人开黑"
+  };
+  return (ranked ? rankedLabels : normalLabels)[count];
 }

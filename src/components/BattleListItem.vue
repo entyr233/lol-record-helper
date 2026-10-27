@@ -7,14 +7,20 @@
       <span v-else-if="(battle.svp ?? battle.was_svp)" class="badge badge--svp">SVP</span>
     </span>
     <span class="battle-state">
-      <span class="battle-result">{{ resultLabel }}</span>
-      <span class="battle-queue">({{ queueName }})</span>
-      <span class="battle-state-row2">
+      <span class="battle-state-heading">
+        <span class="battle-result">{{ resultLabel }}</span>
+        <span class="battle-queue">{{ queueName }}</span>
+        <span class="battle-duration" title="游戏时长">{{ duration }}</span>
+      </span>
+      <span v-if="tierSnapshot || judgementLabel" class="battle-state-row2">
         <span v-if="tierSnapshot" class="battle-tier" title="对局时段位">{{ tierSnapshot }}</span>
         <span v-if="judgementLabel" class="battle-judgement" :title="'对局评价：' + judgementLabel">{{ judgementLabel }}</span>
       </span>
-      <span class="battle-duration" title="游戏时长">{{ duration }}</span>
       <span class="battle-time" title="对局开始时间">{{ startTime }}</span>
+    </span>
+    <span class="battle-kda" title="击杀/死亡/助攻">
+      <span class="battle-kda-line"><b>{{ battle.kills ?? 0 }}</b><i>/</i><b class="d">{{ battle.deaths ?? 0 }}</b><i>/</i><b>{{ battle.assists ?? 0 }}</b></span>
+      <span class="battle-kda-sub">KDA</span>
     </span>
     <span class="battle-index">#{{ index + 1 }}</span>
   </li>
@@ -27,22 +33,23 @@ import type { OverviewBattle } from "../api/types";
 import { getQueueName } from "../const/queues";
 import { getJudgement } from "../const/judgements";
 import { tierLabel } from "../const/tiers";
-import { getResultClass, getResultLabel } from "../const/wins";
+import { battleResultLabel, classifyBattle } from "../const/wins";
 import { formatDateTime, formatDuration } from "../utils/format";
 
 const props = defineProps<{ battle: OverviewBattle; index: number }>();
 
-const resultClass = computed(() => (props.battle.was_early_surrender ? "remake" : getResultClass(props.battle.win)));
-const resultLabel = computed(() => (props.battle.was_early_surrender ? "重开" : getResultLabel(props.battle.win)));
+const resultClass = computed(() => classifyBattle(props.battle));
+const resultLabel = computed(() => battleResultLabel(props.battle));
 const queueName = computed(() =>
-  getQueueName(Number(props.battle.queue_id ?? props.battle.queue ?? props.battle.game_queue_id ?? 0))
+  props.battle.game_mode_name
+  || getQueueName(Number(props.battle.queue_id ?? props.battle.queue ?? props.battle.game_queue_id ?? 0))
 );
 const tierSnapshot = computed(() => {
   const raw = props.battle.game_level;
   if (!raw) return "";
   try {
-    const parsed = JSON.parse(raw) as { tier?: string | number; queue?: number };
-    const label = tierLabel(parsed.tier, parsed.queue);
+    const parsed = JSON.parse(raw) as { tier?: string | number; rank?: number; queue?: number };
+    const label = tierLabel(parsed.tier, parsed.rank ?? parsed.queue);
     return label === "未定级" ? "" : label;
   } catch { return ""; }
 });

@@ -48,6 +48,8 @@ export interface BattleSummary {
   win_with_less_teammate?: number;
   /** JSON 字符串：对局时段位快照 {"tier":"1","league_points":"43","rank":"1"} */
   game_level?: string;
+  /** 掌盟源对局直接给的模式名（优先于 queue id 映射显示） */
+  game_mode_name?: string;
   [key: string]: unknown;
 }
 
@@ -64,29 +66,38 @@ export interface PlayerDetail {
   championId: number;
   level: number;
   teamId: string;
-  teamMadeSize: number;
+  /** 预组队人数：缺失/未知（掌盟源）时为 undefined/null，不要用 1 冒充单人 */
+  teamMadeSize?: number | null;
   championsKilled: number;
   numDeaths: number;
   assists: number;
   gameScore: number;
-  totalDamageToChampions: number;
-  totalDamageTaken: number;
-  magicDamageToChampions: number;
-  physicalDamageToChampions: number;
-  trueDemageToChampions: number;
+  totalDamageToChampions?: number;
+  totalDamageTaken?: number;
+  magicDamageToChampions?: number;
+  physicalDamageToChampions?: number;
+  trueDemageToChampions?: number;
   goldEarned?: number;
+  /** 海克斯大乱斗（2400）的海克斯强化 id，普通模式为 0/缺省 */
+  playerAugment1?: number;
+  playerAugment2?: number;
+  playerAugment3?: number;
+  playerAugment4?: number;
+  playerAugment5?: number;
+  playerAugment6?: number;
   minionsKilled?: number;
   neutralMinionsKilled?: number;
   sightWardsBoughtInGame?: number;
-  item0: number;
-  item1: number;
-  item2: number;
-  item3: number;
-  item4: number;
-  item5: number;
-  item6: number;
-  keystoneId: number;
-  perkSubStyle: number;
+  /** 装备位：来源未提供时为 undefined（区别于真实的空装备 0） */
+  item0?: number;
+  item1?: number;
+  item2?: number;
+  item3?: number;
+  item4?: number;
+  item5?: number;
+  item6?: number;
+  keystoneId?: number;
+  perkSubStyle?: number;
   perkStyle?: number;
   summonSpell1Id: number;
   summonSpell2Id: number;
@@ -109,6 +120,8 @@ export interface PlayerDetail {
   /** 掌盟详情数据源额外提供：该玩家的段位与 LP */
   gameLevel?: { tier: number; leaguePoints: string };
   perkStyleUrl?: string;
+  /** 来源字段不完整（如掌盟公开源）：缺失字段保持 undefined，不用 0 冒充，UI 显示「未提供」 */
+  partial?: boolean;
 }
 
 export interface TeamDetail {
@@ -127,6 +140,8 @@ export interface TeamDetail {
 }
 
 export interface BattleDetail {
+  /** 被查看玩家的 openid（2026 响应顶层返回） */
+  openid?: string;
   area_id: string;
   game_id: string;
   game_start_time: string;

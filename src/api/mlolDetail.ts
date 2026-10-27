@@ -20,6 +20,17 @@ const num = (v: unknown, fallback = 0): number => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+/**
+ * 可选数值：字段缺失/非法时返回 undefined，不用 0 冒充。
+ * 用于掌盟源可能不提供的字段（组队人数/经济/补刀/装备/符文/伤害），
+ * 让 UI 区分「未提供」与真实的 0。
+ */
+const optNum = (v: unknown): number | undefined => {
+  if (v === null || v === undefined || v === "") return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
+
 function mapPlayer(p: MlolPlayer): PlayerDetail {
   const gameLevelRaw = p.game_level as { tier?: unknown; league_points?: unknown } | undefined;
   return {
@@ -28,26 +39,32 @@ function mapPlayer(p: MlolPlayer): PlayerDetail {
     championId: num(p.champion_id),
     level: num(p.level),
     teamId: String(p.team_id ?? ""),
-    teamMadeSize: 1,
+    // 掌盟源不返回预组队人数：保持 undefined，不能再写死 1（否则未知会被显示成「单人」）
+    teamMadeSize: optNum(p.team_made_size ?? p.teamMadeSize),
     championsKilled: num(p.champions_killed),
     numDeaths: num(p.num_deaths),
     assists: num(p.assists),
     gameScore: num(p.game_score),
-    totalDamageToChampions: num(p.total_damage_dealt_to_champions),
-    totalDamageTaken: num(p.total_damage_taken),
-    magicDamageToChampions: num(p.magic_damage_dealt_to_champions),
-    physicalDamageToChampions: num(p.physical_damage_dealt_to_champions),
-    trueDemageToChampions: num(p.true_damage_to_champions),
-    item0: num(p.item0), item1: num(p.item1), item2: num(p.item2), item3: num(p.item3),
-    item4: num(p.item4), item5: num(p.item5), item6: num(p.item6),
-    keystoneId: 0,
-    perkSubStyle: num(p.perkSubStyle),
+    totalDamageToChampions: optNum(p.total_damage_dealt_to_champions),
+    totalDamageTaken: optNum(p.total_damage_taken),
+    magicDamageToChampions: optNum(p.magic_damage_dealt_to_champions),
+    physicalDamageToChampions: optNum(p.physical_damage_dealt_to_champions),
+    trueDemageToChampions: optNum(p.true_damage_to_champions),
+    goldEarned: optNum(p.gold_earned ?? p.goldEarned),
+    minionsKilled: optNum(p.minions_killed ?? p.minionsKilled),
+    neutralMinionsKilled: optNum(p.neutral_minions_killed ?? p.neutralMinionsKilled),
+    item0: optNum(p.item0), item1: optNum(p.item1), item2: optNum(p.item2), item3: optNum(p.item3),
+    item4: optNum(p.item4), item5: optNum(p.item5), item6: optNum(p.item6),
+    keystoneId: optNum(p.keystone_id ?? p.keystoneId),
+    perkSubStyle: optNum(p.perkSubStyle),
     summonSpell1Id: num(p.summon_spell1_id),
     summonSpell2Id: num(p.summon_spell2_id),
     battleHonour: { isMvp: !!p.is_mvp, isSvp: !!p.is_svp },
     gameLevel: gameLevelRaw ? { tier: num(gameLevelRaw.tier, 255), leaguePoints: String(gameLevelRaw.league_points ?? "") } : undefined,
-    perkStyleUrl: p.perk_style_url ? String(p.perk_style_url) : undefined
-  } as PlayerDetail;
+    perkStyleUrl: p.perk_style_url ? String(p.perk_style_url) : undefined,
+    // 掌盟公开源字段不完整：调用方据此显示「未提供」而不是 0
+    partial: true
+  };
 }
 
 function teamSummary(players: MlolPlayer[], totals: MlolPlayer | undefined, win: boolean): TeamDetail {
@@ -129,59 +146,118 @@ interface BridgeRequest {
 let bridgeReadyPromise: Promise<Window> | null = null;
 const bridgePending = new Map<string, { resolve: (text: string) => void; reject: (error: unknown) => void }>();
 
+/**
+ * 桥接页（userscript/lol-tft.template.js 的 installBridge）回传的响应类型。
+ * 历史上存在两套命名（detail-response / mlol-response），两端必须保持同步；
+ * 这里两种都接受，避免「远端已返回、面板却一直等到超时」。
+ */
+export const BRIDGE_RESPONSE_TYPES = ["lol-tft-detail-response", "lol-tft-mlol-response"] as const;
+
+function isBridgeResponse(type: string | undefined): boolean {
+  return type !== undefined && (BRIDGE_RESPONSE_TYPES as readonly string[]).includes(type);
+}
+
 function ensureBridge(): Promise<Window> {
   if (bridgeReadyPromise) return bridgeReadyPromise;
-  bridgeReadyPromise = new Promise((resolve, reject) => {
+  const pending = new Promise<Window>((resolve, reject) => {
     const iframe = document.createElement("iframe");
     iframe.style.display = "none";
     iframe.src = BRIDGE_URL;
 
     const timer = setTimeout(() => {
+      globalThis.removeEventListener("message", onMessage);
       iframe.remove();
       reject(new ApiError("BRIDGE_TIMEOUT", "GetBattleDetail(mlol)", "掌盟桥接超时"));
     }, 15000);
 
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== BRIDGE_ORIGIN) return;
-      const data = event.data as { type?: string; id?: string; text?: string } | null;
+      const data = event.data as { type?: string; id?: string; text?: string; error?: string } | null;
       if (!data) return;
       if (data.type === "lol-tft-bridge-ready") {
         clearTimeout(timer);
         resolve(iframe.contentWindow as Window);
-      } else if (data.type === "lol-tft-detail-response" && data.id) {
-        const entry = bridgePending.get(data.id);
-        if (entry) {
-          bridgePending.delete(data.id);
-          entry.resolve(String(data.text ?? ""));
-        }
+        return;
       }
+      if (!isBridgeResponse(data.type) || !data.id) return;
+      const entry = bridgePending.get(data.id);
+      if (!entry) return;
+      bridgePending.delete(data.id);
+      // 失败响应也要结束等待，不能只处理成功
+      if (data.error) {
+        entry.reject(new ApiError("BRIDGE_ERROR", "GetBattleDetail(mlol)", String(data.error)));
+        return;
+      }
+      entry.resolve(String(data.text ?? ""));
     };
     globalThis.addEventListener("message", onMessage);
     document.body.appendChild(iframe);
   });
+  bridgeReadyPromise = pending;
+  // 桥接初始化失败后允许下一次重试（否则一次超时会永久复用失败的 Promise）
+  pending.catch(() => {
+    if (bridgeReadyPromise === pending) bridgeReadyPromise = null;
+  });
   return bridgeReadyPromise;
 }
 
+function abortError(): DOMException {
+  return new DOMException("aborted", "AbortError");
+}
+
+/** 让「等待桥接就绪」这类没有 signal 参数的等待也能被取消结束 */
+function raceAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(abortError());
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      signal.removeEventListener("abort", onAbort);
+      reject(abortError());
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      }
+    );
+  });
+}
+
 async function requestViaBridge(input: MlolDetailInput, signal?: AbortSignal): Promise<BattleDetail> {
-  const win = await ensureBridge();
+  if (signal?.aborted) throw abortError();
+  const win = await raceAbort(ensureBridge(), signal);
+  if (signal?.aborted) throw abortError();
   const id = "req-" + Date.now() + "-" + Math.floor(Math.random() * 1e6);
   let timer: ReturnType<typeof setTimeout> | undefined;
   const payloadPromise = new Promise<string>((resolve, reject) => {
-    bridgePending.set(id, {
-      resolve: (text) => { if (timer) clearTimeout(timer); resolve(text); },
-      reject: (error) => { if (timer) clearTimeout(timer); reject(error); }
+    let settled = false;
+    const settle = (finish: () => void) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener("abort", onAbort);
+      if (timer) clearTimeout(timer);
+      finish();
+    };
+    const onAbort = () => settle(() => {
+      bridgePending.delete(id);
+      reject(abortError());
     });
-    timer = setTimeout(() => {
-      if (bridgePending.has(id)) {
-        bridgePending.delete(id);
-        reject(new ApiError("BRIDGE_TIMEOUT", "GetBattleDetail(mlol)", "掌盟桥接响应超时"));
-      }
-    }, 15000);
+    bridgePending.set(id, {
+      resolve: (text) => settle(() => resolve(text)),
+      reject: (error) => settle(() => reject(error))
+    });
+    timer = setTimeout(() => settle(() => {
+      bridgePending.delete(id);
+      reject(new ApiError("BRIDGE_TIMEOUT", "GetBattleDetail(mlol)", "掌盟桥接响应超时"));
+    }), 15000);
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener("abort", onAbort, { once: true });
   });
-  signal?.addEventListener("abort", () => {
-    // 丢弃迟到响应即可；Promise 已交由上层竞速处理
-    bridgePending.delete(id);
-  }, { once: true });
   const request: BridgeRequest = {
     type: "lol-tft-detail-request",
     id,
