@@ -1,61 +1,59 @@
-import { ref, type Ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 import { lolBattleApi } from "../api/client";
 import type { BattleSummary, RqOptions } from "../api/types";
 
-const PAGE_SIZE = 10;
+export const PAGE_SIZE = 10;
 
 export interface BattleListState {
   battles: Ref<BattleSummary[]>;
+  page: Ref<number>;
+  hasPrev: Ref<boolean>;
+  hasNext: Ref<boolean>;
   loading: Ref<boolean>;
   error: Ref<Error | null>;
-  hasMore: Ref<boolean>;
-  /** 本页没有新增任何对局（服务端忽略 offset 或真的到底了） */
-  noMore: Ref<boolean>;
   selectedGameId: Ref<string | null>;
-  loadMore: () => Promise<void>;
+  goToPage: (n: number) => Promise<void>;
   select: (gameId: string) => void;
 }
 
 /**
- * 对局列表分页。
- * 关键修复：offset 用「服务端已消费条数」而不是「去重后的本地长度」，
- * 否则服务端返回重复 game_id 时会跳页/漏页。
+ * 对局列表：翻页制（上一页/下一页），每页 PAGE_SIZE 条。
+ * offset 按页号计算；服务端返回不足一页即视为没有下一页。
  */
 export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   const battles = ref<BattleSummary[]>([]);
+  const page = ref(1);
+  const hasNext = ref(true);
   const loading = ref(false);
   const error = ref<Error | null>(null);
-  const hasMore = ref(true);
-  const noMore = ref(false);
   const selectedGameId = ref<string | null>(null);
-  const seen = new Set<string>();
-  let serverOffset = 0;
   let inflight = false;
 
-  async function loadMore(): Promise<void> {
+  const hasPrev = computed(() => page.value > 1);
+
+  async function goToPage(n: number): Promise<void> {
     if (inflight) return;
-    if (!hasMore.value) return;
+    if (n < 1) return;
+    if (n > page.value && !hasNext.value) return;
     inflight = true;
     loading.value = true;
     error.value = null;
     try {
-      const page = await lolBattleApi.getBattleList(rqOptions(), { count: PAGE_SIZE, offset: serverOffset });
-      serverOffset += page.length;
-      if (page.length < PAGE_SIZE) hasMore.value = false;
-      const fresh = page.filter((item) => !seen.has(item.game_id));
-      for (const item of fresh) {
-        seen.add(item.game_id);
-        battles.value.push(item);
+      const pageData = await lolBattleApi.getBattleList(rqOptions(), { count: PAGE_SIZE, offset: (n - 1) * PAGE_SIZE });
+      hasNext.value = pageData.length >= PAGE_SIZE;
+      const seen = new Set<string>();
+      const fresh: BattleSummary[] = [];
+      for (const item of pageData) {
+        if (!seen.has(item.game_id)) {
+          seen.add(item.game_id);
+          fresh.push(item);
+        }
       }
-      // 服务端返回了数据但全是重复 => 再翻也翻不动（接口忽略 offset 或已到底）
-      if (page.length > 0 && fresh.length === 0) {
-        noMore.value = true;
-        hasMore.value = false;
+      battles.value = fresh;
+      page.value = n;
+      if (!fresh.some((item) => item.game_id === selectedGameId.value) && fresh.length > 0) {
+        selectedGameId.value = fresh[0].game_id;
       }
-      if (selectedGameId.value === null && battles.value.length > 0) {
-        selectedGameId.value = battles.value[0].game_id;
-      }
-      if (page.length === 0) hasMore.value = false;
     } catch (err) {
       error.value = err as Error;
     } finally {
@@ -68,5 +66,5 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
     selectedGameId.value = gameId;
   }
 
-  return { battles, loading, error, hasMore, noMore, selectedGameId, loadMore, select };
+  return { battles, page, hasPrev, hasNext, loading, error, selectedGameId, goToPage, select };
 }

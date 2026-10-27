@@ -88,16 +88,18 @@ const authExpired = computed(() => {
   return err instanceof ApiError && err.isUnauthenticated;
 });
 
-/** 段位：取 season_list 里段位最高的那条（数字越小段位越高） */
+/** 段位：summoner.season 优先（现任接口随资料返回），season_list 兜底（数字越小段位越高） */
 const tierText = computed(() => {
-  const list = counts.value?.season_list;
-  if (!list || list.length === 0) return "";
-  const best = list.slice().sort((a, b) => tierOrder(a.tier) - tierOrder(b.tier))[0];
-  if (best === undefined) return "";
+  const candidates: Array<{ tier?: number; win_point?: number | string }> = [];
+  const ownSeason = summoner.value?.season;
+  if (ownSeason && ownSeason.tier !== undefined) candidates.push({ tier: ownSeason.tier, win_point: ownSeason.win_point });
+  for (const entry of counts.value?.season_list ?? []) candidates.push({ tier: entry.tier, win_point: entry.win_point });
+  if (candidates.length === 0) return "";
+  const best = candidates.slice().sort((a, b) => tierOrder(a.tier) - tierOrder(b.tier))[0];
   const name = tierName(best.tier);
+  if (name === "未定级") return "未定级";
   const lp = best.win_point !== undefined && best.win_point !== "" ? " · " + best.win_point + " LP" : "";
-  const label = name === "未定级" ? "未定级" : name + lp;
-  return label;
+  return name + lp;
 });
 
 /** 修正旧版「匹配/排位」标签取反的问题：match = 匹配, rank = 排位 */

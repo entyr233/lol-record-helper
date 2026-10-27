@@ -288,6 +288,31 @@ button {
   min-height: auto;
   padding: 6px 0;
 }
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.pager-button {
+  padding: 6px 14px;
+  color: #b59758;
+  border: 1px solid #2f3844;
+  border-radius: 4px;
+}
+.pager-button:disabled {
+  color: #56606c;
+  cursor: default;
+}
+.pager-button:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.pager-indicator {
+  color: #9aa4b2;
+  font-size: 13px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
 .battle-count-hint {
   margin: 6px 4px 0;
   color: #6c7683;
@@ -410,6 +435,14 @@ button {
 }
 .battle-list-item.remake .battle-result {
   color: #dddddd;
+}
+.battle-judgement {
+  width: fit-content;
+  padding: 0 5px;
+  background-color: #39437a;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 11px;
 }
 .battle-queue,
 .battle-duration,
@@ -619,9 +652,27 @@ button {
 .dp-damage {
   gap: 2px;
 }
+.dp-misc {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  width: 92px;
+}
+.dp-misc-line {
+  color: #8f99a6;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 11px;
+}
 .dp-kda {
   flex: none;
-  width: 96px;
+  width: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   text-align: center;
 }
 .dp-kda-number {
@@ -661,8 +712,8 @@ button {
   gap: 2px;
 }
 .dp-items .game-icon {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 4px;
   overflow: hidden;
 }

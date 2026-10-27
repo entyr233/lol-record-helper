@@ -9,7 +9,7 @@ vi.mock("../src/api/client", () => ({
   }
 }));
 
-const { useBattleList } = await import("../src/composables/useBattleList");
+const { useBattleList, PAGE_SIZE } = await import("../src/composables/useBattleList");
 
 const rq: RqOptions = { account_type: 2, area: 1, id: "abc", from_src: "lol_helper" };
 
@@ -31,41 +31,69 @@ beforeEach(() => {
   getBattleList.mockReset();
 });
 
-describe("useBattleList", () => {
-  it("offset 用服务端已消费条数，而不是去重后的本地长度", async () => {
-    const page = Array.from({ length: 10 }, (_, i) => battle(String(i + 1)));
-    getBattleList.mockResolvedValueOnce(page).mockResolvedValueOnce(page);
+describe("useBattleList（翻页版）", () => {
+  it("第 1 页 offset=0，满页时允许下一页", async () => {
+    const page = Array.from({ length: PAGE_SIZE }, (_, i) => battle(String(i + 1)));
+    getBattleList.mockResolvedValueOnce(page);
 
     const state = useBattleList(() => rq);
-    await state.loadMore();
-    await state.loadMore();
+    await state.goToPage(1);
 
-    expect(getBattleList).toHaveBeenNthCalledWith(1, rq, { count: 10, offset: 0 });
-    expect(getBattleList).toHaveBeenNthCalledWith(2, rq, { count: 10, offset: 10 });
-    // 第二页全是重复数据，本地去重后不应增长，但 offset 仍必须前进
-    expect(state.battles.value).toHaveLength(10);
+    expect(getBattleList).toHaveBeenCalledWith(rq, { count: PAGE_SIZE, offset: 0 });
+    expect(state.battles.value).toHaveLength(PAGE_SIZE);
+    expect(state.page.value).toBe(1);
+    expect(state.hasNext.value).toBe(true);
+    expect(state.hasPrev.value).toBe(false);
   });
 
-  it("首屏自动选中第一局", async () => {
-    getBattleList.mockResolvedValueOnce([battle("a"), battle("b")]);
+  it("第 2 页 offset=10，整页替换不叠加", async () => {
+    const pageA = Array.from({ length: PAGE_SIZE }, (_, i) => battle("a" + i));
+    const pageB = Array.from({ length: PAGE_SIZE }, (_, i) => battle("b" + i));
+    getBattleList.mockResolvedValueOnce(pageA).mockResolvedValueOnce(pageB);
+
     const state = useBattleList(() => rq);
-    await state.loadMore();
-    expect(state.selectedGameId.value).toBe("a");
+    await state.goToPage(1);
+    await state.goToPage(2);
+
+    expect(getBattleList).toHaveBeenNthCalledWith(2, rq, { count: PAGE_SIZE, offset: 10 });
+    expect(state.battles.value).toHaveLength(PAGE_SIZE);
+    expect(state.battles.value[0].game_id).toBe("b0");
+    expect(state.hasPrev.value).toBe(true);
   });
 
-  it("返回不足一页时停止加载", async () => {
+  it("不足一页时没有下一页", async () => {
     getBattleList.mockResolvedValueOnce([battle("a")]);
     const state = useBattleList(() => rq);
-    await state.loadMore();
-    expect(state.hasMore.value).toBe(false);
+    await state.goToPage(1);
+    expect(state.hasNext.value).toBe(false);
   });
 
-  it("请求失败时记录错误且不中断后续重试", async () => {
+  it("翻页后选中局不在新页时自动选中第一局", async () => {
+    const pageA = Array.from({ length: PAGE_SIZE }, (_, i) => battle("a" + i));
+    const pageB = Array.from({ length: PAGE_SIZE }, (_, i) => battle("b" + i));
+    getBattleList.mockResolvedValueOnce(pageA).mockResolvedValueOnce(pageB);
+
+    const state = useBattleList(() => rq);
+    await state.goToPage(1);
+    state.select("a3");
+    await state.goToPage(2);
+    expect(state.selectedGameId.value).toBe("b0");
+  });
+
+  it("页内重复 game_id 去重", async () => {
+    const dup = battle("x");
+    getBattleList.mockResolvedValueOnce([dup, dup, battle("y")]);
+    const state = useBattleList(() => rq);
+    await state.goToPage(1);
+    expect(state.battles.value).toHaveLength(2);
+  });
+
+  it("请求失败记录错误，可重试", async () => {
     getBattleList.mockRejectedValueOnce(new Error("网络错误")).mockResolvedValueOnce([battle("a")]);
     const state = useBattleList(() => rq);
-    await state.loadMore();
+    await state.goToPage(1);
     expect(state.error.value?.message).toBe("网络错误");
-    await state.loadMore();
+    await state.goToPage(1);
     expect(state.error.value).toBeNull();
     expect(state.battles.value).toHaveLength(1);
   });

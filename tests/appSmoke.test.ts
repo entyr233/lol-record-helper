@@ -59,9 +59,10 @@ describe("整页冒烟（mock 数据）", () => {
     expect(text).toContain("匹配");
     expect(text).toContain("排位");
 
-    // 对局列表：GetBattleList 分页，第一页 10 条
+    // 对局列表：GetBattleList 翻页，第 1 页 10 条
     const items = shadow.querySelectorAll(".battle-list-item");
     expect(items).toHaveLength(10);
+    expect(shadow.textContent).toContain("第 1 页");
 
     // 首局自动展开详情：两支队伍 + 10 名玩家
     await flushPromises();

@@ -47,6 +47,10 @@
           :highlight="isTop('totalDamageTaken')"
         />
       </span>
+      <span v-if="mode === '概要'" class="dp-misc">
+        <span class="dp-misc-line" title="补刀">补刀 {{ player.minionsKilled ?? "-" }}</span>
+        <span class="dp-misc-line" title="经济">经济 {{ formatThousands(player.goldEarned) }}</span>
+      </span>
       <span class="dp-kda">
         <span class="dp-kda-number">
           <span class="kill">{{ player.championsKilled }}</span>

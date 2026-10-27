@@ -1,120 +1,97 @@
 # lol-tft
 
-英雄联盟国服战绩查询 —— 以**用户脚本**形式注入 `www.wegame.com.cn/ioi` 页面运行。
+英雄联盟国服战绩查询 —— 以**用户脚本**形式注入 WeGame 页面，在 PC 浏览器查看真实战绩。
 
-- 数据来源：WeGame 的 `wegame.pallas.game.LolBattle` 接口（需登录态，由 WeGame 页面自身提供）
-- 运行形态：userscript 注入 → 加载单文件 IIFE 包 → 在 Shadow DOM 内挂载 Vue 3 应用
-- 技术栈：Vue 3 + TypeScript + Vite + vue-router 4，样式为手写 CSS（无 UI 框架）
-- 脚本主页：https://greasyfork.org/zh-CN/scripts/454184
+- 脚本入口：登录 https://www.wegame.com.cn/home/ 后，页面右下角「LOL 战绩」按钮
+- 数据来源：wegame pallas 接口（同源）+ LOL 助手现行格式 + 掌盟详情回退
+- 技术栈：Vue 3 + TypeScript(strict) + Vite + vue-router 4（Shadow DOM 隔离，无 UI 框架）
+- 状态：**总览 / 对局列表 / 10 人详情 全部真实数据可用**
 
-## 目录结构
+## 功能
 
-~~~
-src/
-  api/           接口层：类型、错误码映射、超时/重试/取消、静态资源地址
-  components/    UI 组件（对局列表、详情、召唤师信息、图标、柱状条）
-  composables/   组合式逻辑（带取消的异步数据、分页列表、用户参数）
-  const/         大区、队列、评价位、胜负映射
-  data/          构建期生成的符文/装备中文名映射（runes.json / items.json）
-  styles/        app.css —— 全部 UI 样式，仅注入 Shadow DOM
-  views/         路由页面
-  mount.ts       挂载入口（默认 Shadow DOM）
-  main.ts        独立演示站入口
-  entry-lib.ts   用户脚本用的 IIFE 入口
-userscript/      油猴脚本（发布到 greasyfork）
-scripts/         静态数据同步脚本
-tests/           Vitest 单测
-sample/          真实接口返回样本（测试/契约基准）
-docs/            代码审查报告等文档
-~~~
+| 模块 | 内容 |
+| --- | --- |
+| 总览 | 召唤师资料、等级、赞/黑、四类场次统计（所有/大乱斗/匹配/排位）、**段位 + LP** |
+| 对局列表 | 翻页制（每页 10 条），胜负/队列/时长/时间、MVP/SVP/逃跑徽章、对局评价标签（Carry局等） |
+| 对局详情 | 10 人全量：KDA、伤害四系柱状图、装备、符文、召唤师技能与释放次数、评分、补刀/经济；点名字跳转其战绩页 |
+| 搜索 | 按昵称搜索全大区同名玩家 |
+
+## 数据源与鉴权（重要）
+
+| 接口 | 用途 | 鉴权 |
+| --- | --- | --- |
+| `wegame.com.cn/api/v1/wegame.pallas.game.LolBattle/*` | 列表/资料/统计/详情 | wegame 登录 cookie（同源自动携带） |
+| `mlol.qt.qq.com/go/battle_info/get_battle_detail_h5` | 详情**回退源** | `.qq.com` 登录 cookie（QQ 侧） |
+
+- 2026 现任格式：列表 `GetBattleList`；资料 `GetSummonerInfo`（含 `season` 段位）；统计 `GetBattleReport`（带 `sids:[255]`，返回 `season_list`）
+- 老接口被限制时（8000120 等）：先弹**官方人机验证**（TCaptcha + VerifyRecongnition）后自动重试；详情再失败则回退掌盟接口（postMessage 桥：脚本同时在 lol.qq.com 上运行，替面板做同源请求绕过 CORS）
+- 登录态判断**以 cookie 为准**（`uin/p_uin`），不依赖 SDK 的 isLogin()（它在刷新后经常误报）
+- 静态映射（符文/装备名）构建期固化，图标走版本化 CDN
+
+## 2026 年的重要变更（相对上游 mscststs/lol-tft）
+
+1. 上游的宿主页 `wegame.com.cn/ioi` 已 404 → 改为任意 WeGame 页面右下角浮动入口 + 全屏面板
+2. 单文件分发：UI 打包内联进 userscript（约 200KB），不再依赖远端 bundle 托管
+3. Vue 2（已 EOL）→ Vue 3 + TS + Vite；Shadow DOM 隔离，不污染宿主页样式
+4. 错误码全量映射（来自现任助手前端）+ 界面直接显示错误码，方便排障
 
 ## 开发
 
 ~~~bash
 npm install
-npm run dev          # 本地演示站（带 WegameLogin mock），http://localhost:5173
-npm run typecheck    # vue-tsc 类型检查
-npm test             # Vitest
+npm run dev          # 本地演示站（mock 数据），http://localhost:5173
+npm run typecheck    # vue-tsc
+npm test             # vitest
 ~~~
 
-GitHub Actions 验证流程固定使用 Node.js 24.22.1，通过 `npm ci` 按 `package-lock.json`
-安装锁定依赖，依次运行 Vitest、类型检查和一次用户脚本构建，再复用产物测试检查
-metadata、版本一致性和构建占位符。CI 不配置登录 Cookie、不调用真实 WeGame API，也不执行发布。
+- 开发默认走 mock（sample/*.json 扩展的示例数据），页面右下角有数据源状态条
+- 要连真实数据：右下角「粘贴 Cookie」（或设 `LOL_TFT_COOKIE` 环境变量）；`LOL_TFT_MOCK=0` 强制真实接口
+- 登录弹窗只在 wegame 域内可用（登录 SDK 限制），本地开发看真实数据用 cookie 粘贴
 
-本地开发时接口请求走 `/api/v1/wegame.pallas.game.LolBattle`，需要一个把请求转发到
-`https://www.wegame.com.cn` 并附带登录 cookie 的开发代理（见下）。
-
-## 构建与发布
+## 构建与安装
 
 ~~~bash
-npm run build        # 产出 dist/lol/lol.umd.js —— 构建用户脚本的中间包
-npm run build:userscript # 产出 dist/userscript/lol-tft.user.js —— 可安装的单文件脚本
-npm run build:app    # 产出 dist/site/index.html —— 可直接打开的演示/调试页
+npm run build:userscript   # dist/userscript/lol-tft.user.js（单文件，含内联 UI）
+npm run build:app          # dist/site/（演示页）
 ~~~
 
-普通用户从 [Greasy Fork 脚本页](https://greasyfork.org/zh-CN/scripts/454184) 点击安装，
-由 Tampermonkey 等用户脚本管理器接管。模板 `userscript/lol-tft.template.js` 不能直接安装。
+安装：把 `dist/userscript/lol-tft.user.js` 拖进浏览器（ScriptCat/Tampermonkey）→ 覆盖安装 → F5。
+发布：同一份文件提交到 greasyfork 脚本 454184（https://greasyfork.org/zh-CN/scripts/454184）。
 
-本地验收或发布时，运行 `npm run build:userscript`，再将生成的
-`dist/userscript/lol-tft.user.js` 导入脚本管理器，或把该文件完整内容提交到上述 Greasy Fork 脚本页。
-`dist` 是 Git 忽略的生成目录；当前脚本已内联 UI bundle，发布时不再依赖上传远端 UI 包。
+## 目录
 
-> 注意：IIFE 包已内置 Vue 与 vue-router，不再依赖宿主页面的全局 Vue，也不再有独立 CSS 文件。
-
-## 静态数据
-
-符文图标/名称、装备中文名已固化在 `src/data/*.json`，运行时不再拉取 gtimg 的
-`items.js`（926KB）与 `rune_list.js`（131KB）。版本更新后执行：
-
-~~~bash
-node scripts/sync-static-data.mjs
+~~~text
+src/api/          接口层（client/captcha/mlolDetail/transport/contracts/errors/types）
+src/components/   UI 组件
+src/composables/  组合式逻辑（翻页列表/异步取消/登录动作/用户参数）
+src/const/        大区/队列/段位/评价 等映射
+src/data/         构建期固化的符文/装备映射（node scripts/sync-static-data.mjs 更新）
+src/styles/       全部样式（仅注入 Shadow DOM）
+userscript/       用户脚本模板（bundle 构建时内联）+ 注入探针
+scripts/          静态数据同步 / userscript 构建
+tests/            266 个测试（契约/策略/生命周期/冒烟）
+docs/             代码审查报告 / HAR 分析 / 迁移说明
 ~~~
 
-## 数据源
+## 排障速查
 
-| 场景 | 数据 | 说明 |
-| --- | --- | --- |
-| 正式使用（油猴脚本） | **真实** | 脚本运行在 wegame 页面内，⟦/api/...⟧ 是同源请求，浏览器自动带登录 cookie |
-| 本地开发 | mock | 用 ⟦sample/*.json⟧ 扩展出的示例数据，在页面右下角有一个数据源状态条 |
-| 本地开发（真实） | **真实** | 在右下角状态条点「粘贴 Cookie」，把浏览器里 wegame 请求的 Cookie 整行贴进去即可，无需重启 |
-
-**怎么拿到 cookie（仅本地开发需要）**
-
-1. 浏览器登录 https://www.wegame.com.cn/ （右上角能看到头像/昵称）
-2. F12 → 「网络 / Network」→ 勾选「保留日志」→ 按 F5 重新加载
-3. 筛选框输入 ⟦home⟧（或点筛选器里的「文档」），点最上面那条 document 请求
-4. 右侧「标头 / Headers」→ 「请求标头 / Request Headers」→ 找到 ⟦Cookie:⟧ 行，三击选中值 → Ctrl+C
-5. 粘到页面右下角状态条里。支持三种格式：纯 cookie 串、⟦Cookie: xxx⟧、整段 cURL
-
-粘贴后会立刻用一次真实请求校验：有效则自动重载切到真实数据；仍返回 8000102 会提示
-"cookie 未被识别为登录态"（常见原因：没登录、复制不全、抓的是第三方上报域）。
-
-开发服务器只绑定 `127.0.0.1`，包括传入 `--host` 时。开发工具可先同源 GET
-`/__lol-tft/status` 获取当前进程的 `devToken`；写入会话仅接受 POST
-`/__lol-tft/cookie`，JSON 为 `{ "cookie": "..." }`，清除会话用无请求体的 DELETE。
-两种方法都需 `Content-Type: application/json` 和 `x-lol-tft-dev-token` 请求头，
-请求体上限为 16 KiB。浏览器会自动携带同源 Origin；本地命令行工具需显式传入
-与访问地址一致的 Origin（如 `http://127.0.0.1:5173`）。重启后需重新获取 token。
-
-> 2026 年变更：WeGame 的 ⟦/ioi⟧ 战绩页已下线（404）。用户脚本从「接管整个页面」改为
-> 「任意 WeGame 页面右下角浮动入口 + 全屏面板」，不再依赖宿主 DOM 结构。
-
-### 段位 / LP / 常用英雄
-
-当前使用的 5 个接口（SearchPlayer / GetSummonerInfo / GetBattleReport / GetBattleList / GetBattleDetail）
-**不包含段位字段**。腾讯移动端另有 ⟦get_battle_topbar_info⟧（含段位/常用英雄），但需要 App 级签名，
-浏览器侧不可用。
-
-想确认网页接口族里是否还有段位方法，可用一次真实 cookie 跑探测脚本：
-
-~~~bash
-node scripts/probe-api.mjs "<从浏览器复制的 cookie>"
-~~~
-
-脚本会把「存在的方法」列出来（网关在鉴权后才校验方法名，所以必须有有效 cookie）。
+| 错误码 | 含义 |
+| --- | --- |
+| 8000101 | 请求参数不合法（会自动用规整后的 uin 重试） |
+| 8000004 | 当前大区没有角色（换大区） |
+| 8000009 / 8000021 | 对方设置了查询权限 |
+| 8000022 / 8000120 | 需要人机验证（自动弹滑块） |
+| 8000023 | 该用户已注销 |
+| 8000102 | wegame 登录失效（点「重新登录」或去 /home/ 登录） |
+| 1001 | 掌盟接口无 .qq.com 登录态（去 lol.qq.com 登录一次） |
 
 ## 合规与隐私
 
-- 本项目调用 WeGame 的私有接口，非官方授权，接口随时可能变更；仅用于个人查询自己的战绩
-- 不收集、不上传任何用户数据；查询结果只留在浏览器内存中
-- 登录态完全依赖 WeGame 页面自身，本项目不存储 cookie
+本项目调用 WeGame/掌盟的非公开接口，仅供个人查询使用，不做批量抓取；不收集不上传任何数据。
+诊断工具（`__LOL_TFT_DUMP__`）只读取被拒响应的结构，不包含 cookie。
+
+## 相关文档
+
+- 代码审查报告：docs/code-review-2026-10.md
+- HAR 分析（掌盟接口族逆向）：docs/har-analysis-20261027.md
+- Vue2→Vue3 迁移说明：docs/migration-vue2-to-vue3.md

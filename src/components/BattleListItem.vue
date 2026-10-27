@@ -9,6 +9,7 @@
     <span class="battle-state">
       <span class="battle-result">{{ resultLabel }}</span>
       <span class="battle-queue">({{ queueName }})</span>
+      <span v-if="judgementLabel" class="battle-judgement" :title="'对局评价：' + judgementLabel">{{ judgementLabel }}</span>
       <span class="battle-duration" title="游戏时长">{{ duration }}</span>
       <span class="battle-time" title="对局开始时间">{{ startTime }}</span>
     </span>
@@ -21,6 +22,7 @@ import { computed } from "vue";
 import GameIcon from "./GameIcon.vue";
 import type { OverviewBattle } from "../api/types";
 import { getQueueName } from "../const/queues";
+import { getJudgement } from "../const/judgements";
 import { getResultClass, getResultLabel } from "../const/wins";
 import { formatDateTime, formatDuration } from "../utils/format";
 
@@ -31,6 +33,7 @@ const resultLabel = computed(() => (props.battle.was_early_surrender ? "重开" 
 const queueName = computed(() =>
   getQueueName(Number(props.battle.queue_id ?? props.battle.queue ?? props.battle.game_queue_id ?? 0))
 );
+const judgementLabel = computed(() => getJudgement(props.battle.battle_type, 1)[0] ?? "");
 const duration = computed(() => formatDuration(props.battle.game_time_played));
 const startTime = computed(() => formatDateTime(props.battle.game_start_time));
 </script>

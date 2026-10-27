@@ -145,6 +145,8 @@ export interface Summoner {
   experience?: number;
   praise?: number;
   discredit?: number;
+  /** 现任接口返回的赛季段位信息（tier 数字 + 胜点） */
+  season?: { tier?: number; win_point?: number | string; queue?: number; [key: string]: unknown };
 }
 
 export interface BattleCount {
@@ -229,6 +231,7 @@ export interface OverviewBattle {
   queue?: number;
   queue_id?: number;
   game_queue_id?: number;
+  battle_type?: number;
   champion?: { name?: string; cname?: string; icon?: string };
   [key: string]: unknown;
 }
