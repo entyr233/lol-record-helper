@@ -32,7 +32,10 @@
           </li>
         </ul>
       </template>
-      <p v-else class="state-text">没有结果</p>
+      <p v-else class="state-text search-empty">
+        没有找到玩家
+        <span class="search-empty-hint">换个昵称或切换大区后再试</span>
+      </p>
     </Panel>
   </div>
 </template>

@@ -208,6 +208,9 @@ describe("BattleDetail 摘要身份一致", () => {
     expect(wrapper.find(".detail-summary-result").exists()).toBe(false);
     expect(wrapper.find(".detail-summary .icon-stub").exists()).toBe(false);
     expect(wrapper.find(".detail-summary-meta").text()).toContain("单双排");
+    // 数据来源透明：掌盟回退要有徽标与「不可跳转」说明
+    expect(wrapper.get(".detail-source--mlol").text()).toBe("掌盟公开数据");
+    expect(wrapper.get(".detail-source-note").text()).toContain("不可跳转");
     // 掌盟源没有 wegame openid：不可高亮/跳转
     expect(selfFlags(wrapper)).toEqual({ "mlol-my-1": "0", "mlol-my-2": "0", "mlol-opp-1": "0" });
   });
@@ -236,6 +239,15 @@ describe("BattleDetail 摘要身份一致", () => {
     expect(wrapper.find(".detail-summary-meta").text()).toContain("单双排");
   });
 
+  it("详情成功时标注数据来源 WeGame", async () => {
+    getBattleDetailMock.mockResolvedValue(makeResponse("openid-blue"));
+
+    const wrapper = await mountDetail();
+
+    expect(wrapper.get(".detail-source--wegame").text()).toBe("数据来源：WeGame");
+    expect(wrapper.find(".detail-source-note").exists()).toBe(false);
+  });
+
   it("详情加载失败时显示错误文案与重试按钮，重试成功后恢复摘要", async () => {
     getBattleDetailMock.mockRejectedValueOnce(new ApiError("8000102", "GetBattleDetail", "登录状态已失效"));
 
@@ -252,6 +264,17 @@ describe("BattleDetail 摘要身份一致", () => {
 
     expect(wrapper.find(".state-text--error").exists()).toBe(false);
     expect(wrapper.find(".detail-summary-name").text()).toBe("蓝方玩家");
+  });
+
+  it("全部来源失败时聚合原因，需要验证码则给出去助手页的操作", async () => {
+    getBattleDetailMock.mockRejectedValue(new ApiError(8000022, "GetBattleDetail", "需要人机校验"));
+    fetchMlolMock.mockRejectedValue(new ApiError("MLOL_EMPTY", "GetBattleDetail(mlol)", "掌盟详情无数据"));
+
+    const wrapper = await mountDetail();
+
+    expect(wrapper.get(".detail-error-hint").text()).toContain("人机验证");
+    expect(wrapper.text()).toContain("去 LOL 助手页");
+    expect(wrapper.find(".detail-error-debug").exists()).toBe(true);
   });
 
   it("海克斯比赛不再单独占一个页签（强化名走行内图标悬浮）", async () => {

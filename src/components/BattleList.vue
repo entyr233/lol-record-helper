@@ -43,11 +43,14 @@
                 </span>
               </li>
             </template>
-            <li v-else-if="!battles.length && error" class="state-text state-text--error">
+            <li v-else-if="!battles.length && error" class="state-text state-text--error" title="数据来源：WeGame 战绩接口">
               {{ toErrorMessage(error) }}
               <button type="button" class="list-retry" @click="retryCurrent">重试</button>
             </li>
-            <li v-else-if="!battles.length" class="state-text">当前筛选下没有对局</li>
+            <li v-else-if="!battles.length" class="state-text battle-empty">
+              <span>{{ hasActiveFilter ? "当前筛选下没有对局" : "该玩家最近没有对局记录" }}</span>
+              <button v-if="hasActiveFilter" type="button" class="list-retry" @click="clearFilters">清除筛选</button>
+            </li>
             <BattleListItem
               v-for="(battle, index) in battles"
               :key="battle.game_id"
@@ -80,7 +83,7 @@
             :queue-id="selectedQueueId"
             @open-summoner="handleOpenSummoner"
           />
-          <p v-else class="state-text">{{ loading ? "加载中…" : battles.length ? "选择左侧对局查看详情" : "当前筛选下没有对局" }}</p>
+          <p v-else class="state-text">{{ loading ? "加载中…" : battles.length ? "选择左侧对局查看详情" : (hasActiveFilter ? "清除筛选后可查看对局" : "该玩家最近没有对局记录") }}</p>
         </div>
       </div>
     </Panel>
@@ -132,6 +135,14 @@ const {
 
 const modeOptions = MODE_FILTER_OPTIONS;
 const defaultPatch: Partial<ListFilter> = { ...DEFAULT_FILTER };
+
+/** 当前是否存在筛选条件（空结果时用于给出「清除筛选」的下一步） */
+const hasActiveFilter = computed(
+  () => filter.value.mode !== "all" || filter.value.champion !== null || filter.value.result !== "all" || filter.value.days !== 0
+);
+function clearFilters(): void {
+  void setFilter({ ...DEFAULT_FILTER });
+}
 
 const nameTick = ref(0);
 onMounted(() => {

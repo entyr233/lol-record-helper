@@ -87,6 +87,30 @@ describe("BattleList 错误原位重试", () => {
   });
 });
 
+describe("BattleList 空态引导", () => {
+  it("无筛选时提示没有对局；筛选后为空给出「清除筛选」并可恢复", async () => {
+    api.getBattleList.mockResolvedValue([]);
+    const wrapper = render();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("该玩家最近没有对局记录");
+    expect(wrapper.find(".battle-empty .list-retry").exists()).toBe(false);
+
+    // 点击「大乱斗」进入筛选：数据仍为空 → 提示当前筛选下没有对局，并给清除入口
+    const tab = wrapper.findAll(".mode-filter-tab").find((item) => item.text() === "大乱斗");
+    await tab!.trigger("click");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("当前筛选下没有对局");
+    const clear = wrapper.find(".battle-empty .list-retry");
+    expect(clear.text()).toBe("清除筛选");
+
+    await clear.trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("该玩家最近没有对局记录");
+  });
+});
+
 describe("BattleList 键盘 ↑/↓ 切换对局", () => {
   it("列表可聚焦，↑/↓ 在相邻对局间移动选中且不越界", async () => {
     api.getBattleList.mockResolvedValue([battle(1), battle(2), battle(3)]);

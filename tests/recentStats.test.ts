@@ -149,6 +149,16 @@ describe("RecentStats 三分类统计口径", () => {
     } finally { wrapper.unmount(); }
   });
 
+  it("统计请求失败时显示错误与重试，而不是静默空白", async () => {
+    api.getBattleList.mockRejectedValue(new Error("统计网络错误"));
+    const wrapper = render();
+    try {
+      await flushPromises();
+      expect(wrapper.text()).toContain("统计网络错误");
+      expect(wrapper.get(".recent-error button").text()).toBe("重试");
+    } finally { wrapper.unmount(); }
+  });
+
   it("读取顶部两页（offset 0 / 10），标题显示最近 20 场", async () => {
     const older = Array.from({ length: 10 }, (_, i) => battle(11 + i, { win: "Fail" }));
     mockPages(mixedRecent, older);

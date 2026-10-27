@@ -17,6 +17,15 @@ describe("GameIcon 悬停标题", () => {
     expect(wrapper.get("img").attributes("title")).toBe("自定义标题");
   });
 
+  it("图标加载失败时换成占位图并提示「图标加载失败」", async () => {
+    const wrapper = mount(GameIcon, { props: { kind: "champion", id: 1 } });
+    const img = wrapper.get("img");
+    await img.trigger("error");
+
+    expect(img.attributes("src")).toContain("data:image/svg+xml");
+    expect(img.attributes("title")).toBe("图标加载失败");
+  });
+
   it("没有显式 title 时仍回退到装备名称", () => {
     const wrapper = mount(GameIcon, { props: { kind: "item", id: 1001 } });
     expect(wrapper.get("img").attributes("title")).toBe("鞋子");

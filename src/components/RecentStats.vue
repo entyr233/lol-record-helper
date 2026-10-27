@@ -31,7 +31,10 @@
           </div>
           <span class="strip-end">最新 {{ stripNewestLabel }}</span>
         </div>
-        <p v-else class="recent-empty">{{ emptyText }}</p>
+        <p v-else class="recent-empty">
+          {{ emptyText }}
+          <button v-if="selectedMode !== 'all'" type="button" class="link-button" @click="selectMode('all')">查看全部模式</button>
+        </p>
       </div>
       <div v-if="trend.length" class="recent-side" :title="trendTitle">
         <p class="recent-side-title">胜率趋势（累计）</p>
@@ -96,6 +99,11 @@
       </div>
     </div>
   </div>
+  <!-- 统计请求失败：给出来源说明与重试，而不是静默空着 -->
+  <p v-else-if="taskError" class="state-text state-text--error recent-error" title="数据来源：WeGame 战绩接口">
+    {{ toErrorMessage(taskError) }}
+    <button type="button" class="link-button" @click="reload">重试</button>
+  </p>
 </template>
 
 <script setup lang="ts">
@@ -104,6 +112,7 @@ import GameIcon from "./GameIcon.vue";
 import { useAsyncData } from "../composables/useAsyncData";
 import { toRqOptions } from "../composables/useUserInfo";
 import { lolBattleApi } from "../api/client";
+import { toErrorMessage } from "../api/errors";
 import { championName, ensureChampionNames } from "../api/staticData";
 import type { BattleSummary } from "../api/types";
 import { battleResultLabel, classifyBattle } from "../const/wins";
@@ -205,6 +214,7 @@ watch(
   () => { void task.run(); }
 );
 
+const taskError = task.error;
 const games = computed(() => task.data.value ?? []);
 /** 当前模式 + 时间范围下的样本（最近 RECENT_WINDOW 场以内的匹配对局） */
 const sample = computed(() => {

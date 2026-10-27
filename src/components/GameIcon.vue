@@ -3,7 +3,7 @@
     <img
       class="game-icon-img"
       :src="src"
-      :title="title"
+      :title="failed ? '图标加载失败' : title"
       :alt="title || kind"
       loading="lazy"
       decoding="async"

@@ -368,9 +368,11 @@ button {
 /* 正常状态下的刷新入口 + 更新时间（在总览之上，作用于总览与列表） */
 .summary-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+  row-gap: 8px;
   margin-bottom: 10px;
 }
 .summary-updated {
@@ -1820,6 +1822,9 @@ button {
   font-size: 13px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
+.recent-error {
+  margin: 8px 0 0;
+}
 /* 累计胜率迷你折线（左旧右新） */
 .recent-trend {
   display: flex;
@@ -2040,6 +2045,9 @@ button {
     width: 100%;
     margin-left: 0;
   }
+  .summary-toolbar {
+    justify-content: flex-start;
+  }
   .recent-stats {
     flex-direction: column;
     gap: 12px;
@@ -2114,8 +2122,10 @@ button {
 
 .detail-summary {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+  row-gap: 4px;
   margin-bottom: 8px;
 }
 .detail-summary .game-icon {
@@ -2149,6 +2159,59 @@ button {
   color: #8f99a6;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
   font-size: 12px;
+}
+/* 数据来源徽标：WeGame / 掌盟公开数据 */
+.detail-source {
+  padding: 1px 8px;
+  color: #8f99a6;
+  border: 1px solid #2f3844;
+  border-radius: 10px;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.detail-source--mlol {
+  color: #e6c37a;
+  background-color: rgba(181, 151, 88, 0.1);
+  border-color: rgba(181, 151, 88, 0.5);
+}
+.detail-source-note {
+  color: #6c7683;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+/* 详情失败态：原因 + 操作 + 来源诊断 */
+.detail-error {
+  display: block;
+}
+.detail-error-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+.detail-error-hint {
+  margin: 0 0 6px;
+  color: #cfd6df;
+  font-size: 12px;
+}
+.detail-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.detail-error-debug {
+  margin-top: 8px;
+  color: #8f99a6;
+  font-size: 11px;
+}
+.detail-error-debug summary {
+  cursor: pointer;
+}
+.detail-error-trail {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: #6c7683;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
 }
 .sort-select {
   padding: 5px 10px;
@@ -2205,4 +2268,30 @@ button {
 .recent-champ:focus-visible {
   outline: 1px solid #b59758;
   outline-offset: 1px;
+}
+/* 统一键盘焦点样式：Shadow DOM 内按钮/链接/输入/下拉都能看到焦点 */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid rgba(230, 195, 122, 0.7);
+  outline-offset: 2px;
+}
+/* 空态引导：给出下一步操作 */
+.battle-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.search-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.search-empty-hint {
+  color: #6c7683;
+  font-size: 12px;
 }
