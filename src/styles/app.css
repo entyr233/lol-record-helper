@@ -656,10 +656,10 @@ button {
   gap: 2px;
 }
 .dp-mini-col--hex {
-  display: grid;
-  grid-template-columns: repeat(2, 20px);
-  gap: 3px;
-  align-content: center;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
 }
 .dp-stat {
   display: flex;
@@ -699,8 +699,8 @@ button {
 }
 .dp-crown {
   position: absolute;
-  top: -7px;
-  left: -5px;
+  top: -4px;
+  left: -3px;
   font-size: 11px;
   line-height: 1;
   z-index: 1;

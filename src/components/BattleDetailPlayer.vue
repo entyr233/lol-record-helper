@@ -17,7 +17,7 @@
         <GameIcon kind="rune" :id="player.perkSubStyle" />
       </span>
       <span v-else class="dp-mini-col dp-mini-col--hex" title="海克斯强化">
-        <template v-for="slot in augmentSlots.slice(0, 4)" :key="slot.id">
+        <template v-for="slot in augmentSlots.slice(0, 3)" :key="slot.id">
           <GameIcon v-if="slot.icon" kind="url" :id="String(slot.id)" :src="slot.icon" :title="slot.name" />
           <span v-else class="dp-augment-empty" :data-level="slot.level" />
         </template>
