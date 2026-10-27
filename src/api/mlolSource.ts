@@ -87,7 +87,8 @@ export async function mlolRequest(path: string, body: Record<string, string | nu
   try {
     parsed = JSON.parse(text) as Record<string, unknown>;
   } catch {
-    throw new ApiError("MLOL_BAD_JSON", "MlolRequest", "掌盟响应解析失败");
+    // 带出原文头部：登录页 HTML / JSONP / 空响应 一眼可辨
+    throw new ApiError("MLOL_BAD_JSON", "MlolRequest", "掌盟响应解析失败，响应头部: " + text.slice(0, 200));
   }
   return parsed;
 }
@@ -198,8 +199,8 @@ export async function fetchMlolBattles(scene: string, startIdx = 0, signal?: Abo
     start_idx: startIdx
   }, "POST", signal);
   const data = record(payload.data);
-  if (Number(data.result) !== 0) {
-    throw new ApiError("MLOL_LIST_DENIED", "MlolBattles", "对方未开放掌盟战绩查看");
+  if (Number(data.result) !== 0 || Number(payload.result ?? 0) !== 0) {
+    throw new ApiError("MLOL_LIST_DENIED", "MlolBattles", "掌盟列表被拒: " + JSON.stringify(payload).slice(0, 160));
   }
   const list = Array.isArray(data.player_battle_brief_list) ? data.player_battle_brief_list : [];
   return {

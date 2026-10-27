@@ -28,7 +28,10 @@
             </tr>
           </tbody>
         </table>
-        <p v-else class="state-text">暂无赛季记录</p>
+        <p v-else class="state-text">
+          暂无赛季记录
+          <span class="rank-diag">（诊断：report={{ diagReport }}，走势样本={{ trendSample }}）</span>
+        </p>
       </template>
     </div>
   </details>
@@ -53,6 +56,12 @@ onMounted(() => {
 });
 
 const history = computed(() => task.data.value);
+const diagReport = computed(() => {
+  const value = history.value;
+  if (!value) return "未返回";
+  return "seasons=" + (value.seasons?.length ?? "空");
+});
+const trendSample = computed(() => history.value?.trend?.length ?? 0);
 const seasons = computed(() => history.value?.seasons ?? []);
 const trend = computed(() => history.value?.trend ?? []);
 const loading = task.loading;
