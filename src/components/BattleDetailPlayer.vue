@@ -2,70 +2,56 @@
   <div class="detail-player" :class="{ 'detail-player--self': isSelf, 'detail-player--tall': mode === '伤害' || mode === '海克斯', 'detail-player--mid': mode === '技能' }">
     <span class="dp-champion">
       <GameIcon kind="champion" :id="player.championId" />
+      <span v-if="isTopDamage" class="dp-crown" title="全场输出最高">👑</span>
       <span class="dp-level" title="英雄等级">{{ player.level }}</span>
     </span>
 
     <span class="dp-spells">
-      <GameIcon kind="summon-spell" :id="player.summonSpell1Id" />
-      <GameIcon kind="summon-spell" :id="player.summonSpell2Id" />
-    </span>
-
-    <span v-if="!hexAram" class="dp-runes">
-      <GameIcon v-if="player.perkStyleUrl" kind="url" id="keystone" :src="player.perkStyleUrl" />
-      <GameIcon v-else kind="rune" :id="player.keystoneId" />
-      <GameIcon kind="rune" :id="player.perkSubStyle" />
-    </span>
-    <span v-else class="dp-runes dp-runes--hex" title="海克斯强化">
-      <template v-for="slot in augmentSlots" :key="slot.id">
-        <GameIcon v-if="slot.icon" kind="url" :id="String(slot.id)" :src="slot.icon" :title="slot.name" />
-        <span v-else class="dp-augment-empty" :data-level="slot.level" />
-      </template>
+      <span class="dp-mini-col">
+        <GameIcon kind="summon-spell" :id="player.summonSpell1Id" />
+        <GameIcon kind="summon-spell" :id="player.summonSpell2Id" />
+      </span>
+      <span v-if="!hexAram" class="dp-mini-col">
+        <GameIcon v-if="player.perkStyleUrl" kind="url" id="keystone" :src="player.perkStyleUrl" />
+        <GameIcon v-else kind="rune" :id="player.keystoneId" />
+        <GameIcon kind="rune" :id="player.perkSubStyle" />
+      </span>
+      <span v-else class="dp-mini-col dp-mini-col--hex" title="海克斯强化">
+        <template v-for="slot in augmentSlots.slice(0, 4)" :key="slot.id">
+          <GameIcon v-if="slot.icon" kind="url" :id="String(slot.id)" :src="slot.icon" :title="slot.name" />
+          <span v-else class="dp-augment-empty" :data-level="slot.level" />
+        </template>
+      </span>
     </span>
 
     <span class="dp-summoner">
       <button type="button" class="dp-name" @click="$emit('openSummoner', player)">{{ decodedName }}</button>
-      <span v-if="tierLabel" class="tag tag--tier" :title="tierLabel">{{ tierLabel }}</span>
       <span class="dp-tags">
-        <span v-if="teamLabel" class="tag tag--team">{{ teamLabel }}</span>
         <span v-if="player.battleHonour?.isSvp" class="tag tag--svp">SVP</span>
         <span v-if="player.battleHonour?.isMvp" class="tag tag--mvp">MVP</span>
         <span v-if="player.wasAfk" class="tag tag--afk">逃跑</span>
         <span v-if="player.battleHonour?.isPentaKills" class="tag tag--penta">
           五杀<template v-if="(player.pentaKills || 0) > 1">×{{ player.pentaKills }}</template>
         </span>
+        <span v-if="tierLabel" class="tag tag--tier" :title="tierLabel">{{ tierLabel }}</span>
+        <span v-if="teamLabel" class="tag tag--team">{{ teamLabel }}</span>
       </span>
     </span>
 
     <template v-if="mode === '概要'">
-      <span class="dp-bars">
-        <Histogram
-          :value="player.totalDamageToChampions"
-          :max="maxValues.totalDamageToChampions"
-          color="#1dbaa9"
-          :text="formatThousands(player.totalDamageToChampions)"
-          :highlight="isTop('totalDamageToChampions')"
-        />
-        <Histogram
-          :value="player.totalDamageTaken"
-          :max="maxValues.totalDamageTaken"
-          color="#cccccc"
-          :text="formatThousands(player.totalDamageTaken)"
-          :highlight="isTop('totalDamageTaken')"
-        />
-      </span>
-      <span v-if="mode === '概要'" class="dp-misc">
-        <span class="dp-misc-line" title="补刀">补刀 {{ player.minionsKilled ?? "-" }}</span>
-        <span class="dp-misc-line" title="经济">经济 {{ formatThousands(player.goldEarned) }}</span>
-      </span>
-      <span class="dp-kda">
-        <span class="dp-kda-number">
-          <span class="kill">{{ player.championsKilled }}</span>
-          <span class="sep">/</span>
-          <span class="death">{{ player.numDeaths }}</span>
-          <span class="sep">/</span>
-          <span class="assist">{{ player.assists }}</span>
+      <span class="dp-stat dp-stat--kda">
+        <span class="stat-value">
+          <b class="kill">{{ player.championsKilled }}</b><i>/</i><b class="death">{{ player.numDeaths }}</b><i>/</i><b class="assist">{{ player.assists }}</b>
         </span>
-        <span class="dp-kda-ratio" :class="kdaClass">{{ kdaText }}</span>
+        <span class="stat-sub stat-sub--kda" :class="kdaClass">{{ kdaText }} · 参与{{ killParticipation }}%</span>
+      </span>
+      <span class="dp-stat">
+        <span class="stat-value">{{ damageShare }}%</span>
+        <span class="stat-sub">{{ formatThousands(player.totalDamageToChampions) }} 伤害</span>
+      </span>
+      <span class="dp-stat">
+        <span class="stat-value">{{ player.minionsKilled ?? "-" }}</span>
+        <span class="stat-sub">经济 {{ formatThousands(player.goldEarned) }}</span>
       </span>
       <span class="dp-items">
         <GameIcon v-for="itemId in itemSlots" :key="itemId" kind="item" :id="itemId" />
@@ -95,7 +81,7 @@
       </span>
     </template>
 
-    <template v-else>
+    <template v-else-if="mode === '伤害'">
       <span class="dp-damage">
         <Histogram
           :value="player.totalDamageToChampions"
@@ -128,17 +114,20 @@
       </span>
     </template>
 
+    <template v-else>
+      <span class="dp-hex">
+        <template v-if="hexAram">
+          <span v-if="augmentSlots.length === 0" class="dp-hex-empty">本场无强化记录</span>
+          <span v-for="slot in augmentSlots" :key="slot.id" class="dp-hex-item" :data-level="slot.level">
+            <GameIcon kind="url" :id="String(slot.id)" :src="slot.icon" :title="slot.name" />
+            <span class="dp-hex-name" :data-level="slot.level">{{ slot.name }}</span>
+          </span>
+        </template>
+        <span v-else class="dp-hex-empty">海克斯强化仅在海克斯大乱斗中存在</span>
+      </span>
+    </template>
+
     <span class="dp-score">{{ gameScore }}</span>
-      <div v-if="mode === '海克斯'" class="dp-hex">
-      <template v-if="hexAram">
-        <span v-if="augmentSlots.length === 0" class="dp-hex-empty">本场无强化记录</span>
-        <span v-for="slot in augmentSlots" :key="slot.id" class="dp-hex-item" :data-level="slot.level">
-          <GameIcon kind="url" :id="String(slot.id)" :src="slot.icon" :title="slot.name" />
-          <span class="dp-hex-name" :data-level="slot.level">{{ slot.name }}</span>
-        </span>
-      </template>
-      <span v-else class="dp-hex-empty">海克斯强化仅在海克斯大乱斗中存在</span>
-    </div>
   </div>
 </template>
 
@@ -236,6 +225,25 @@ const kda = computed(() => kdaRatio(props.player.championsKilled, props.player.n
 const kdaText = computed(() => kda.value.toFixed(2) + " : 1");
 const kdaClass = computed(() => (kda.value >= 5 ? "well" : kda.value >= 3 ? "normal" : "bad"));
 const gameScore = computed(() => formatGameScore(props.player.gameScore));
+
+/** LeagueAkari 风格：参与击杀率与伤害团队占比（按同队 10 人内数据归一） */
+const teamKills = computed(() =>
+  props.players.filter((p) => p.teamId === props.player.teamId).reduce((sum, p) => sum + (p.championsKilled || 0), 0)
+);
+const killParticipation = computed(() => {
+  const tk = teamKills.value;
+  if (!tk) return 0;
+  return Math.round(((props.player.championsKilled + props.player.assists) / tk) * 100);
+});
+const teamDamage = computed(() =>
+  props.players.filter((p) => p.teamId === props.player.teamId).reduce((sum, p) => sum + (p.totalDamageToChampions || 0), 0)
+);
+const damageShare = computed(() => {
+  const td = teamDamage.value;
+  if (!td) return 0;
+  return Math.round(((props.player.totalDamageToChampions || 0) / td) * 100);
+});
+const isTopDamage = computed(() => isTop("totalDamageToChampions"));
 
 const activeSpells = computed(() => [
   { key: "q", label: "Q", count: props.player.spell1Cast },
