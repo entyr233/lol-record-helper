@@ -26,6 +26,22 @@
 
     <span class="header-spacer"></span>
 
+    <details ref="favoritesDetails" class="header-favorites">
+      <summary>收藏 {{ favorites.length }}</summary>
+      <div class="favorites-pop">
+        <p v-if="!favorites.length" class="favorites-empty">还没有收藏玩家</p>
+        <template v-else>
+          <div v-for="f in favorites" :key="favoriteKey(f)" class="favorite-row">
+            <button type="button" class="favorite-open" @click="openFavorite(f)">
+              <span class="favorite-name">{{ f.name }}</span>
+              <span class="favorite-area">{{ getAreaName(f.area) }}</span>
+            </button>
+            <button type="button" class="favorite-remove" :title="'取消收藏：' + f.name" @click="removeFavorite(f)">×</button>
+          </div>
+        </template>
+      </div>
+    </details>
+
     <form class="header-search" @submit.prevent="search">
       <input v-model.trim="keyword" type="search" placeholder="搜索召唤师" aria-label="搜索召唤师" />
     </form>
@@ -39,7 +55,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { areas } from "../const/areas";
+import { areas, getAreaName } from "../const/areas";
+import { favoriteKey, useFavorites } from "../composables/useFavorites";
+import type { FavoriteEntry } from "../composables/useFavorites";
 import { readStorage, writeStorage } from "../utils/storage";
 import { getLoginUser, getSelfUinFromCookie, hasLoginState, logout, triggerLogin, waitForLogin } from "../utils/weGameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
@@ -56,6 +74,26 @@ const loggedIn = ref(false);
 const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
 const initialWait = new AbortController();
 onBeforeUnmount(() => initialWait.abort());
+
+// 常驻收藏入口：与各页面共用同一份 useFavorites 单例数据
+const favoritesDetails = ref<HTMLDetailsElement | null>(null);
+const { favorites, remove: removeFavoriteEntry } = useFavorites();
+
+function closeFavorites(): void {
+  if (favoritesDetails.value) favoritesDetails.value.open = false;
+}
+
+function openFavorite(entry: FavoriteEntry): void {
+  closeFavorites();
+  void router.push({
+    name: "summary",
+    params: { area: String(entry.area), accountType: entry.accountType || "2", id: entry.id }
+  });
+}
+
+function removeFavorite(entry: FavoriteEntry): void {
+  removeFavoriteEntry(favoriteKey(entry));
+}
 
 watch(selectedArea, (area) => rememberArea(String(area)));
 

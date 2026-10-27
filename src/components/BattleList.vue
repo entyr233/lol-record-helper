@@ -1,5 +1,5 @@
 <template>
-  <div class="battle-list">
+  <div ref="listRoot" class="battle-list">
     <Panel title="对局记录">
       <div class="battle-list-body">
         <div class="battle-list-side">
@@ -26,6 +26,7 @@
             <button v-if="!isDefault" type="button" class="mode-filter-tab mode-filter-tab--clear" @click="emitFilter(defaultPatch)">重置</button>
           </div>
           <p class="sample-note">{{ sampleText }}</p>
+          <p v-if="notice" class="list-notice">{{ notice }}</p>
           <ul class="battle-list-items">
             <li v-if="!battles.length && loading" class="state-text">加载中…</li>
             <li v-else-if="!battles.length && error" class="state-text state-text--error">
@@ -35,10 +36,11 @@
             <BattleListItem
               v-for="(battle, index) in battles"
               :key="battle.game_id"
+              :data-game-id="battle.game_id"
               :battle="battle"
               :index="index"
               :class="{ selected: battle.game_id === selectedGameId }"
-              @click="select(battle.game_id)"
+              @click="onSelect(battle.game_id)"
             />
           </ul>
           <div class="pager">
@@ -70,23 +72,30 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import Panel from "./Panel.vue";
 import BattleListItem from "./BattleListItem.vue";
 import BattleDetail from "./BattleDetail.vue";
-import type { PlayerDetail } from "../api/types";
+import type { BattleSummary, PlayerDetail } from "../api/types";
 import { toRqOptions } from "../composables/useUserInfo";
-import { useBattleList, DEFAULT_FILTER, type ModeFilter, type ListFilter } from "../composables/useBattleList";
+import { useBattleList, DEFAULT_FILTER, type FocusGameResult, type ModeFilter, type ListFilter } from "../composables/useBattleList";
 import { toErrorMessage } from "../api/errors";
 import { championName, ensureChampionNames } from "../api/staticData";
-import { ref } from "vue";
 
-const props = defineProps<{ area: string; accountType: string; id: string }>();
-const emit = defineEmits<{ openSummoner: [player: PlayerDetail] }>();
+const props = defineProps<{ area: string; accountType: string; id: string; activeChampion?: number | null }>();
+const emit = defineEmits<{
+  openSummoner: [player: PlayerDetail];
+  championChange: [id: number | null];
+  selectionChange: [gameId: string | null];
+}>();
 
+const listRoot = ref<HTMLElement | null>(null);
 const rqOptions = computed(() => toRqOptions({ area: props.area, accountType: props.accountType, id: props.id }));
 const listState = useBattleList(() => rqOptions.value);
-const { battles, page, hasPrev, hasNext, loading, error, selectedGameId, filter, sampleSize, rawLoaded, setFilter, goToPage, select } = listState;
+const {
+  battles, page, hasPrev, hasNext, loading, error, selectedGameId, filter, sampleSize,
+  rawLoaded, championPool, setFilter, goToPage, select, focusGame: locateGame
+} = listState;
 
 const modeOptions: Array<{ key: ModeFilter; label: string }> = [
   { key: "all", label: "全部" },
@@ -105,11 +114,17 @@ onMounted(() => {
 });
 const championOptions = computed(() => {
   void nameTick.value;
-  const byId = new Map<number, number>();
-  for (const b of battles.value) {
-    byId.set(b.champion_id, (byId.get(b.champion_id) ?? 0) + 1);
+  const options = championPool.value.map((entry) => ({
+    id: entry.id,
+    count: entry.count,
+    name: championName(entry.id) || ("英雄 " + entry.id)
+  }));
+  // 当前筛选的英雄即使还不在池子里（例如从外部带入）也要出现在选项里
+  const activeId = filter.value.champion;
+  if (activeId !== null && !options.some((item) => item.id === activeId)) {
+    options.push({ id: activeId, count: sampleSize.value, name: championName(activeId) || ("英雄 " + activeId) });
   }
-  return [...byId.entries()].map(([id, count]) => ({ id, count, name: championName(id) || ("英雄 " + id) })).sort((a, b) => b.count - a.count);
+  return options.sort((a, b) => b.count - a.count || a.id - b.id);
 });
 const isDefault = computed(() => filter.value.mode === "all" && filter.value.champion === null && filter.value.result === "all" && filter.value.days === 0);
 
@@ -138,24 +153,75 @@ onMounted(() => {
   void goToPage(1);
 });
 
+// 外部受控 prop → 内部筛选；相等判断避免与下方 emit 来回触发
+watch(
+  () => props.activeChampion ?? null,
+  (value) => {
+    if (filter.value.champion === value) return;
+    void setFilter({ champion: value });
+  },
+  { immediate: true }
+);
+// 内部筛选/选中变化 → 通知外部
+watch(() => filter.value.champion, (value) => {
+  emit("championChange", value);
+});
+watch(selectedGameId, (value) => {
+  emit("selectionChange", value);
+});
+
+/** focusGame 定位到的对局：当前页找不到时作为详情参数的兜底 */
+const focusedBattle = ref<BattleSummary | null>(null);
 const selectedStartTime = computed(() => {
   const found = battles.value.find((item) => item.game_id === selectedGameId.value);
-  return found ? found.game_start_time : undefined;
+  const source = found ?? (focusedBattle.value?.game_id === selectedGameId.value ? focusedBattle.value : undefined);
+  return source ? source.game_start_time : undefined;
 });
 const selectedQueueId = computed(() => {
   const found = battles.value.find((item) => item.game_id === selectedGameId.value);
-  return found?.game_queue_id;
+  const source = found ?? (focusedBattle.value?.game_id === selectedGameId.value ? focusedBattle.value : undefined);
+  return source?.game_queue_id;
+});
+
+/** 用户手动点选对局：清掉 focusGame 的兜底数据 */
+function onSelect(gameId: string): void {
+  focusedBattle.value = null;
+  select(gameId);
+}
+
+/** 列表上方提示（定位失败/发生过筛选重置），4 秒后自动清空 */
+const notice = ref("");
+let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+function showNotice(text: string): void {
+  notice.value = text;
+  if (noticeTimer) clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(() => { notice.value = ""; }, 4000);
+}
+onBeforeUnmount(() => {
+  if (noticeTimer) clearTimeout(noticeTimer);
+  noticeTimer = undefined;
 });
 
 function handleOpenSummoner(player: PlayerDetail): void {
   emit("openSummoner", player);
 }
 
-/** 近期表现联动：色块定位对局（最近 20 场在前两页内），英雄点击筛选 */
-function focusGame(game: { game_id: string }): void {
-  void goToPage(1).then(() => {
-    select(game.game_id);
-  });
+/** 近期表现联动：色块定位到该场真实所在页并选中、滚动可见（返回命中项与是否重置过筛选） */
+async function focusGame(game: BattleSummary): Promise<FocusGameResult> {
+  const result = await locateGame(game);
+  if (!result.battle) {
+    focusedBattle.value = null;
+    showNotice(result.filterReset ? "已重置筛选，但仍未找到该场对局" : "该场对局不在最近 200 场范围内");
+    return result;
+  }
+  focusedBattle.value = result.battle;
+  if (result.filterReset) showNotice("已重置筛选以定位该场对局");
+  await nextTick();
+  // jsdom 里没有 scrollIntoView，做可选调用保护
+  const nodes = listRoot.value?.querySelectorAll<HTMLElement>("[data-game-id]") ?? [];
+  const target = Array.from(nodes).find((node) => node.dataset.gameId === result.battle?.game_id);
+  target?.scrollIntoView?.({ block: "nearest" });
+  return result;
 }
 function applyChampionFilter(id: number | null): void {
   void setFilter({ champion: id });

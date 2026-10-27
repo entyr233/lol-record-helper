@@ -44,6 +44,7 @@ import GameIcon from "../components/GameIcon.vue";
 import { lolBattleApi } from "../api/client";
 import { toErrorMessage } from "../api/errors";
 import { useAsyncData } from "../composables/useAsyncData";
+import { useFavorites } from "../composables/useFavorites";
 import { getAreaName } from "../const/areas";
 import type { PlayerSearchResult } from "../api/types";
 
@@ -97,23 +98,20 @@ const isPrivacyError = computed(() => {
 });
 
 
-const FAV_KEY = "lol-tft-favorites";
-const favorites = ref<Array<{ name: string; area: number; id: string; level?: number }>>([]);
-try {
-  favorites.value = JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]") as typeof favorites.value;
-} catch { favorites.value = []; }
+const { isFavorite: isFavoriteEntry, toggle: toggleFavoriteEntry } = useFavorites();
 
 function isFavorite(player: PlayerSearchResult): boolean {
-  return favorites.value.some((f) => f.id === player.openid && f.area === player.area);
+  return isFavoriteEntry({ area: player.area, accountType: "2", id: player.openid });
 }
 
 function toggleFavorite(player: PlayerSearchResult): void {
-  if (isFavorite(player)) {
-    favorites.value = favorites.value.filter((f) => !(f.id === player.openid && f.area === player.area));
-  } else {
-    favorites.value = [{ name: props.nickname, area: player.area, id: player.openid, level: player.level }, ...favorites.value].slice(0, 20);
-  }
-  try { localStorage.setItem(FAV_KEY, JSON.stringify(favorites.value)); } catch { /* ignore */ }
+  toggleFavoriteEntry({
+    name: props.nickname,
+    area: player.area,
+    accountType: "2",
+    id: player.openid,
+    level: player.level
+  });
 }
 
 function openPlayer(player: PlayerSearchResult): void {

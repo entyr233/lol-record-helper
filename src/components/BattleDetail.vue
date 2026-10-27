@@ -8,8 +8,9 @@
     </div>
     <template v-else-if="detail">
       <div class="detail-summary">
-        <GameIcon kind="champion" :id="viewedChampionId" />
-        <span class="detail-summary-result" :class="teams[0]?.resultClass">{{ teams[0]?.resultLabel ?? "" }}</span>
+        <GameIcon v-if="viewedPlayer" kind="champion" :id="viewedChampionId" />
+        <span v-if="viewedTeam" class="detail-summary-result" :class="'detail-summary-result--' + viewedTeam.resultClass">{{ viewedTeam.resultLabel }}</span>
+        <span v-if="viewedPlayer" class="detail-summary-name">{{ decodedPlayerName(viewedPlayer) }}</span>
         <span class="detail-summary-meta">{{ summaryMeta }}</span>
       </div>
       <div class="detail-toolbar">
@@ -40,7 +41,7 @@
           :mode="currentMode"
           :hex-aram="isHexAram"
           :rank-info="rankOf(team.players, player, sortBy)"
-          :is-self="canOpenPlayer && player.openid === selfOpenid"
+          :is-self="canOpenPlayer && player.openid === viewedOpenid"
           @open-summoner="canOpenPlayer && $emit('openSummoner', $event)"
         />
       </section>
@@ -50,6 +51,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import GameIcon from "./GameIcon.vue";
 import BattleDetailPlayer from "./BattleDetailPlayer.vue";
 import { lolBattleApi } from "../api/client";
 import { ApiError, toErrorMessage } from "../api/errors";
@@ -83,16 +85,10 @@ const currentMode = ref<(typeof MODES)[number]>(props.mode ?? "概要");
 watch(() => props.mode, (m) => { if (m) currentMode.value = m; });
 
 const visibleModes = computed(() => MODES.filter((m) => m !== "海克斯" || isHexAram.value));
-const viewedChampionId = computed(() => {
-  const viewed = detail.value?.player_details.find((p) => p.openid === detail.value?.openid);
-  return viewed?.championId ?? 0;
-});
 const summaryMeta = computed(() => {
   const d = detail.value;
   if (!d) return "";
   const parts: string[] = [];
-  const viewed = d.player_details.find((p) => p.openid === d.openid);
-  if (viewed) parts.push(decodedPlayerName(viewed));
   const modeName = d.game_mode || queueNameById(d.game_queue_id);
   if (modeName) parts.push(modeName);
   const start = Number(d.game_start_time);
@@ -100,7 +96,8 @@ const summaryMeta = computed(() => {
   if (d.game_time_played) parts.push(formatDuration(d.game_time_played));
   return parts.join(" · ");
 });
-function decodedPlayerName(player: PlayerDetail): string {
+function decodedPlayerName(player: PlayerDetail | null): string {
+  if (!player) return "";
   try { return decodeURIComponent(player.name || ""); } catch { return player.name || ""; }
 }
 function queueNameById(queueId: number): string {
@@ -191,7 +188,10 @@ const request = useAsyncData(async (signal) => {
         startTime: props.startTime
       }, signal);
       trail.push("掌盟:ok");
-      if (mlol.player_details.length > 0) return mlol as unknown as GetBattleDetailLike;
+      if (mlol.player_details.length > 0) {
+        const wrapped: GetBattleDetailLike = { battle_detail: mlol, openid: null };
+        return wrapped;
+      }
       trail.push("掌盟:空数据");
     } catch (error) {
       trail.push("掌盟:" + codeOf(error));
@@ -208,7 +208,30 @@ interface GetBattleDetailLike {
 const detail = computed<BattleDetail | null>(() => request.data.value?.battle_detail ?? null);
 const selfOpenid = computed(() => request.data.value?.openid ?? null);
 /** 掌盟数据源的玩家没有 wegame openid，点击跳转不可用 */
-const canOpenPlayer = computed(() => request.data.value?.openid !== null);
+const canOpenPlayer = computed(() => selfOpenid.value !== null);
+/** 当前查看玩家的 openid：优先详情返回的顶层 openid；搜索/收藏进入（account_type=2）时 id 就是 openid */
+const viewedOpenid = computed<string | null>(() => {
+  const fromDetail = selfOpenid.value ?? detail.value?.openid;
+  if (fromDetail) return String(fromDetail);
+  if (String(props.accountType) === "2" && props.id) return String(props.id);
+  return null;
+});
+/** 当前查看的玩家：先按 openid 严格匹配；掌盟类数据源没有顶层 openid 时回退为 team_details[0] 队伍的第一名玩家 */
+const viewedPlayer = computed<PlayerDetail | null>(() => {
+  const current = detail.value;
+  if (!current) return null;
+  const viewed = viewedOpenid.value
+    ? current.player_details.find((player) => player.openid === viewedOpenid.value) ?? null
+    : null;
+  if (viewed) return viewed;
+  // 详情带顶层 openid 却匹配不到：身份不可信，不猜
+  if (selfOpenid.value !== null) return null;
+  // 掌盟源玩家 openid 是 puuid/uuid，与 wegame openid 对不上，按 my_team（team_details[0]）兜底
+  const firstTeam = current.team_details[0];
+  if (!firstTeam) return null;
+  return current.player_details.find((player) => player.teamId === firstTeam.teamId) ?? null;
+});
+const viewedChampionId = computed(() => viewedPlayer.value?.championId ?? 0);
 const loading = request.loading;
 const error = request.error;
 const run = request.run;
@@ -237,5 +260,12 @@ const teams = computed(() => {
       .slice()
       .sort((a, b) => (b.teamMadeSize || 0) - (a.teamMadeSize || 0))
   }));
+});
+
+/** 当前查看玩家所在队伍（胜负标签反查），反查不到时摘要不显示胜负 */
+const viewedTeam = computed(() => {
+  const player = viewedPlayer.value;
+  if (!player) return null;
+  return teams.value.find((team) => team.players.some((item) => item.openid === player.openid)) ?? null;
 });
 </script>

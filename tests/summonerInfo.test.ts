@@ -36,10 +36,10 @@ describe("SummonerInfo independent statistics state", () => {
       try {
         await flushPromises();
         expect(wrapper.text()).toContain(summoner.name);
-        expect(wrapper.get(".summoner-counts").text()).toContain("统计加载失败");
-        expect(wrapper.get(".summoner-counts").text()).toContain(error.message);
+        expect(wrapper.get(".summoner-report").text()).toContain("统计加载失败");
+        expect(wrapper.get(".summoner-report").text()).toContain(error.message);
         expect(wrapper.findAll(".count-row")).toHaveLength(0);
-        await wrapper.get(".summoner-counts button").trigger("click");
+        await wrapper.get(".summoner-report button").trigger("click");
         await flushPromises();
 
         expect(api.getSummonerInfo).toHaveBeenCalledTimes(1);
@@ -59,18 +59,18 @@ describe("SummonerInfo independent statistics state", () => {
     try {
       await flushPromises();
       expect(wrapper.text()).toContain(summoner.name);
-      expect(wrapper.get(".summoner-counts").text()).toContain("统计加载中");
+      expect(wrapper.get(".summoner-report").text()).toContain("统计加载中");
       rejectReport(new Error("首次失败"));
       await flushPromises();
       api.getBattleReport.mockReturnValueOnce(new Promise((_resolve, reject) => { rejectReport = reject; }));
-      await wrapper.get(".summoner-counts button").trigger("click");
+      await wrapper.get(".summoner-report button").trigger("click");
       expect(wrapper.text()).toContain(summoner.name);
-      expect(wrapper.get(".summoner-counts").text()).toContain("统计加载中");
-      expect(wrapper.find(".summoner-counts button").exists()).toBe(false);
+      expect(wrapper.get(".summoner-report").text()).toContain("统计加载中");
+      expect(wrapper.find(".summoner-report button").exists()).toBe(false);
       rejectReport(new Error("再次失败"));
       await flushPromises();
-      expect(wrapper.get(".summoner-counts").text()).toContain("再次失败");
-      expect(wrapper.get(".summoner-counts button").text()).toBe("重试统计");
+      expect(wrapper.get(".summoner-report").text()).toContain("再次失败");
+      expect(wrapper.get(".summoner-report button").text()).toBe("重试统计");
       expect(api.getSummonerInfo).toHaveBeenCalledTimes(1);
     } finally { wrapper.unmount(); }
   });

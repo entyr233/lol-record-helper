@@ -19,7 +19,14 @@
           <p class="summoner-name">
             {{ summoner.name }}
             <button type="button" class="copy-name" @click="copyName">{{ copied ? "已复制" : "复制昵称" }}</button>
-            <button type="button" class="fav-star" :class="{ 'fav-star--on': isFavorite }" @click="toggleFavorite">
+            <button
+              type="button"
+              class="fav-star"
+              :class="{ 'fav-star--on': isFavorite }"
+              :title="isFavorite ? '取消收藏' : '收藏到首页'"
+              :aria-label="isFavorite ? '取消收藏' : '收藏到首页'"
+              @click="toggleFavorite"
+            >
               {{ isFavorite ? "★" : "☆" }}
             </button>
           </p>
@@ -27,16 +34,11 @@
             <span class="count-label">段位：</span>
             <span class="count-tier">{{ tierText }}</span>
           </p>
-        </div>
-        <div class="summoner-counts">
-          <p v-if="reportLoading" class="state-text">统计加载中…</p>
-          <p v-else-if="reportError" class="state-text state-text--error">
+          <p v-if="reportLoading" class="summoner-report">统计加载中…</p>
+          <p v-else-if="reportError" class="summoner-report summoner-report--error">
             统计加载失败：{{ toErrorMessage(reportError) }}
             <button type="button" class="link-button" @click="retryReport">重试统计</button>
           </p>
-          <template v-else>
-            
-          </template>
         </div>
         <details class="summoner-more">
           <summary>更多资料</summary>
@@ -55,6 +57,7 @@
       </div>
       <div class="summoner-recent">
         <RecentStats :area="area" :account-type="accountType" :id="id" :active-champion="activeChampion"
+          :active-game-id="activeGameId"
           @focus-game="(g: BattleSummary) => emit('focusGame', g)" @filter-champion="(id: number | null) => emit('filterChampion', id)" />
       </div>
       <p v-if="loginError" class="state-text state-text--error" role="alert">{{ loginError }}</p>
@@ -75,33 +78,33 @@ import { useAsyncData } from "../composables/useAsyncData";
 import { toRqOptions } from "../composables/useUserInfo";
 import { triggerLogin, waitForLogin } from "../utils/weGameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
+import { useFavorites } from "../composables/useFavorites";
 import { tierLabel, tierOrder } from "../const/tiers";
 
-const props = defineProps<{ area: string; accountType: string; id: string; activeChampion?: number | null }>();
+const props = defineProps<{
+  area: string;
+  accountType: string;
+  id: string;
+  activeChampion?: number | null;
+  activeGameId?: string | null;
+}>();
 
 const emit = defineEmits<{ focusGame: [game: BattleSummary]; filterChampion: [id: number | null] }>();
 
-const FAV_KEY = "lol-tft-favorites";
-const favorites = ref<Array<{ name: string; area: number; id: string; accountType: string; level?: number }>>([]);
-try {
-  favorites.value = JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]") as typeof favorites.value;
-} catch { favorites.value = []; }
+const { isFavorite: isFavoriteEntry, toggle: toggleFavoriteEntry } = useFavorites();
+const favoriteTarget = computed(() => ({ area: props.area, accountType: props.accountType, id: props.id }));
+const isFavorite = computed(() => isFavoriteEntry(favoriteTarget.value));
 
-const isFavorite = computed(() => favorites.value.some((f) => f.id === props.id && f.accountType === props.accountType));
 function toggleFavorite(): void {
-  if (isFavorite.value) {
-    favorites.value = favorites.value.filter((f) => !(f.id === props.id && f.accountType === props.accountType));
-  } else {
-    favorites.value = [{
-      name: summoner.value?.name ?? props.id,
-      area: Number(props.area) || 0,
-      id: props.id,
-      accountType: props.accountType,
-      level: summoner.value?.level
-    }, ...favorites.value].slice(0, 20);
-  }
-  try { localStorage.setItem(FAV_KEY, JSON.stringify(favorites.value)); } catch { /* ignore */ }
+  toggleFavoriteEntry({
+    name: summoner.value?.name ?? props.id,
+    area: Number(props.area) || 0,
+    accountType: props.accountType,
+    id: props.id,
+    level: summoner.value?.level
+  });
 }
+
 const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
 
 const rqOptions = computed(() => toRqOptions({ area: props.area, accountType: props.accountType, id: props.id }));

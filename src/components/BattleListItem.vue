@@ -33,13 +33,13 @@ import type { OverviewBattle } from "../api/types";
 import { getQueueName } from "../const/queues";
 import { getJudgement } from "../const/judgements";
 import { tierLabel } from "../const/tiers";
-import { getResultClass, getResultLabel } from "../const/wins";
+import { battleResultLabel, classifyBattle } from "../const/wins";
 import { formatDateTime, formatDuration } from "../utils/format";
 
 const props = defineProps<{ battle: OverviewBattle; index: number }>();
 
-const resultClass = computed(() => (props.battle.was_early_surrender ? "remake" : getResultClass(props.battle.win)));
-const resultLabel = computed(() => (props.battle.was_early_surrender ? "重开" : getResultLabel(props.battle.win)));
+const resultClass = computed(() => classifyBattle(props.battle));
+const resultLabel = computed(() => battleResultLabel(props.battle));
 const queueName = computed(() =>
   props.battle.game_mode_name
   || getQueueName(Number(props.battle.queue_id ?? props.battle.queue ?? props.battle.game_queue_id ?? 0))

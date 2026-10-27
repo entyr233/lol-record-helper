@@ -175,6 +175,93 @@ button {
   color: #7a8390;
 }
 
+/* ---------- 顶栏常驻收藏入口 ---------- */
+.header-favorites {
+  position: relative;
+}
+.header-favorites > summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  color: #b59758;
+  border-radius: 4px;
+  cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+}
+.header-favorites > summary::-webkit-details-marker {
+  display: none;
+}
+.header-favorites > summary:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.header-favorites[open] > summary {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+.favorites-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  width: 240px;
+  max-height: 320px;
+  padding: 6px;
+  overflow: auto;
+  background-color: #1a2026;
+  border: 1px solid #2f3844;
+  border-radius: 6px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+.favorite-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.favorite-open {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 4px;
+  text-align: left;
+}
+.favorite-open:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.favorite-name {
+  overflow: hidden;
+  color: #e8edf2;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.favorite-area {
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.favorite-remove {
+  flex: none;
+  padding: 4px 8px;
+  color: #8f99a6;
+  font-size: 14px;
+  border-radius: 4px;
+}
+.favorite-remove:hover {
+  color: #e07070;
+  background-color: rgba(224, 112, 112, 0.12);
+}
+.favorites-empty {
+  margin: 0;
+  padding: 8px 10px;
+  color: #6c7683;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
 /* ---------- layout ---------- */
 .lol-tft-main {
   flex: 1 1 auto;
@@ -212,7 +299,8 @@ button {
 }
 .page--summary {
   max-width: 1440px;
-  min-width: 1080px;
+  /* 不再强制 1080px：窄窗口由下方 1100px 断点接管为单列 */
+  min-width: 0;
   margin: 0 auto;
 }
 .summary-battles {
@@ -302,9 +390,14 @@ button {
   color: #6c7683;
   font-size: 12px;
 }
-.summoner-counts {
-  flex: none;
-  min-width: 340px;
+/* 统计的加载/失败提示：只在有状态时渲染，不再保留 340px 空占位 */
+.summoner-report {
+  min-height: 0;
+  margin: 2px 0 4px;
+  font-size: 13px;
+}
+.summoner-report--error {
+  color: #e07070;
 }
 .summoner-base .count-row {
   justify-content: flex-start;
@@ -1323,6 +1416,10 @@ button {
 }
 .recent-wl .w { color: #4cd4a0; font-size: 20px; margin-right: 2px; }
 .recent-wl .l { color: #ff6b6b; font-size: 20px; margin: 0 2px; }
+.recent-remake {
+  color: #8f99a6;
+  font-size: 13px;
+}
 .recent-wr {
   color: #e6c37a;
   font-size: 20px;
@@ -1340,22 +1437,72 @@ button {
   color: #e6c37a;
   font-size: 12px;
 }
+.recent-streak--lose {
+  background-color: rgba(224, 112, 112, 0.16);
+  color: #e07070;
+}
 .recent-strip {
   display: flex;
-  gap: 3px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
   margin: 8px 0;
 }
+/* 色块：18×6 的视觉细条 + 20×18 的透明热区（按钮本体无背景） */
 .strip-block {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  background: none;
+  border-radius: 3px;
+}
+.strip-bar {
+  display: block;
   width: 18px;
   height: 6px;
   border-radius: 2px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
-.strip-win { background-color: #1dbaa9; }
-.strip-lose { background-color: #c15b5b; }
+.strip-bar--win {
+  background-color: #1dbaa9;
+}
+.strip-bar--lose {
+  background-color: #c15b5b;
+}
+.strip-bar--remake {
+  background-color: #6c7683;
+}
+.strip-block:hover .strip-bar {
+  transform: scaleY(1.8);
+}
+.strip-block--cur {
+  background-color: rgba(230, 195, 122, 0.12);
+}
+.strip-block--cur .strip-bar {
+  box-shadow: 0 0 0 1px #e6c37a;
+}
 .recent-champs {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 14px;
+  row-gap: 6px;
+}
+.recent-champ-filter-clear {
+  padding: 3px 9px;
+  color: #e6c37a;
+  background-color: rgba(181, 151, 88, 0.14);
+  border: 1px solid rgba(181, 151, 88, 0.45);
+  border-radius: 10px;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.recent-champ-filter-clear:hover {
+  background-color: rgba(181, 151, 88, 0.26);
 }
 .recent-champs-label {
   color: #56606c;
@@ -1497,6 +1644,26 @@ button {
 
 /* ---------- 窄窗口：单列 + 详情后置 ---------- */
 @media (max-width: 1100px) {
+  .page--summary {
+    min-width: 0;
+  }
+  .shell-content {
+    padding: 18px 20px 48px;
+  }
+  .app-header {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 75px;
+    padding: 8px 12px;
+    row-gap: 6px;
+  }
+  .summoner {
+    flex-wrap: wrap;
+  }
+  .recent-headline {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
   .battle-list-body {
     flex-direction: column;
   }
@@ -1521,6 +1688,27 @@ button {
   .dp-items .game-icon {
     width: 22px;
     height: 22px;
+  }
+}
+
+/* ---------- 更窄的窗口：收紧内边距，顶栏与弹层靠右 ---------- */
+@media (max-width: 760px) {
+  .shell-content {
+    padding: 14px 12px 40px;
+  }
+  .summoner-avatar {
+    width: 76px;
+    height: 76px;
+  }
+  .header-search input {
+    width: 120px;
+  }
+  .header-divider {
+    display: none;
+  }
+  .header-favorites .favorites-pop {
+    left: auto;
+    right: 0;
   }
 }
 
@@ -1561,6 +1749,21 @@ button {
   font-size: 14px;
   font-weight: 700;
 }
+.detail-summary-result--win {
+  color: #09a95b;
+}
+.detail-summary-result--lose {
+  color: #db4c4c;
+}
+.detail-summary-result--remake {
+  color: #dddddd;
+}
+.detail-summary-name {
+  color: #b59758;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+}
 .detail-summary-meta {
   color: #8f99a6;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
@@ -1600,4 +1803,25 @@ button {
 .sort-select option {
   background-color: #1c232d;
   color: #c6cfda;
+}
+
+/* ---------- 交互补充：列表提示 + 键盘可达 ---------- */
+.list-notice {
+  margin: 0 0 6px;
+  padding: 4px 8px;
+  color: #e6c37a;
+  background-color: rgba(181, 151, 88, 0.12);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.strip-block:focus-visible,
+.fav-star:focus-visible,
+.favorite-open:focus-visible,
+.favorite-remove:focus-visible,
+.header-favorites > summary:focus-visible,
+.landing-chip:focus-visible,
+.recent-champ:focus-visible {
+  outline: 1px solid #b59758;
+  outline-offset: 1px;
 }

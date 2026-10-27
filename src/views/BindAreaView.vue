@@ -11,7 +11,7 @@
     <div v-if="favorites.length" class="landing-section">
       <p class="landing-label">收藏玩家</p>
       <div class="landing-chips">
-        <button v-for="f in favorites" :key="f.id" type="button" class="landing-chip landing-chip--fav" @click="openFavorite(f)">
+        <button v-for="f in favorites" :key="favoriteKey(f)" type="button" class="landing-chip landing-chip--fav" @click="openFavorite(f)">
           <span class="landing-chip-name">{{ f.name }}</span>
           <span class="landing-chip-area">{{ getAreaName(f.area) }}</span>
         </button>
@@ -32,14 +32,15 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { readStorage } from "../utils/storage";
 import { getAreaName } from "../const/areas";
+import { favoriteKey, useFavorites } from "../composables/useFavorites";
+import type { FavoriteEntry } from "../composables/useFavorites";
 import { getSelfUinFromCookie, hasLoginState } from "../utils/weGameLogin";
 
 const router = useRouter();
 const lastArea = ref(readStorage<string>("last-area", ""));
-const favorites = ref<Array<{ name: string; area: number; id: string; level?: number }>>([]);
+const { favorites } = useFavorites();
 const recentSearches = ref<string[]>([]);
 try {
-  favorites.value = JSON.parse(localStorage.getItem("lol-tft-favorites") ?? "[]") as typeof favorites.value;
   recentSearches.value = JSON.parse(localStorage.getItem("lol-tft-search-history") ?? "[]") as string[];
 } catch { /* ignore */ }
 
@@ -57,8 +58,8 @@ function goSelf(): void {
   void router.push({ name: "area", params: { area: lastArea.value || "1" } });
 }
 
-function openFavorite(f: { name: string; area: number; id: string }): void {
-  void router.push({ name: "summary", params: { area: String(f.area), accountType: "2", id: f.id } });
+function openFavorite(f: FavoriteEntry): void {
+  void router.push({ name: "summary", params: { area: String(f.area), accountType: f.accountType || "2", id: f.id } });
 }
 
 function searchName(name: string): void {

@@ -3,15 +3,18 @@
     <div class="recent-headline">
       <span class="recent-title">全部模式 · 最近 {{ games.length }} 场</span>
       <span class="recent-wl"><b class="w">{{ wins }}</b>胜<b class="l">{{ losses }}</b>负</span>
+      <span v-if="remakes" class="recent-remake">（重开 {{ remakes }}）</span>
       <span class="recent-wr">{{ winRate }}% 胜率</span>
       <span class="recent-kda">{{ avgKda }} KDA</span>
       <span v-if="streak" class="recent-streak" :class="{ 'recent-streak--lose': firstIsLose }">{{ streak }}</span>
     </div>
     <div class="recent-strip" :title="stripTitle">
-      <button v-for="(g, index) in games.slice().reverse()" :key="g.game_id" type="button"
-        class="strip-block strip-block--btn" :class="g.win === 'Win' ? 'strip-win' : 'strip-lose'"
-        :title="(games.length - index) + '：' + (g.win === 'Win' ? '胜利' : '失败') + ' · 点击定位'"
-        @click="$emit('focusGame', g)" />
+      <button v-for="(g, index) in recentGames" :key="g.game_id" type="button"
+        class="strip-block strip-block--btn" :class="{ 'strip-block--cur': g.game_id === activeGameId }"
+        :aria-pressed="g.game_id === activeGameId" :aria-label="stripAriaLabel(g, index)" :title="stripBlockTitle(g, index)"
+        @click="$emit('focusGame', g)">
+        <span class="strip-bar" :class="'strip-bar--' + classifyBattle(g)"></span>
+      </button>
     </div>
     <div class="recent-champs">
       <span class="recent-champs-label">常用英雄（点击筛选）</span>
@@ -36,8 +39,15 @@ import { toRqOptions } from "../composables/useUserInfo";
 import { lolBattleApi } from "../api/client";
 import { championName, ensureChampionNames } from "../api/staticData";
 import type { BattleSummary } from "../api/types";
+import { battleResultLabel, classifyBattle } from "../const/wins";
 
-const props = defineProps<{ area: string; accountType: string; id: string; activeChampion?: number | null }>();
+const props = defineProps<{
+  area: string;
+  accountType: string;
+  id: string;
+  activeChampion?: number | null;
+  activeGameId?: string | null;
+}>();
 defineEmits<{ focusGame: [game: BattleSummary]; filterChampion: [id: number | null] }>();
 
 const task = useAsyncData(async (signal) => {
@@ -54,9 +64,26 @@ onMounted(() => {
 
 
 const games = computed(() => task.data.value ?? []);
-const wins = computed(() => games.value.filter((g) => g.win === "Win").length);
-const losses = computed(() => games.value.length - wins.value);
-const winRate = computed(() => (games.value.length ? Math.round((wins.value / games.value.length) * 100) : 0));
+/** 三分类计数：重开单列，不计入胜率分母 */
+const resultCounts = computed(() => {
+  let winCount = 0;
+  let loseCount = 0;
+  let remakeCount = 0;
+  for (const g of games.value) {
+    const result = classifyBattle(g);
+    if (result === "win") winCount += 1;
+    else if (result === "lose") loseCount += 1;
+    else remakeCount += 1;
+  }
+  return { winCount, loseCount, remakeCount };
+});
+const wins = computed(() => resultCounts.value.winCount);
+const losses = computed(() => resultCounts.value.loseCount);
+const remakes = computed(() => resultCounts.value.remakeCount);
+const winRate = computed(() => {
+  const total = wins.value + losses.value;
+  return total ? Math.round((wins.value / total) * 100) : 0;
+});
 const avgKda = computed(() => {
   const totals = games.value.reduce(
     (acc, g) => ({ k: acc.k + (g.kills ?? 0), d: acc.d + (g.deaths ?? 0), a: acc.a + (g.assists ?? 0) }),
@@ -65,25 +92,46 @@ const avgKda = computed(() => {
   if (!totals.d && !totals.k) return "0.00";
   return ((totals.k + totals.a) / Math.max(1, totals.d)).toFixed(2);
 });
-const firstIsLose = computed(() => games.value[0]?.win !== "Win");
-const streak = computed(() => {
-  if (!games.value.length) return "";
-  const first = games.value[0].win;
+/** 连胜连败：跳过重开取第一场非重开结果，之后连续相同结果计数（重开不打断） */
+const streakState = computed(() => {
+  const list = games.value;
+  const firstIndex = list.findIndex((g) => classifyBattle(g) !== "remake");
+  if (firstIndex < 0) return { count: 0, lose: false };
+  const first = classifyBattle(list[firstIndex]);
   let count = 0;
-  for (const g of games.value) {
-    if (g.win !== first) break;
+  for (let i = firstIndex; i < list.length; i += 1) {
+    const result = classifyBattle(list[i]);
+    if (result === "remake") continue;
+    if (result !== first) break;
     count += 1;
   }
-  const word = first === "Win" ? "连胜" : "连败";
-  return count >= 2 ? count + word : "";
+  return { count, lose: first === "lose" };
 });
-const stripTitle = computed(() => "从左到右：由远到近（" + wins.value + "胜" + losses.value + "负），点击色块定位对局");
+const firstIsLose = computed(() => streakState.value.lose);
+const streak = computed(() => {
+  const state = streakState.value;
+  if (state.count < 2) return "";
+  return state.count + (state.lose ? "连败" : "连胜");
+});
+/** 色块顺序：由远到近（左旧右新），与文案“从左到右：由远到近”一致 */
+const recentGames = computed(() => games.value.slice().reverse());
+const stripTitle = computed(() => {
+  const remakeText = remakes.value ? "，重开 " + remakes.value : "";
+  return "从左到右：由远到近（" + wins.value + "胜" + losses.value + "负" + remakeText + "），点击色块定位对局";
+});
+function stripBlockTitle(g: BattleSummary, index: number): string {
+  return recentGames.value.length - index + "：" + battleResultLabel(g) + " · 点击定位";
+}
+function stripAriaLabel(g: BattleSummary, index: number): string {
+  const current = g.game_id === props.activeGameId ? "（当前查看）" : "";
+  return "第" + (recentGames.value.length - index) + "场 " + battleResultLabel(g) + current + "，点击定位";
+}
 const topChampions = computed(() => {
   const byId = new Map<number, { id: number; count: number; wins: number }>();
   for (const g of games.value) {
     const entry = byId.get(g.champion_id) ?? { id: g.champion_id, count: 0, wins: 0 };
     entry.count += 1;
-    if (g.win === "Win") entry.wins += 1;
+    if (classifyBattle(g) === "win") entry.wins += 1;
     byId.set(g.champion_id, entry);
   }
   return [...byId.values()].sort((a, b) => b.count - a.count).slice(0, 3);
