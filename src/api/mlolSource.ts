@@ -10,7 +10,9 @@ import type { BattleSummary } from "./types";
 const MLOL_SEARCH_PATH = "customize_search/search_type_keyword";
 const MLOL_LIST_PATH = "battle_info/get_battle_list";
 const MLOL_PROFILE_PATH = "mine/person/tab_lite_common";
-const MLOR_ORIGIN = "https://lol.qq.com";
+/** 桥宿主：优先 mlol 本域（同源请求，cookie 必达），lol.qq.com 作后备 */
+const BRIDGE_ORIGINS = ["https://mlol.qt.qq.com", "https://lol.qq.com"];
+const MLOR_ORIGIN = BRIDGE_ORIGINS[0];
 
 export interface MlolPlayerCard {
   uuid: string;
@@ -37,13 +39,13 @@ export function ensureMlolBridge(): Promise<Window> {
   bridgeReadyPromise = new Promise((resolve, reject) => {
     const iframe = document.createElement("iframe");
     iframe.style.display = "none";
-    iframe.src = MLOR_ORIGIN + "/__lol_tft_bridge__";
+    iframe.src = MLOR_ORIGIN + "/go/zone/kv";
     const timer = setTimeout(() => {
       iframe.remove();
       reject(new ApiError("BRIDGE_TIMEOUT", "MlolRequest", "掌盟桥接超时"));
     }, 15000);
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== MLOR_ORIGIN) return;
+      if (!BRIDGE_ORIGINS.includes(event.origin)) return;
       const data = event.data as { type?: string; id?: string; text?: string; status?: number } | null;
       if (!data) return;
       if (data.type === "lol-tft-bridge-ready") {

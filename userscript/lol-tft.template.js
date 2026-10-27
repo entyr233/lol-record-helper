@@ -7,6 +7,7 @@
 // @match        https://www.wegame.com.cn/*
 // @match        https://wegame.com.cn/*
 // @match        https://lol.qq.com/*
+// @match        https://mlol.qt.qq.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wegame.com.cn
 // @license      ISC
 // @grant        GM_xmlhttpRequest
@@ -39,7 +40,7 @@
   // ---------- lol.qq.com 桥接侧：替 wegame 面板做同源 mlol 请求 ----------
   // （掌盟接口 CORS 只放行 lol.qq.com；wegame 面板通过隐藏 iframe + postMessage 调用）
   function isLolQqBridgeHost() {
-    return location.hostname === "lol.qq.com";
+    return location.hostname === "lol.qq.com" || location.hostname === "mlol.qt.qq.com";
   }
 
   function isGetIn(data) { return data.method === "GET"; }
@@ -68,7 +69,7 @@
         var qs = Object.keys(body).map(function (k) {
           return encodeURIComponent(k) + "=" + encodeURIComponent(String(body[k]));
         }).join("&");
-        url = "https://mlol.qt.qq.com/go/" + path + (isGet && qs ? "?" + qs : "");
+        url = (sameOriginMlol ? "" : "https://mlol.qt.qq.com") + "/go/" + path + (isGet && qs ? "?" + qs : "");
         if (!isGet) Object.keys(body).forEach(function (k) { form.append(k, String(body[k])); });
       }
 

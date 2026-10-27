@@ -58,9 +58,13 @@ const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
 const initialWait = new AbortController();
 onBeforeUnmount(() => initialWait.abort());
 
+watch(selectedArea, (area) => rememberArea(String(area)));
+
 const currentArea = computed(() => {
   const fromRoute = route.params.area;
-  return fromRoute ? String(fromRoute) : "";
+  if (fromRoute) return String(fromRoute);
+  // 掌盟查询等无区服参数的页面：用上次选择过的大区，保证「我的战绩」按钮不消失
+  return readStorage<string>("last-area", "");
 });
 
 onMounted(() => {
@@ -101,6 +105,10 @@ async function showSelf(user: { uin: string }, signal: AbortSignal): Promise<voi
   if (selectedArea.value) {
     await router.replace({ name: "summary", params: { area: String(selectedArea.value), accountType: "1", id: user.uin } });
   }
+}
+
+function rememberArea(area: string): void {
+  if (area) writeStorage("last-area", area);
 }
 
 function goSelf(): Promise<void> {

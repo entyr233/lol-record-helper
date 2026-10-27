@@ -1,5 +1,5 @@
 <template>
-  <details class="rank-history" open>
+  <details v-if="!loaded || seasons.length || trend.length || error" class="rank-history" open>
     <summary>历史段位查询 <span>赛季记录与近期走势（wegame 数据，无需掌盟）</span></summary>
     <div class="rank-history-content">
       <p v-if="loading" class="state-text">加载中…</p>
@@ -67,4 +67,5 @@ const seasons = computed(() => history.value?.seasons ?? []);
 const trend = computed(() => history.value?.trend ?? []);
 const loading = task.loading;
 const error = task.error;
+const loaded = computed(() => task.data.value !== null || task.error.value !== null);
 </script>

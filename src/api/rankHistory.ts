@@ -1,6 +1,7 @@
 import { tierLabel, tierName, tierOrder, UNRANKED_TIER } from "../const/tiers";
 import type { BattleSummary, RqOptions } from "./types";
 import { lolBattleApi } from "./client";
+import { mlolRequest } from "./mlolSource";
 
 export interface SeasonRankRow {
   sid: number;
@@ -99,6 +100,57 @@ export async function fetchRankHistory(rq: RqOptions, signal?: AbortSignal): Pro
     trend: buildRankTrend(trendBattles),
     reportKeys: Array.isArray(report) ? ["(数组)"] : (() => { const keys = Object.keys(record(report)); return keys.length > 14 ? [keys.length + "个键,含season_list=" + keys.includes("season_list")] : keys; })()
   };
+}
+
+const RANK_TREND_PATH = "battle_info/get_rank_trend";
+
+export interface MlolSeasonRow {
+  title: string;
+  queues: Array<{ title: string; fullRank: string; points: number | string; wins: number; losses: number; total: number; winRate: number; icon: string }>;
+}
+
+export interface MlolTrendGroup {
+  title: string;
+  points: Array<{ display: boolean; label: string }>;
+}
+
+/** get_rank_trend（scene 授权）-> 赛季记录 + 段位走势 */
+export async function fetchMlolRankHistory(scene: string, signal?: AbortSignal): Promise<{ seasons: MlolSeasonRow[]; trend: MlolTrendGroup[] }> {
+  const payload = await mlolRequest(RANK_TREND_PATH, { scene }, "POST", signal);
+  const data = record(payload.data);
+  const seasons: MlolSeasonRow[] = [];
+  if (Array.isArray(data.season_rank_list)) {
+    for (const value of data.season_rank_list) {
+      const s = record(value);
+      const queues = Array.isArray(s.list) ? s.list.map((item) => {
+        const q = record(item);
+        return {
+          title: typeof q.title === "string" ? q.title : "",
+          fullRank: typeof q.full_rank_title === "string" && q.full_rank_title ? q.full_rank_title : tierLabel(q.tier as number | string | undefined | null, q.rank as number | string | undefined | null),
+          points: typeof q.league_points === "number" || typeof q.league_points === "string" ? q.league_points : "",
+          wins: Number(q.wins) || 0,
+          losses: Number(q.losses) || 0,
+          total: Number(q.total) || 0,
+          winRate: Number(q.wins_rate) || 0,
+          icon: typeof q.rank_url === "string" ? q.rank_url : ""
+        };
+      }) : [];
+      seasons.push({ title: typeof s.title === "string" ? s.title : "S" + String(s.season ?? "?"), queues });
+    }
+  }
+  const trendBlock = record(data.trend);
+  const trend: MlolTrendGroup[] = [];
+  if (Array.isArray(trendBlock.rank_trend)) {
+    for (const value of trendBlock.rank_trend) {
+      const g = record(value);
+      const axis = Array.isArray(g.axis) ? g.axis.map((item) => {
+        const a = record(item);
+        return { display: a.display === true, label: typeof a.title === "string" ? a.title : "" };
+      }) : [];
+      trend.push({ title: typeof g.title === "string" ? g.title : "", points: axis.filter((p) => p.display || p.label !== "无段位") });
+    }
+  }
+  return { seasons, trend };
 }
 
 export { tierName, tierOrder };

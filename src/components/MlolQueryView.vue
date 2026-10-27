@@ -29,6 +29,31 @@
           {{ loadingMore ? "加载中…" : battles.length ? "加载更多" : "" }}
         </button>
       </p>
+      <details v-if="rankSeasons.length || rankTrend.length" class="rank-history" open>
+        <summary>历史段位查询 <span>掌盟赛季记录与近期走势</span></summary>
+        <div class="rank-history-content">
+          <div v-for="group in rankTrend" :key="group.title" class="rank-trend">
+            <span class="rank-trend-title">{{ group.title }}</span>
+            <span v-for="(point, index) in group.points" :key="index" class="rank-trend-chip">{{ point.label }}</span>
+          </div>
+          <table v-if="rankSeasons.length" class="rank-table">
+            <thead><tr><th>赛季</th><th>队列</th><th>段位</th><th>胜点</th><th>战绩</th><th>胜率</th></tr></thead>
+            <tbody>
+              <template v-for="season in rankSeasons" :key="season.title">
+                <tr v-for="(q, qi) in season.queues" :key="season.title + qi">
+                  <td v-if="qi === 0" rowspan="">{{ season.title }}</td>
+                  <td v-else />
+                  <td>{{ q.title }}</td>
+                  <td>{{ q.fullRank }}</td>
+                  <td>{{ q.points }}</td>
+                  <td>{{ q.wins }}胜{{ q.losses }}负</td>
+                  <td>{{ q.winRate }}%</td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </details>
       <ul class="battle-list-items">
         <li v-if="!battles.length && !loadError" class="state-text">暂无对局记录</li>
         <li v-else-if="loadError" class="state-text state-text--error">{{ toErrorMessage(loadError) }}</li>
@@ -64,6 +89,7 @@ import GameIcon from "./GameIcon.vue";
 import BattleListItem from "./BattleListItem.vue";
 import BattleDetail from "./BattleDetail.vue";
 import { searchMlolPlayers, fetchMlolBattles, fetchMlolIdentity, type MlolPlayerCard, type MlolIdentity } from "../api/mlolSource";
+import { fetchMlolRankHistory, type MlolSeasonRow, type MlolTrendGroup } from "../api/rankHistory";
 import type { BattleSummary } from "../api/types";
 import { toErrorMessage } from "../api/errors";
 
@@ -78,6 +104,8 @@ const nextIdx = ref(0);
 const loadingMore = ref(false);
 const loadError = ref<Error | null>(null);
 const selectedGameId = ref<string | null>(null);
+const rankSeasons = ref<MlolSeasonRow[]>([]);
+const rankTrend = ref<MlolTrendGroup[]>([]);
 
 const selectedGame = computed(() => battles.value.find((b) => b.game_id === selectedGameId.value) ?? null);
 
@@ -111,6 +139,12 @@ async function openPlayer(card: MlolPlayerCard): Promise<void> {
     const page = await fetchMlolBattles(identity.value.scene, 0);
     battles.value = page.battles;
     nextIdx.value = page.nextIdx;
+    // 历史段位（scene 授权的 get_rank_trend）；失败不影响战绩列表
+    try {
+      const rank = await fetchMlolRankHistory(identity.value.scene);
+      rankSeasons.value = rank.seasons;
+      rankTrend.value = rank.trend;
+    } catch { rankSeasons.value = []; rankTrend.value = []; }
   } catch (err) {
     loadError.value = err as Error;
   } finally {
