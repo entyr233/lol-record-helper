@@ -25,12 +25,17 @@
           <span class="strip-bar" :class="'strip-bar--' + classifyBattle(g)"></span>
         </button>
       </div>
-      <div v-if="trend.length" class="recent-trend" :title="trendTitle">
-        <span v-for="day in trend" :key="day.key" class="trend-day" :title="trendDayTitle(day)">
-          <span class="trend-track">
-            <span class="trend-bar" :class="{ 'trend-bar--low': day.winRate < 50 }" :style="{ height: day.winRate + '%' }"></span>
-          </span>
-          <span class="trend-day-label">{{ day.dayLabel }}</span>
+      <div v-if="trend.length" class="recent-trend">
+        <span class="recent-trend-label">胜率趋势</span>
+        <span class="recent-trend-chart" :title="trendTitle">
+          <svg width="168" height="40" viewBox="0 0 168 40" aria-hidden="true">
+            <line x1="4" y1="20" x2="164" y2="20" class="trend-baseline" />
+            <polyline class="trend-line" :points="trendPoints" />
+            <circle v-for="point in trend" :key="point.key" class="trend-dot" :cx="point.x" :cy="point.y" r="1.8">
+              <title>{{ trendPointTitle(point) }}</title>
+            </circle>
+          </svg>
+          <span class="recent-trend-dates">{{ trendFirstLabel }} → {{ trendLastLabel }}</span>
         </span>
       </div>
       <div class="recent-champs">
@@ -263,46 +268,53 @@ function pad2(n: number): string {
   return n < 10 ? "0" + n : String(n);
 }
 
-interface TrendDay {
+interface TrendPoint {
   key: string;
-  dayLabel: string;
-  wins: number;
-  losses: number;
+  label: string;
   winRate: number;
+  x: number;
+  y: number;
 }
 
-/** 按天聚合的胜率（最近 7 个有对局的日子），用迷你柱状条展示 */
-const trend = computed<TrendDay[]>(() => {
-  const buckets = new Map<string, { wins: number; losses: number }>();
-  for (const g of sample.value) {
-    const ts = Number(g.game_start_time);
-    if (!Number.isFinite(ts) || ts <= 0) continue;
-    const date = new Date(ts > 1e12 ? ts : ts * 1000);
-    const key = date.getFullYear() + "-" + pad2(date.getMonth() + 1) + "-" + pad2(date.getDate());
-    const entry = buckets.get(key) ?? { wins: 0, losses: 0 };
+const TREND_WIDTH = 168;
+
+function dateLabelOf(g: BattleSummary): string {
+  const ts = Number(g.game_start_time);
+  if (!Number.isFinite(ts) || ts <= 0) return "";
+  const date = new Date(ts > 1e12 ? ts : ts * 1000);
+  return date.getFullYear() + "-" + pad2(date.getMonth() + 1) + "-" + pad2(date.getDate());
+}
+
+/**
+ * 累计胜率趋势：按时间从旧到新逐场累计，画成迷你折线。
+ * 不按天聚合，这样一天打了很多场或隔几天才打一场时也能看到走势。
+ */
+const trend = computed<TrendPoint[]>(() => {
+  const list = sample.value.slice().reverse();
+  if (list.length < 2) return [];
+  let wins = 0;
+  let losses = 0;
+  const points: Array<{ key: string; label: string; winRate: number }> = [];
+  for (const g of list) {
     const result = classifyBattle(g);
-    if (result === "win") entry.wins += 1;
-    else if (result === "lose") entry.losses += 1;
-    buckets.set(key, entry);
+    if (result === "win") wins += 1;
+    else if (result === "lose") losses += 1;
+    const decided = wins + losses;
+    points.push({ key: g.game_id, label: dateLabelOf(g), winRate: decided ? Math.round((wins / decided) * 100) : 0 });
   }
-  return [...buckets.entries()]
-    .filter(([, value]) => value.wins + value.losses > 0)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .slice(-7)
-    .map(([key, value]) => {
-      const decided = value.wins + value.losses;
-      return {
-        key,
-        dayLabel: key.slice(5),
-        wins: value.wins,
-        losses: value.losses,
-        winRate: Math.round((value.wins / decided) * 100)
-      };
-    });
+  const step = (TREND_WIDTH - 8) / Math.max(1, points.length - 1);
+  return points.map((point, index) => ({
+    ...point,
+    x: 4 + index * step,
+    y: 34 - (point.winRate / 100) * 28
+  }));
 });
-const trendTitle = computed(() => "按天聚合的胜率（最近 " + trend.value.length + " 个有对局的日子）");
-function trendDayTitle(day: TrendDay): string {
-  return day.key + "：" + day.wins + "胜" + day.losses + "负 · " + day.winRate + "% 胜率";
+const trendPoints = computed(() => trend.value.map((point) => point.x.toFixed(1) + "," + point.y.toFixed(1)).join(" "));
+const trendFirstLabel = computed(() => trend.value[0]?.label ?? "");
+const trendLastLabel = computed(() => trend.value[trend.value.length - 1]?.label ?? "");
+const trendTitle = computed(() => "胜率趋势：最近 " + trend.value.length + " 场累计胜率（左旧右新）");
+function trendPointTitle(point: TrendPoint): string {
+  return point.label + " · 累计 " + point.winRate + "% 胜率";
 }
 
 /** 主动刷新（“刷新战绩”按钮联动）：清掉页缓存后按当前模式重新统计 */

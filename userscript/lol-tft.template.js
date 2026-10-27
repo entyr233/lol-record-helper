@@ -4,8 +4,10 @@
 // @version      __VERSION__
 // @description  英雄联盟国服战绩查询，支持掌盟历史段位 HAR 导入与段位页链接查询
 // @author       mscststs
-// @homepageURL  https://github.com/mscststs/lol-tft
-// @supportURL   https://github.com/mscststs/lol-tft/issues
+// @homepage     https://github.com/entyr233/lol-tft
+// @homepageURL  https://github.com/entyr233/lol-tft
+// @supportURL   https://github.com/entyr233/lol-tft/issues
+// @source       https://github.com/entyr233/lol-tft
 // @match        https://www.wegame.com.cn/*
 // @match        https://wegame.com.cn/*
 // @match        https://lol.qq.com/*

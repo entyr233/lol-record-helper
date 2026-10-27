@@ -242,25 +242,26 @@ describe("RecentStats 模式切换", () => {
     } finally { wrapper.unmount(); }
   });
 
-  it("按天聚合渲染胜率迷你趋势", async () => {
+  it("渲染累计胜率趋势折线（低样本也能看到走势）", async () => {
     const now = Date.now();
-    const at = (daysAgo: number) => String(now - daysAgo * 86400000);
+    const at = (hoursAgo: number) => String(now - hoursAgo * 3600000);
     mockPages([
-      battle(1, { game_start_time: at(1), win: "Win" }),
-      battle(2, { game_start_time: at(1), win: "Fail" }),
-      battle(5, { game_start_time: at(1), win: "Fail" }),
-      battle(3, { game_start_time: at(2), win: "Win" }),
-      battle(4, { game_start_time: at(2), win: "Win" })
+      battle(1, { game_start_time: at(5), win: "Win" }),
+      battle(2, { game_start_time: at(3), win: "Fail" }),
+      battle(3, { game_start_time: at(1), win: "Win" })
     ]);
     const wrapper = render();
     try {
       await flushPromises();
-      const days = wrapper.findAll(".recent-trend .trend-day");
-      expect(days).toHaveLength(2);
-      // 左侧是更早的一天：2 胜 0 负 → 100%；右侧是昨天：1 胜 2 负 → 33%
-      expect(days[0]!.attributes("title")).toContain("100% 胜率");
-      expect(days[1]!.attributes("title")).toContain("33% 胜率");
-      expect(wrapper.findAll(".trend-bar--low")).toHaveLength(1);
+      expect(wrapper.get(".recent-trend-label").text()).toBe("胜率趋势");
+      const chart = wrapper.get(".recent-trend-chart");
+      expect(chart.attributes("title")).toContain("最近 3 场累计胜率");
+      expect(wrapper.findAll(".trend-dot")).toHaveLength(3);
+      expect(wrapper.find(".trend-line").exists()).toBe(true);
+      // 折线号点按时间从旧到新：最后一场累计 2 胜 1 负 → 67%
+      const dots = wrapper.findAll(".trend-dot");
+      expect(dots[2]!.element.querySelector("title")?.textContent).toContain("67% 胜率");
+      expect(wrapper.get(".recent-trend-dates").text()).toContain("→");
     } finally { wrapper.unmount(); }
   });
 

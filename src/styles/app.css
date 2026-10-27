@@ -1543,40 +1543,43 @@ button {
   font-size: 13px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
-/* 按天胜率迷你柱状趋势 */
+/* 累计胜率迷你折线（左旧右新） */
 .recent-trend {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   margin: 8px 0 4px;
 }
-.trend-day {
+.recent-trend-label {
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.recent-trend-chart {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 3px;
+  gap: 1px;
 }
-.trend-track {
-  display: flex;
-  align-items: flex-end;
-  width: 14px;
-  height: 26px;
-  overflow: hidden;
-  background-color: rgba(255, 255, 255, 0.05);
-  border-radius: 2px;
-}
-.trend-bar {
+.recent-trend-chart svg {
   display: block;
-  width: 100%;
-  min-height: 2px;
-  background-color: #1dbaa9;
-  border-radius: 2px;
 }
-.trend-bar--low {
-  background-color: #c15b5b;
+.trend-baseline {
+  stroke: rgba(255, 255, 255, 0.14);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
 }
-.trend-day-label {
-  color: #56606c;
+.trend-line {
+  fill: none;
+  stroke: #e6c37a;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.trend-dot {
+  fill: #1dbaa9;
+}
+.recent-trend-dates {
+  color: #56606b;
   font-size: 10px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
 }

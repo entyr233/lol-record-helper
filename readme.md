@@ -77,6 +77,7 @@ npm run build:app          # dist/site/（演示页）
 
 安装：把 `dist/userscript/lol-tft.user.js` 拖进浏览器（ScriptCat/Tampermonkey）→ 覆盖安装 → F5。
 本地定制版已停用上游自动更新地址，后续通过重新构建安装更新，避免被上游脚本覆盖。
+本仓库：https://github.com/entyr233/lol-tft
 原项目来源：https://greasyfork.org/zh-CN/scripts/454184（保留作者与许可证信息）。
 
 ## 目录
