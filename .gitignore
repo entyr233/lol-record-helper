@@ -1,4 +1,7 @@
-cookies
 node_modules
-package-lock.json
 dist
+cookies
+*.local
+.DS_Store
+.vite
+.lol-tft-cookie*

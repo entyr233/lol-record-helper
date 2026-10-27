@@ -1,0 +1,931 @@
+/* 全部 UI 样式：只在 Shadow DOM 内生效，不会污染 WeGame 页面 */
+:host {
+  display: block;
+  color: #dddddd;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #b59758;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #19212b;
+}
+
+.lol-tft-container {
+  height: 100%;
+  min-height: 640px;
+}
+
+.lol-tft-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 640px;
+  height: 100%;
+  background-color: #19212b;
+  color: #dddddd;
+}
+
+/* ---------- header ---------- */
+.app-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 75px;
+  padding: 0 12px;
+  background-color: #1a2026;
+  border-bottom: 1px solid #24292e;
+}
+
+.area-select {
+  min-width: 150px;
+  padding: 6px 8px;
+  color: #b59758;
+  background-color: transparent;
+  border: 1px solid #2f3844;
+  border-radius: 4px;
+  outline: none;
+}
+.area-select option {
+  background-color: #11161c;
+  color: #b59758;
+}
+
+.header-divider {
+  width: 1px;
+  height: 32px;
+  margin: 0 6px;
+  background-color: #24292e;
+}
+
+.header-button {
+  padding: 10px 14px;
+  color: #b59758;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.header-button:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.header-button--login {
+  border: 1px solid #b59758;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.login-error {
+  max-width: 320px;
+  overflow: hidden;
+  color: #e07070;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.header-version {
+  padding: 0 10px;
+  color: #56606c;
+  font-size: 11px;
+  font-family: Consolas, Monaco, monospace;
+}
+.header-spacer {
+  flex: 1 1 auto;
+}
+
+.header-search input {
+  width: 200px;
+  height: 30px;
+  padding: 0 14px;
+  color: #dddddd;
+  background-color: rgba(0, 0, 0, 0.5);
+  border: 1px solid #544729;
+  border-radius: 20px;
+  outline: none;
+}
+.header-search input::placeholder {
+  color: #7a8390;
+}
+
+/* ---------- layout ---------- */
+.lol-tft-main {
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.shell {
+  position: relative;
+  min-height: 100%;
+}
+
+.shell-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(1200px 500px at 20% -10%, rgba(181, 151, 88, 0.18), transparent 60%),
+    radial-gradient(900px 400px at 100% 0%, rgba(83, 131, 232, 0.12), transparent 55%),
+    #19212b;
+  pointer-events: none;
+}
+
+.shell-content {
+  position: relative;
+  padding: 24px 40px 60px;
+}
+
+.page {
+  min-height: 240px;
+}
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+  color: #cccccc;
+}
+.page--summary {
+  max-width: 1440px;
+  min-width: 1080px;
+  margin: 0 auto;
+}
+.summary-battles {
+  display: block;
+  margin-top: 32px;
+}
+
+/* ---------- panel ---------- */
+.panel {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  background-color: #161a20;
+  border: 1px solid #202831;
+  border-radius: 6px;
+}
+.panel-title {
+  display: flex;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #4c463d;
+}
+.panel-title-text {
+  color: #ffffff;
+  font-size: 14px;
+}
+.panel-spacer {
+  flex: 1 1 auto;
+}
+.panel-content {
+  padding: 10px 0 0;
+}
+
+/* ---------- shared states ---------- */
+.state-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  margin: 0;
+  color: #9aa4b2;
+}
+.state-text--error {
+  color: #e07070;
+}
+.link-button {
+  color: #b59758;
+  text-decoration: underline;
+}
+.hidden-tip {
+  margin: 0;
+  padding: 40px 0;
+  color: #b59758;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ---------- summoner info ---------- */
+.summoner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 8px 0;
+}
+.summoner-avatar {
+  flex: none;
+  width: 110px;
+  height: 110px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.summoner-base {
+  flex: 1 1 auto;
+}
+.summoner-name {
+  margin: 0 0 12px;
+  color: #b59758;
+  font-size: 18px;
+  font-weight: 700;
+}
+.summoner-line {
+  margin: 0 0 8px;
+  color: #999;
+}
+.summoner-sub {
+  color: #6c7683;
+  font-size: 12px;
+}
+.summoner-counts {
+  flex: none;
+  min-width: 340px;
+}
+.count-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 0 6px;
+  color: #666;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.count-label {
+  min-width: 84px;
+  color: #dddddd;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+.count-total,
+.count-win,
+.count-lose {
+  font-size: 16px;
+}
+.count-tier {
+  color: #b59758;
+  font-size: 16px;
+  font-weight: 700;
+}
+.load-error {
+  justify-content: center;
+  min-height: auto;
+  padding: 6px 0;
+}
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.pager-button {
+  padding: 6px 14px;
+  color: #b59758;
+  border: 1px solid #2f3844;
+  border-radius: 4px;
+}
+.pager-button:disabled {
+  color: #56606c;
+  cursor: default;
+}
+.pager-button:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.pager-indicator {
+  color: #9aa4b2;
+  font-size: 13px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.battle-count-hint {
+  margin: 6px 4px 0;
+  color: #6c7683;
+  font-size: 12px;
+  text-align: center;
+}
+.count-total {
+  color: #dddddd;
+}
+.count-total::after {
+  content: "(总)";
+  margin-left: 2px;
+  color: #6c7683;
+  font-size: 12px;
+}
+.count-win {
+  color: #09a95b;
+}
+.count-win::after {
+  content: "(胜)";
+  margin-left: 2px;
+  color: #6c7683;
+  font-size: 12px;
+}
+.count-lose {
+  color: #d77575;
+}
+.count-lose::after {
+  content: "(败)";
+  margin-left: 2px;
+  color: #6c7683;
+  font-size: 12px;
+}
+
+/* ---------- battle list ---------- */
+.mode-switch {
+  display: flex;
+}
+.mode-button {
+  padding: 4px 10px;
+  color: #bbbbbb;
+  border: 1px solid #4c463d;
+}
+.mode-button + .mode-button {
+  border-left: 0;
+}
+.mode-button.active {
+  background-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.battle-list-body {
+  display: flex;
+  gap: 12px;
+  min-height: 560px;
+}
+.battle-list-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 300px;
+}
+.battle-list-items {
+  flex: 1 1 auto;
+  max-height: 600px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.battle-list-detail {
+  flex: 1 1 auto;
+  min-width: 660px;
+  overflow: auto;
+}
+
+.battle-list-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 60px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.battle-list-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+.battle-list-item.selected {
+  background-color: #28344e;
+}
+.battle-list-item.selected.lose {
+  background-color: #59343b;
+}
+.battle-champion {
+  position: relative;
+  flex: none;
+  width: 48px;
+  height: 48px;
+}
+.battle-champion .game-icon {
+  width: 48px;
+  height: 48px;
+}
+.battle-state {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+.battle-result {
+  font-size: 15px;
+  font-weight: 700;
+}
+.battle-list-item.win .battle-result {
+  color: #09a95b;
+}
+.battle-list-item.lose .battle-result {
+  color: #db4c4c;
+}
+.battle-list-item.remake .battle-result {
+  color: #dddddd;
+}
+.battle-state-row2 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.battle-tier {
+  padding: 0 5px;
+  background-color: #b59758;
+  border-radius: 8px;
+  color: #111;
+  font-size: 11px;
+  font-weight: 600;
+}
+.battle-judgement {
+  width: fit-content;
+  padding: 0 5px;
+  background-color: #39437a;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 11px;
+}
+.battle-queue,
+.battle-duration,
+.battle-time {
+  color: #8f99a6;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.battle-index {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  color: #ffffff;
+  font-size: 10px;
+  opacity: 0.45;
+}
+
+.badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  padding: 0 3px;
+  color: #000000;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 2px;
+}
+.badge--afk {
+  background-color: #fe5757;
+}
+.badge--mvp {
+  background-color: #f5e124;
+}
+.badge--svp {
+  background-color: #eeeeee;
+}
+
+.load-more {
+  flex: none;
+  margin-top: 10px;
+  padding: 10px 0;
+  color: #b59758;
+  border: 1px solid #2f3844;
+  border-radius: 4px;
+}
+.load-more:disabled {
+  color: #6c7683;
+  cursor: default;
+}
+
+/* ---------- battle detail ---------- */
+.detail-team {
+  margin-bottom: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.detail-team.win {
+  background-color: #28344e;
+}
+.detail-team.lose {
+  background-color: #59343b;
+}
+.detail-team.remake {
+  background-color: #262d36;
+}
+
+.detail-team-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background-color: rgba(0, 0, 0, 0.15);
+}
+.team-state {
+  font-weight: 700;
+}
+.detail-team.win .team-state {
+  color: #7f9cf5;
+}
+.detail-team.lose .team-state {
+  color: #e84057;
+}
+.team-side {
+  color: #99a3b0;
+}
+.team-kda {
+  color: #cfd6df;
+  font-size: 13px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.team-spacer {
+  flex: 1 1 auto;
+}
+.team-elo {
+  color: #b59758;
+  font-weight: 700;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+/* ---------- player row ---------- */
+.detail-player {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 4px 8px;
+}
+.detail-player:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.dp-champion {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 36px;
+}
+.dp-champion .game-icon {
+  width: 36px;
+  height: 36px;
+}
+.dp-level {
+  position: absolute;
+  bottom: -1px;
+  left: -2px;
+  padding: 0 3px;
+  background-color: #000000;
+  border-radius: 2px;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.dp-spells,
+.dp-runes {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 2px;
+}
+.dp-spells .game-icon,
+.dp-runes .game-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.dp-runes .game-icon:first-child {
+  border-radius: 50%;
+}
+.dp-summoner {
+  flex: none;
+  width: 150px;
+  overflow: hidden;
+}
+.dp-name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 13px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dp-name:hover {
+  color: #b59758;
+}
+.dp-tags {
+  display: flex;
+  gap: 3px;
+}
+.tag {
+  padding: 0 3px;
+  color: #000000;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 2px;
+}
+.tag--tier {
+  background-color: #b59758;
+  color: #ffffff;
+}
+.tag--team {
+  background-color: #00b3ff;
+}
+.tag--svp {
+  background-color: #eeeeee;
+}
+.tag--mvp {
+  background-color: #f5e124;
+}
+.tag--afk {
+  background-color: #fe5757;
+}
+.tag--penta {
+  background-color: #f5e124;
+}
+
+.dp-bars,
+.dp-damage {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 8px;
+}
+.dp-damage {
+  gap: 2px;
+}
+.dp-misc {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  width: 92px;
+}
+.dp-misc-line {
+  color: #8f99a6;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 11px;
+}
+.dp-kda {
+  flex: none;
+  width: 118px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  text-align: center;
+}
+.dp-kda-number {
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.dp-kda-number .kill {
+  color: #09a95b;
+}
+.dp-kda-number .death {
+  color: #db4c4c;
+}
+.dp-kda-number .assist {
+  color: #b59758;
+}
+.dp-kda-number .sep {
+  margin: 0 2px;
+  color: #6c7683;
+}
+.dp-kda-ratio {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.dp-kda-ratio.well {
+  color: #ff8200;
+}
+.dp-kda-ratio.normal {
+  color: #00bba3;
+}
+.dp-kda-ratio.bad {
+  color: #8f99a6;
+}
+.dp-items {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+.dp-items .game-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.dp-casts {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 14px;
+  padding: 0 10px;
+}
+.cast {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cast .game-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.cast-key {
+  padding: 0 3px;
+  background-color: #000000;
+  border-radius: 2px;
+  font-size: 11px;
+}
+.cast-count {
+  color: #cfd6df;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 13px;
+}
+.cast-order {
+  color: #6c7683;
+  font-size: 10px;
+}
+.dp-score {
+  flex: none;
+  width: 60px;
+  color: #b59758;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* ---------- histogram ---------- */
+.histogram {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.histogram-track {
+  flex: 1 1 auto;
+  height: 8px;
+  background-color: #202831;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.histogram-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.2s ease;
+}
+.histogram-text {
+  flex: none;
+  width: 46px;
+  color: #cfd6df;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 11px;
+  text-align: right;
+}
+.histogram.highlight .histogram-text {
+  color: #ff8200;
+  font-weight: 700;
+}
+
+/* ---------- icon ---------- */
+.game-icon {
+  display: inline-flex;
+  flex: none;
+  overflow: hidden;
+}
+.game-icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ---------- search ---------- */
+.search-hint {
+  min-height: auto;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.search-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.search-button {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 4px;
+  text-align: left;
+}
+.search-button:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+.search-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.search-name {
+  min-width: 160px;
+  color: #ffffff;
+}
+.search-area {
+  min-width: 140px;
+  color: #9aa4b2;
+}
+.search-level {
+  min-width: 96px;
+  color: #9aa4b2;
+}
+.search-arrow {
+  margin-left: auto;
+  color: #b59758;
+  font-size: 13px;
+  opacity: 0.75;
+}
+.search-button:hover .search-arrow,
+.search-button:focus-visible .search-arrow {
+  opacity: 1;
+}
+
+
+/* ---------- 开发期数据源开关（仅 dev 渲染） ---------- */
+.dev-bar {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 99;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: 520px;
+  padding: 10px 12px;
+  background-color: #10161d;
+  border: 1px solid #2f3844;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+.dev-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #b58b3c;
+}
+.dev-bar--real .dev-dot {
+  background-color: #2fbf71;
+}
+.dev-text {
+  color: #cfd6df;
+}
+.dev-action {
+  padding: 3px 8px;
+  color: #b59758;
+  border: 1px solid #3a4350;
+  border-radius: 4px;
+}
+.dev-action:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+.dev-action:disabled {
+  color: #6c7683;
+  cursor: default;
+}
+.dev-input {
+  width: 100%;
+  padding: 6px 8px;
+  color: #cfd6df;
+  background-color: #0b1015;
+  border: 1px solid #3a4350;
+  border-radius: 4px;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+  resize: vertical;
+}
+.dev-error {
+  color: #e07070;
+}
