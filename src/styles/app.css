@@ -50,52 +50,6 @@ button {
   color: #dddddd;
 }
 
-/* ---------- history ---------- */
-.rank-history {
-  margin: 24px 0;
-  border: 1px solid #2f3844;
-  border-radius: 6px;
-  background: #151b21;
-}
-.rank-history > summary {
-  padding: 16px 20px;
-  color: #d8bd7e;
-  cursor: pointer;
-  font-size: 16px;
-}
-.rank-history > summary span {
-  margin-left: 12px;
-  color: #8f99a6;
-  font-size: 12px;
-}
-.rank-history-content { padding: 0 20px 20px; }
-.rank-help { color: #99a6b6; font-size: 12px; line-height: 1.7; }
-.rank-tools, .rank-source, .rank-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 14px 0; }
-.rank-source > span { color: #99a6b6; font-size: 12px; }
-.rank-link-form { display: flex; flex: 1 1 400px; gap: 10px; }
-.rank-link-form input { flex: 1; min-width: 0; }
-.rank-file { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.rank-file input { max-width: 230px; font-size: 12px; }
-.rank-history input, .rank-history select { padding: 7px; border: 1px solid #3b4757; border-radius: 4px; background: #19212b; color: #ddd; }
-.rank-filters label { display: flex; align-items: center; gap: 8px; }
-.rank-table-wrap { max-height: 460px; overflow: auto; border: 1px solid #2f3844; border-radius: 4px; }
-.rank-table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
-.rank-table caption { text-align: left; padding: 10px 12px; color: #99a6b6; }
-.rank-table th, .rank-table td { padding: 10px 12px; white-space: nowrap; border-bottom: 1px solid #28313d; }
-.rank-table th { position: sticky; top: 0; background: #202a36; color: #bec8d5; font-weight: 500; }
-.rank-table tbody tr:hover { background: #1c2530; }
-.rank-label { color: #ddc48c; font-weight: 600; }
-.rank-wins { color: #27bd80; }
-.rank-current { color: #99baff; font-size: 11px; }
-.rank-trends { margin-top: 18px; }
-.rank-trends > summary { cursor: pointer; color: #d8bd7e; }
-.rank-trend-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-.rank-trend-groups h3 { font-size: 14px; font-weight: 500; }
-.rank-timeline { padding: 0; margin: 0; list-style: none; }
-.rank-timeline li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; padding: 7px 0; border-bottom: 1px solid #28313d; }
-.rank-timeline time { color: #99a6b6; font-size: 12px; }
-.rank-timeline strong { color: #ddc48c; margin-left: auto; }
-
 /* ---------- header ---------- */
 .app-header {
   display: flex;
@@ -1998,30 +1952,6 @@ button {
   gap: 12px;
   margin-bottom: 10px;
 }
-.sort-switch {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.sort-label {
-  color: #56606c;
-  font-size: 12px;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-}
-.sort-button {
-  padding: 4px 12px;
-  background-color: #242c37;
-  border: 1px solid #2f3844;
-  border-radius: 12px;
-  color: #9aa4b2;
-  font-size: 12px;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-}
-.sort-button.active {
-  background-color: rgba(181, 151, 88, 0.2);
-  border-color: #b59758;
-  color: #e6c37a;
-}
 
 /* ---------- 窄窗口：单列 + 详情后置 ---------- */
 @media (max-width: 1100px) {
@@ -2220,26 +2150,6 @@ button {
   font-size: 11px;
   white-space: pre-wrap;
 }
-.sort-select {
-  padding: 5px 10px;
-  background-color: #242c37;
-  border: 1px solid #2f3844;
-  border-radius: 4px;
-  color: #9aa4b2;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-  font-size: 12px;
-}
-.rank-diag {
-  color: #56606c;
-  font-size: 12px;
-}
-
-.mode-filter-select option,
-.sort-select option {
-  background-color: #1c232d;
-  color: #c6cfda;
-}
-
 .mode-filter-select,
 .sort-select {
   padding: 5px 10px;

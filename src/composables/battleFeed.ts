@@ -20,8 +20,8 @@ export function battleFeedKey(key: BattleFeedKey): string {
   return `${key.area}|${key.accountType}|${key.id}`;
 }
 
-/** 每页条数：与对局列表的 PAGE_SIZE 对齐（缓存以「原始页」为单位共享） */
-const PAGE_SIZE = 10;
+/** 原始页与展示页共用的条数。 */
+export const PAGE_SIZE = 10;
 /** 原始页缓存有效期：同一交互内复用，也不至于长期记住旧战绩 */
 const PAGE_TTL_MS = 30000;
 

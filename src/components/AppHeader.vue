@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { areas, getAreaName } from "../const/areas";
 import { favoriteKey, useFavorites } from "../composables/useFavorites";
@@ -99,8 +99,6 @@ const selectedArea = ref<number | "">(0);
 const keyword = ref("");
 const loggedIn = ref(false);
 const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
-const initialWait = new AbortController();
-onBeforeUnmount(() => initialWait.abort());
 
 // 常驻收藏入口：与各页面共用同一份 useFavorites 单例数据
 const favoritesDetails = ref<HTMLDetailsElement | null>(null);
@@ -205,15 +203,13 @@ const currentArea = computed(() => {
 });
 
 onMounted(() => {
-  // 以登录 cookie 为准（SDK 状态刷新后不可靠），SDK 就绪后再校正一次
+  // 登录状态以 cookie 为准。
   loggedIn.value = hasLoginState();
   // 记住过区服且登录态在 → 直接落地自己的战绩页（刷新后不再退回「请先选择区服」）
   const lastArea = readStorage<string>("last-area", "");
   if (lastArea && !route.params.area && hasLoginState()) {
     void router.push({ name: "area", params: { area: lastArea } });
   }
-  // 不主动等 SDK：登录态以 cookie 为准；SDK 只在用户点「登录」时按需注入
-  void initialWait;
   const fromRoute = route.params.area;
   if (fromRoute) {
     selectedArea.value = Number(fromRoute) || 0;

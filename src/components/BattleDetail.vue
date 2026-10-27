@@ -44,7 +44,7 @@
           <span v-if="team.teamElo" class="team-elo" title="ELO 评分">{{ team.teamElo }}</span>
         </header>
         <BattleDetailPlayer
-          v-for="player in teamPlayers(team.players)"
+          v-for="(player, index) in team.players"
           :key="player.openid"
           :player="player"
           :players="detail.player_details"
@@ -52,7 +52,7 @@
           :partial="detailSource === 'mlol'"
           :hex-aram="isHexAram"
           :ranked="rankedQueue"
-          :rank-info="rankOf(team.players, player, sortBy)"
+          :rank-info="rankOf(player, index, team.playerKills, sortBy)"
           :is-self="canOpenPlayer && player.openid === viewedOpenid"
           @open-summoner="canOpenPlayer && $emit('openSummoner', $event)"
         />
@@ -143,36 +143,24 @@ function participationOf(p: PlayerDetail, teamKills: number): number {
   if (!teamKills) return 0;
   return (p.championsKilled + p.assists) / teamKills;
 }
-function teamKillCount(players: PlayerDetail[]): number {
-  return players.reduce((sum, p) => sum + (p.championsKilled || 0), 0);
-}
-function sortPlayers(players: PlayerDetail[], key: SortKey): PlayerDetail[] {
+function sortPlayers(players: PlayerDetail[], key: SortKey, teamKills: number): PlayerDetail[] {
   if (key === "default") return players;
-  const teamKills = teamKillCount(players);
-  const sorted = players.slice().sort((a, b) => {
+  return players.slice().sort((a, b) => {
     if (key === "damage") return (b.totalDamageToChampions || 0) - (a.totalDamageToChampions || 0);
     if (key === "taken") return (b.totalDamageTaken || 0) - (a.totalDamageTaken || 0);
     if (key === "gold") return (b.goldEarned || 0) - (a.goldEarned || 0);
     return participationOf(b, teamKills) - participationOf(a, teamKills);
   });
-  return sorted;
 }
 /** 行内名次（排序时显示第 N 名 + 该项数值） */
-function rankOf(players: PlayerDetail[], player: PlayerDetail, key: SortKey): { rank: number; label: string } | null {
+function rankOf(player: PlayerDetail, index: number, teamKills: number, key: SortKey): { rank: number; label: string } | null {
   if (key === "default") return null;
-  const teamKills = teamKillCount(players);
-  const sorted = sortPlayers(players, key);
-  const rank = sorted.indexOf(player) + 1;
   let label = "";
   if (key === "damage") label = (player.totalDamageToChampions || 0) + " 伤害";
   else if (key === "taken") label = (player.totalDamageTaken || 0) + " 承伤";
   else if (key === "gold") label = (player.goldEarned || 0) + " 经济";
   else label = "参团 " + Math.round(participationOf(player, teamKills) * 100) + "%";
-  return { rank, label };
-}
-/** 排序后的队伍（模板用） */
-function teamPlayers(players: PlayerDetail[]): PlayerDetail[] {
-  return sortPlayers(players, sortBy.value);
+  return { rank: index + 1, label };
 }
 
 defineEmits<{ openSummoner: [player: PlayerDetail] }>();
@@ -196,19 +184,23 @@ const viewedChampionId = computed(() => viewedPlayer.value?.championId ?? 0);
 const teams = computed(() => {
   const current = detail.value;
   if (!current) return [];
-  return current.team_details.map((team) => ({
-    teamId: team.teamId,
-    totalKills: team.totalKills,
-    totalDeaths: team.totalDeaths,
-    totalAssists: team.totalAssists,
-    teamElo: team.teamElo,
-    resultClass: getResultClass(team.win),
-    resultLabel: getResultLabel(team.win),
-    players: current.player_details
+  return current.team_details.map((team) => {
+    const players = current.player_details
       .filter((player) => player.teamId === team.teamId)
-      .slice()
-      .sort((a, b) => (b.teamMadeSize || 0) - (a.teamMadeSize || 0))
-  }));
+      .sort((a, b) => (b.teamMadeSize || 0) - (a.teamMadeSize || 0));
+    const playerKills = players.reduce((sum, player) => sum + (player.championsKilled || 0), 0);
+    return {
+      teamId: team.teamId,
+      totalKills: team.totalKills,
+      totalDeaths: team.totalDeaths,
+      totalAssists: team.totalAssists,
+      teamElo: team.teamElo,
+      resultClass: getResultClass(team.win),
+      resultLabel: getResultLabel(team.win),
+      playerKills,
+      players: sortPlayers(players, sortBy.value, playerKills)
+    };
+  });
 });
 
 /** 当前查看玩家所在队伍（胜负标签反查），反查不到时摘要不显示胜负 */

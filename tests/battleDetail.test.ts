@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { flushPromises, mount } from "@vue/test-utils";
+import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { defineComponent, h } from "vue";
 import BattleDetailView from "../src/components/BattleDetail.vue";
 import { ApiError } from "../src/api/errors";
@@ -159,6 +159,39 @@ beforeEach(() => {
   getSummonerInfoMock.mockRejectedValue(new Error("需要登录"));
   fetchMlolMock.mockReset();
   fetchMlolMock.mockRejectedValue(new ApiError("MLOL_EMPTY", "GetBattleDetail(mlol)", "掌盟详情无数据"));
+});
+
+describe("BattleDetail 队伍排序", () => {
+  it("切换排序时保留队伍边界、并列顺序与每行名次，默认排序不显示名次", async () => {
+    const detail = makeDetail();
+    const first = { ...BLUE_PLAYER, openid: "first", teamMadeSize: 2, championsKilled: 2, assists: 0, totalDamageToChampions: 10, totalDamageTaken: 30, goldEarned: 10 };
+    const second = { ...BLUE_PLAYER, openid: "second", championsKilled: 4, assists: 4, totalDamageToChampions: 20, totalDamageTaken: 10, goldEarned: 30 };
+    const third = { ...BLUE_PLAYER, openid: "third", championsKilled: 4, assists: 2, totalDamageToChampions: 20, totalDamageTaken: 20, goldEarned: 20 };
+    detail.player_details = [second, RED_PLAYER, first, third];
+    getBattleDetailMock.mockResolvedValue(makeResponse("first", detail));
+    const wrapper = await mountDetail();
+
+    const cases = [
+      { key: "damage", ids: ["second", "third", "first"], labels: ["20 伤害", "20 伤害", "10 伤害"] },
+      { key: "taken", ids: ["first", "third", "second"], labels: ["30 承伤", "20 承伤", "10 承伤"] },
+      { key: "gold", ids: ["second", "third", "first"], labels: ["30 经济", "20 经济", "10 经济"] },
+      { key: "participation", ids: ["second", "third", "first"], labels: ["参团 80%", "参团 60%", "参团 20%"] },
+      { key: "default", ids: ["first", "second", "third"], labels: [] }
+    ];
+    for (const { key, ids, labels } of cases) {
+      await wrapper.get(".sort-select").setValue(key);
+      const teams = wrapper.findAll(".detail-team");
+      const rows: VueWrapper<InstanceType<typeof PlayerStub>>[] = teams[0].findAllComponents(PlayerStub);
+      expect(rows.map((row) => row.props("player").openid)).toEqual(ids);
+      expect(rows.map((row) => row.props("rankInfo"))).toEqual(
+        labels.length ? labels.map((label, index) => ({ rank: index + 1, label })) : [null, null, null]
+      );
+      const opponents: VueWrapper<InstanceType<typeof PlayerStub>>[] = teams[1].findAllComponents(PlayerStub);
+      expect(opponents.map((row) => row.props("player").openid)).toEqual([RED_PLAYER.openid]);
+    }
+    expect(detail.player_details.map((player) => player.openid)).toEqual(["second", RED_PLAYER.openid, "first", "third"]);
+    wrapper.unmount();
+  });
 });
 
 describe("BattleDetail 摘要身份一致", () => {

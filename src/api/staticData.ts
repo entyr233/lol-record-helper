@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { ref } from "vue";
 import { gmGet } from "./transport";
 import runeMap from "../data/runes.json";
 import itemMap from "../data/items.json";
@@ -109,9 +109,6 @@ export function getChampionSpells(championId: number): Promise<ChampionSpell[]> 
   task.catch(() => spellCache.delete(championId));
   return task;
 }
-
-/** 版本号加载状态（模板可直接依赖） */
-export const versionReady = computed(() => ddragonVersion.value !== null);
 
 let championNames: Map<number, string> | null = null;
 

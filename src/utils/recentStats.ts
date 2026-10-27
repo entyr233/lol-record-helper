@@ -1,6 +1,7 @@
 import type { BattleSummary } from "../api/types";
 import { getQueueName, getTeamMadeLabel, isRankedQueue } from "../const/queues";
 import { classifyBattle } from "../const/wins";
+import { formatBattleDate } from "./format";
 
 /** 常用英雄聚合项：英雄 id、出场场次、胜场（三分类口径，重开不算胜） */
 export interface RecentChampionStat {
@@ -61,22 +62,10 @@ const TREND_PADDING = 4;
 const UNKNOWN_TEAM_ID = "team-unknown";
 const UNKNOWN_TEAM_LABEL = "组队未提供";
 
-function pad2(n: number): string {
-  return n < 10 ? "0" + n : String(n);
-}
-
 /** 上限规整：负数/非数字回退默认值，避免 slice(0, -1) 这类意外结果 */
 function limitOf(value: number | undefined, fallback: number): number {
   if (value === undefined) return fallback;
   return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : fallback;
-}
-
-/** 对局开始时间 → 完整 YYYY-MM-DD（无效时间返回空串，与组件一致） */
-function dateLabelOf(g: BattleSummary): string {
-  const ts = Number(g.game_start_time);
-  if (!Number.isFinite(ts) || ts <= 0) return "";
-  const date = new Date(ts > 1e12 ? ts : ts * 1000);
-  return date.getFullYear() + "-" + pad2(date.getMonth() + 1) + "-" + pad2(date.getDate());
 }
 
 /** 秒 → m:ss */
@@ -124,7 +113,7 @@ function trendOf(sample: BattleSummary[]): RecentSummary["trend"] {
     if (result === "win") wins += 1;
     else if (result === "lose") losses += 1;
     const decided = wins + losses;
-    return { key: g.game_id, label: dateLabelOf(g), winRate: decided ? Math.round((wins / decided) * 100) : 0 };
+    return { key: g.game_id, label: formatBattleDate(g.game_start_time), winRate: decided ? Math.round((wins / decided) * 100) : 0 };
   });
   const step = (TREND_WIDTH - TREND_PADDING * 2) / Math.max(1, points.length - 1);
   const withCoords: RecentTrendPoint[] = points.map((point, index) => ({

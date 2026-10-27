@@ -114,11 +114,12 @@ import { toErrorMessage } from "../api/errors";
 import { championName, ensureChampionNames } from "../api/staticData";
 import type { BattleSummary } from "../api/types";
 import { battleResultLabel, classifyBattle } from "../const/wins";
-import { MODE_FILTER_OPTIONS, type ModeFilter } from "../const/modes";
+import { matchesBattleMode, MODE_FILTER_OPTIONS, type ModeFilter } from "../const/modes";
 import type { DaysFilter } from "../composables/useBattleList";
 import { useBattleFeed } from "../composables/battleFeed";
 import { summarizeRecentBattles } from "../utils/recentStats";
 import type { RecentTrendPoint } from "../utils/recentStats";
+import { formatBattleDate } from "../utils/format";
 
 const props = defineProps<{
   area: string;
@@ -159,12 +160,6 @@ const feed = useBattleFeed(() => ({
   id: String(props.id)
 }));
 
-function matchesMode(b: BattleSummary, mode: ModeFilter): boolean {
-  if (mode === "all") return true;
-  if (mode === "mvp") return Number(b.was_mvp) === 1 || Number(b.was_svp) === 1;
-  return Number(b.game_queue_id) === Number(mode);
-}
-
 function withinDays(b: BattleSummary, days: DaysFilter): boolean {
   if (!days) return true;
   const start = Number(b.game_start_time);
@@ -173,7 +168,7 @@ function withinDays(b: BattleSummary, days: DaysFilter): boolean {
 }
 
 function matchesSample(b: BattleSummary, mode: ModeFilter, days: DaysFilter): boolean {
-  return matchesMode(b, mode) && withinDays(b, days);
+  return matchesBattleMode(b, mode) && withinDays(b, days);
 }
 
 const task = useAsyncData(async (signal) => {
@@ -189,7 +184,7 @@ const task = useAsyncData(async (signal) => {
     // 原始页与列表共用：命中共享缓存时不会再发请求
     const page = await feed.getPage(pageIndex, { signal });
     collected.push(...page.data);
-    if (page.data.length < 10) break;
+    if (!page.hasMore) break;
     if (collected.filter((item) => matchesSample(item, mode, days)).length >= target) break;
   }
   return collected;
@@ -258,10 +253,10 @@ const streak = computed(() => {
 /** 色块顺序：由远到近（左旧右新），与文案“从左到右：由远到近”一致 */
 const recentGames = computed(() => sample.value.slice().reverse());
 /** 走势色块两端的时间标签：左=最早，右=最新 */
-const stripOldestLabel = computed(() => (recentGames.value.length ? dateLabelOf(recentGames.value[0]) : ""));
+const stripOldestLabel = computed(() => formatBattleDate(recentGames.value[0]?.game_start_time));
 const stripNewestLabel = computed(() => {
   const list = recentGames.value;
-  return list.length ? dateLabelOf(list[list.length - 1]) : "";
+  return formatBattleDate(list[list.length - 1]?.game_start_time);
 });
 const stripTitle = computed(() => {
   const remakeText = remakes.value ? "，重开 " + remakes.value : "";
@@ -274,17 +269,6 @@ function stripAriaLabel(g: BattleSummary, index: number): string {
   const current = g.game_id === props.activeGameId ? "（当前查看）" : "";
   return "第" + (recentGames.value.length - index) + "场 " + battleResultLabel(g) + current + "，点击定位";
 }
-function pad2(n: number): string {
-  return n < 10 ? "0" + n : String(n);
-}
-
-function dateLabelOf(g: BattleSummary): string {
-  const ts = Number(g.game_start_time);
-  if (!Number.isFinite(ts) || ts <= 0) return "";
-  const date = new Date(ts > 1e12 ? ts : ts * 1000);
-  return date.getFullYear() + "-" + pad2(date.getMonth() + 1) + "-" + pad2(date.getDate());
-}
-
 /** 累计胜率趋势（纯函数模块计算坐标，组件只负责绘制） */
 const trend = computed(() => stats.value.trend.points);
 const trendPoints = computed(() => stats.value.trend.pointsAttr);

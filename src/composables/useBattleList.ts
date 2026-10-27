@@ -1,11 +1,11 @@
 import { computed, ref, type Ref } from "vue";
-import { useBattleFeed, type BattleFeedKey } from "./battleFeed";
+import { PAGE_SIZE, useBattleFeed, type BattleFeedKey } from "./battleFeed";
 import { isAbortError } from "../api/errors";
 import { classifyBattle } from "../const/wins";
-import type { ModeFilter } from "../const/modes";
+import { matchesBattleMode, type ModeFilter } from "../const/modes";
 import type { BattleSummary, RqOptions } from "../api/types";
 
-export const PAGE_SIZE = 10;
+export { PAGE_SIZE } from "./battleFeed";
 /** 筛选/定位时最多回溯的原始页数（防刷爆） */
 export const MAX_RAW_PAGES = 20;
 
@@ -121,11 +121,7 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   const DAY_MS = 86400000;
   const matches = (b: BattleSummary): boolean => {
     const f = filter.value;
-    if (f.mode === "mvp") {
-      if (Number(b.was_mvp) !== 1 && Number(b.was_svp) !== 1) return false;
-    } else if (f.mode !== "all") {
-      if (Number(b.game_queue_id) !== Number(f.mode)) return false;
-    }
+    if (!matchesBattleMode(b, f.mode)) return false;
     if (f.champion !== null && Number(b.champion_id) !== f.champion) return false;
     if (f.result !== "all") {
       // 与总览/列表标签同一口径：重开单列，LeaverWin/LeaverFail 按胜/负算

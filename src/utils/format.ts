@@ -2,6 +2,14 @@ function pad2(n: number): string {
   return n < 10 ? "0" + n : String(n);
 }
 
+/** 对局的秒或毫秒时间戳转为本地日期；缺失或非正数返回空串。 */
+export function formatBattleDate(value: number | string | null | undefined): string {
+  const timestamp = Number(value);
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return "";
+  const date = new Date(timestamp > 1e12 ? timestamp : timestamp * 1000);
+  return date.getFullYear() + "-" + pad2(date.getMonth() + 1) + "-" + pad2(date.getDate());
+}
+
 /** 秒 -> 中文时长；0 返回 "0秒"（旧实现会返回空串） */
 export function formatDuration(totalSeconds: number | null | undefined): string {
   const sec = Number(totalSeconds);
