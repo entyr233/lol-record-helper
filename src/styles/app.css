@@ -1515,6 +1515,16 @@ button {
 .strip-block--cur .strip-bar {
   box-shadow: 0 0 0 1px #e6c37a;
 }
+/* 近期表现的模式切换（复用列表筛选 chip 的样式，只收一下上边距） */
+.recent-modes {
+  margin: 0 0 8px;
+}
+.recent-empty {
+  margin: 4px 0 0;
+  color: #8f99a6;
+  font-size: 13px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
 .recent-champs {
   display: flex;
   flex-wrap: wrap;

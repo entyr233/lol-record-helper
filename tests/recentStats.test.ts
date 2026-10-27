@@ -140,6 +140,92 @@ describe("RecentStats 三分类统计口径", () => {
   });
 });
 
+describe("RecentStats 模式切换", () => {
+  it("切换模式后只统计该模式的对局、KDA 与常用英雄", async () => {
+    const recent = [
+      battle(1, { game_queue_id: 420, win: "Win", kills: 8, deaths: 2, assists: 10 }),
+      battle(2, { game_queue_id: 420, win: "Fail", kills: 2, deaths: 8, assists: 4 }),
+      battle(3, { game_queue_id: 420, win: "Win", kills: 4, deaths: 4, assists: 8 }),
+      battle(4, { game_queue_id: 450, win: "Win", kills: 1, deaths: 1, assists: 1, champion_id: 9 }),
+      battle(5, { game_queue_id: 450, win: "Fail", kills: 0, deaths: 2, assists: 0, champion_id: 9 })
+    ];
+    mockPages(recent);
+    const wrapper = render();
+    try {
+      await flushPromises();
+      // 全部模式：5 场，KDA = (15+23)/17 ≈ 2.24
+      expect(wrapper.get(".recent-title").text()).toContain("全部模式");
+      expect(wrapper.get(".recent-kda").text()).toBe("2.24 KDA");
+
+      const aram = wrapper.findAll(".recent-modes .mode-filter-tab").find((tab) => tab.text() === "大乱斗")!;
+      await aram.trigger("click");
+      await flushPromises();
+
+      expect(wrapper.get(".recent-title").text()).toBe("大乱斗 · 最近 5 场中 2 场");
+      expect(wrapper.get(".recent-kda").text()).toBe("0.67 KDA");
+      expect(wrapper.findAll(".strip-block--btn")).toHaveLength(2);
+      // 常用英雄也切到该模式样本
+      expect(wrapper.findAll(".recent-champ")).toHaveLength(1);
+      expect(wrapper.get(".recent-champ-meta").text()).toBe("2场 1胜");
+
+      const all = wrapper.findAll(".recent-modes .mode-filter-tab").find((tab) => tab.text() === "全部")!;
+      await all.trigger("click");
+      await flushPromises();
+      expect(wrapper.get(".recent-title").text()).toContain("全部模式");
+      expect(wrapper.findAll(".strip-block--btn")).toHaveLength(5);
+    } finally { wrapper.unmount(); }
+  });
+
+  it("指定模式会扩大回看范围以凑够样本，且只补拉缺少的页", async () => {
+    const aramPage = (start: number) => Array.from({ length: 10 }, (_, i) => battle(start + i, { game_queue_id: 450 }));
+    const rankedPage = (start: number) => Array.from({ length: 10 }, (_, i) => battle(start + i, { game_queue_id: 420, win: "Fail" }));
+    api.getBattleList.mockImplementation(async (_rq: unknown, params: { offset: number }) => {
+      if (params.offset === 0) return aramPage(1);
+      if (params.offset === 10) return aramPage(11);
+      if (params.offset === 20) return rankedPage(21);
+      return [];
+    });
+    const wrapper = render();
+    try {
+      await flushPromises();
+      // 全部模式只取最近 20 场（2 页）
+      expect(api.getBattleList.mock.calls.map((call) => (call[1] as { offset: number }).offset)).toEqual([0, 10]);
+
+      const ranked = wrapper.findAll(".recent-modes .mode-filter-tab").find((tab) => tab.text() === "单双排")!;
+      await ranked.trigger("click");
+      await flushPromises();
+
+      expect(wrapper.get(".recent-title").text()).toBe("单双排 · 最近 30 场中 10 场");
+      expect(wrapper.get(".recent-wl").text()).toBe("0胜10负");
+      // 第 1、2 页来自缓存，只新拉第 3 页
+      expect(api.getBattleList.mock.calls.map((call) => (call[1] as { offset: number }).offset)).toEqual([0, 10, 20]);
+    } finally { wrapper.unmount(); }
+  });
+
+  it("所选模式没有对局时给出空态提示，切回全部可恢复", async () => {
+    const recent = Array.from({ length: 10 }, (_, i) => battle(i + 1, { game_queue_id: 420 }));
+    mockPages(recent);
+    const wrapper = render();
+    try {
+      await flushPromises();
+
+      const aram = wrapper.findAll(".recent-modes .mode-filter-tab").find((tab) => tab.text() === "大乱斗")!;
+      await aram.trigger("click");
+      await flushPromises();
+
+      expect(wrapper.get(".recent-empty").text()).toContain("大乱斗");
+      expect(wrapper.get(".recent-empty").text()).toContain("最近 10 场");
+      expect(wrapper.findAll(".strip-block--btn")).toHaveLength(0);
+
+      const all = wrapper.findAll(".recent-modes .mode-filter-tab").find((tab) => tab.text() === "全部")!;
+      await all.trigger("click");
+      await flushPromises();
+      expect(wrapper.find(".recent-empty").exists()).toBe(false);
+      expect(wrapper.findAll(".strip-block--btn")).toHaveLength(10);
+    } finally { wrapper.unmount(); }
+  });
+});
+
 describe("RecentStats 交互", () => {
   it("activeChampion 时出现清除筛选按钮，点击 emit filterChampion(null)", async () => {
     const wrapper = render({ activeChampion: 17 });
