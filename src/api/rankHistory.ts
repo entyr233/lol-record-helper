@@ -97,7 +97,7 @@ export async function fetchRankHistory(rq: RqOptions, signal?: AbortSignal): Pro
   return {
     seasons,
     trend: buildRankTrend(trendBattles),
-    reportKeys: Array.isArray(report) ? ["(数组)"] : Object.keys(record(report)).slice(0, 12)
+    reportKeys: Array.isArray(report) ? ["(数组)"] : (() => { const keys = Object.keys(record(report)); return keys.length > 14 ? [keys.length + "个键,含season_list=" + keys.includes("season_list")] : keys; })()
   };
 }
 

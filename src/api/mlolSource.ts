@@ -135,6 +135,10 @@ export async function searchMlolPlayers(keyword: string, signal?: AbortSignal): 
   }
   const data = record(payload.data);
   const list = Array.isArray(data.userList) ? data.userList : [];
+  if (list.length === 0) {
+    // 把响应头带出来：登录态问题/风控/接口变更 一眼可辨
+    throw new ApiError("MLOL_SEARCH_EMPTY", "MlolSearch", "搜索无结果，响应头部: " + JSON.stringify(payload).slice(0, 200));
+  }
   const cards: MlolPlayerCard[] = [];
   for (const value of list) {
     const u = record(value);
