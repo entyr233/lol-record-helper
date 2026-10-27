@@ -19,13 +19,17 @@
             :aria-pressed="selectedMode === option.key"
             @click="selectMode(option.key)">{{ option.label }}</button>
         </div>
-        <div v-if="sample.length" class="recent-strip" :title="stripTitle">
-          <button v-for="(g, index) in recentGames" :key="g.game_id" type="button"
-            class="strip-block strip-block--btn" :class="{ 'strip-block--cur': g.game_id === activeGameId }"
-            :aria-pressed="g.game_id === activeGameId" :aria-label="stripAriaLabel(g, index)" :title="stripBlockTitle(g, index)"
-            @click="$emit('focusGame', g)">
-            <span class="strip-bar" :class="'strip-bar--' + classifyBattle(g)"></span>
-          </button>
+        <div v-if="sample.length" class="recent-strip-wrap">
+          <span class="strip-end">最早 {{ stripOldestLabel }}</span>
+          <div class="recent-strip" :title="stripTitle">
+            <button v-for="(g, index) in recentGames" :key="g.game_id" type="button"
+              class="strip-block strip-block--btn" :class="{ 'strip-block--cur': g.game_id === activeGameId }"
+              :aria-pressed="g.game_id === activeGameId" :aria-label="stripAriaLabel(g, index)" :title="stripBlockTitle(g, index)"
+              @click="$emit('focusGame', g)">
+              <span class="strip-bar" :class="'strip-bar--' + classifyBattle(g)"></span>
+            </button>
+          </div>
+          <span class="strip-end">最新 {{ stripNewestLabel }}</span>
         </div>
         <p v-else class="recent-empty">{{ emptyText }}</p>
       </div>
@@ -68,6 +72,16 @@
         <button v-if="activeChampion" type="button" class="recent-champ-filter-clear" @click="$emit('filterChampion', null)">
           清除筛选：{{ championName(activeChampion) }} ×
         </button>
+      </div>
+      <div v-if="teamStats.length" class="recent-teams">
+        <p class="recent-teams-title">组队情况</p>
+        <div v-for="item in teamStats" :key="item.id" class="recent-queue-row">
+          <span class="recent-queue-name">{{ item.label }}</span>
+          <span class="recent-queue-track">
+            <span class="recent-queue-fill" :style="{ width: item.percent + '%' }"></span>
+          </span>
+          <span class="recent-queue-count">{{ item.count }} 场</span>
+        </div>
       </div>
       <div class="recent-metrics">
         <p class="recent-metrics-title">近 {{ sample.length }} 场场均</p>
@@ -294,6 +308,26 @@ const avgDuration = computed(() => {
   const seconds = Math.round(total / size);
   return Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
 });
+/** 组队情况：按预组队人数聚合（1 单排 / 2 双排 / 3-5 黑） */
+const TEAM_LABELS: Record<number, string> = { 1: "单排", 2: "双排", 3: "三黑", 4: "四黑", 5: "五黑" };
+const teamStats = computed(() => {
+  const size = sample.value.length;
+  if (!size) return [];
+  const counts = new Map<number, number>();
+  for (const g of sample.value) {
+    const made = Number(g.team_made_size ?? 1) || 1;
+    counts.set(made, (counts.get(made) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([made, count]) => ({
+      id: made,
+      count,
+      label: TEAM_LABELS[made] ?? "其他",
+      percent: Math.round((count / size) * 100)
+    }));
+});
 /** 连胜连败：跳过重开取第一场非重开结果，之后连续相同结果计数（重开不打断） */
 const streakState = computed(() => {
   const list = sample.value;
@@ -317,6 +351,12 @@ const streak = computed(() => {
 });
 /** 色块顺序：由远到近（左旧右新），与文案“从左到右：由远到近”一致 */
 const recentGames = computed(() => sample.value.slice().reverse());
+/** 走势色块两端的时间标签：左=最早，右=最新 */
+const stripOldestLabel = computed(() => (recentGames.value.length ? dateLabelOf(recentGames.value[0]) : ""));
+const stripNewestLabel = computed(() => {
+  const list = recentGames.value;
+  return list.length ? dateLabelOf(list[list.length - 1]) : "";
+});
 const stripTitle = computed(() => {
   const remakeText = remakes.value ? "，重开 " + remakes.value : "";
   return "从左到右：由远到近（" + wins.value + "胜" + losses.value + "负" + remakeText + "），点击色块定位对局";
@@ -336,7 +376,7 @@ const topChampions = computed(() => {
     if (classifyBattle(g) === "win") entry.wins += 1;
     byId.set(g.champion_id, entry);
   }
-  return [...byId.values()].sort((a, b) => b.count - a.count).slice(0, 8);
+  return [...byId.values()].sort((a, b) => b.count - a.count).slice(0, 10);
 });
 
 function pad2(n: number): string {

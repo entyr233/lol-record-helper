@@ -78,6 +78,29 @@ describe("RecentStats 三分类统计口径", () => {
     } finally { wrapper.unmount(); }
   });
 
+  it("走势色块标注最早/最新时间，组队情况按人数聚合", async () => {
+    const now = Date.now();
+    mockPages([
+      battle(1, { game_start_time: String(now - 3 * 86400000), team_made_size: 2 }),
+      battle(2, { game_start_time: String(now - 2 * 86400000), team_made_size: 2 }),
+      battle(3, { game_start_time: String(now - 1 * 86400000), team_made_size: 5 })
+    ]);
+    const wrapper = render();
+    try {
+      await flushPromises();
+      const ends = wrapper.findAll(".strip-end");
+      expect(ends).toHaveLength(2);
+      expect(ends[0]!.text()).toContain("最早");
+      expect(ends[1]!.text()).toContain("最新");
+      expect(ends[0]!.text()).not.toBe(ends[1]!.text());
+
+      const teamRows = wrapper.findAll(".recent-teams .recent-queue-row");
+      expect(teamRows).toHaveLength(2);
+      expect(teamRows[0]!.text()).toContain("双排");
+      expect(teamRows[0]!.text()).toContain("2 场");
+    } finally { wrapper.unmount(); }
+  });
+
   it("模式分布按场次排序展示前 4 类并给出占比", async () => {
     mockPages([
       ...Array.from({ length: 5 }, (_, index) => battle(30 + index, { game_queue_id: 420 })),
@@ -87,25 +110,25 @@ describe("RecentStats 三分类统计口径", () => {
     const wrapper = render();
     try {
       await flushPromises();
-      const rows = wrapper.findAll(".recent-queue-row");
+      const rows = wrapper.findAll(".recent-queues .recent-queue-row");
       expect(rows).toHaveLength(3);
       expect(rows[0]!.text()).toContain("单双排");
       expect(rows[0]!.text()).toContain("5 场");
-      expect(wrapper.findAll(".recent-queue-fill")[0]!.attributes("style")).toContain("50%");
+      expect(wrapper.findAll(".recent-queues .recent-queue-fill")[0]!.attributes("style")).toContain("50%");
     } finally { wrapper.unmount(); }
   });
 
-  it("近期表现下方展示场均摘要（6 项）与最多 8 个常用英雄", async () => {
-    const champions = Array.from({ length: 9 }, (_, index) => battle(20 + index, { champion_id: index + 1 }));
+  it("近期表现下方展示场均摘要（6 项）与最多 10 个常用英雄", async () => {
+    const champions = Array.from({ length: 12 }, (_, index) => battle(20 + index, { champion_id: index + 1 }));
     mockPages(champions);
     const wrapper = render();
     try {
       await flushPromises();
-      expect(wrapper.get(".recent-metrics-title").text()).toBe("近 9 场场均");
+      expect(wrapper.get(".recent-metrics-title").text()).toBe("近 12 场场均");
       expect(wrapper.findAll(".recent-metric")).toHaveLength(6);
       const metrics = wrapper.findAll(".recent-metric b").map((item) => item.text());
       expect(metrics).toEqual(["5.0", "2.0", "8.0", "0", "30:00", "0"]);
-      expect(wrapper.findAll(".recent-champ")).toHaveLength(8);
+      expect(wrapper.findAll(".recent-champ")).toHaveLength(10);
     } finally { wrapper.unmount(); }
   });
 

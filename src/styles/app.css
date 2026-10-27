@@ -1600,7 +1600,13 @@ button {
   margin-top: 10px;
 }
 .recent-champs {
+  display: flex;
   flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: center;
+  gap: 14px;
+  row-gap: 8px;
   min-width: 0;
 }
 .recent-metrics {
@@ -1652,6 +1658,34 @@ button {
   color: #56606c;
   font-size: 11px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+/* 组队情况卡：单排/双排/三黑…占比 */
+.recent-teams {
+  flex: 0 0 200px;
+  min-height: 104px;
+  padding: 10px 14px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid #202831;
+  border-radius: 6px;
+}
+.recent-teams-title {
+  margin: 0 0 8px;
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+/* 走势色块两端的时间标注：左=最早，右=最新 */
+.recent-strip-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.strip-end {
+  flex: none;
+  color: #56606c;
+  font-size: 10px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  white-space: nowrap;
 }
 .recent-queue-row {
   display: flex;
@@ -2027,6 +2061,9 @@ button {
     flex: 1 1 300px;
   }
   .recent-queues {
+    flex: 1 1 200px;
+  }
+  .recent-teams {
     flex: 1 1 200px;
   }
   .recent-headline {
