@@ -56,10 +56,18 @@ defineEmits<{ openSummoner: [player: PlayerDetail] }>();
 
 const request = useAsyncData(async (signal) => {
   const rq = toRqOptions({ area: props.area, accountType: props.accountType, id: props.id });
+  const trail: string[] = [];
+  const codeOf = (error: unknown): string => {
+    if (error instanceof ApiError) return String(error.code) + (error.serverMessage ? " " + error.serverMessage : "");
+    return error instanceof Error ? error.message.slice(0, 40) : String(error);
+  };
+
   try {
     // 首选：wegame 同源详情
-    return await lolBattleApi.getBattleDetail(rq, String(props.gameId), { signal });
+    const result = await lolBattleApi.getBattleDetail(rq, String(props.gameId), { signal });
+    return result;
   } catch (error) {
+    trail.push("wegame详情:" + codeOf(error));
     if (!(error instanceof ApiError) || signal.aborted) throw error;
     // 回退一：详情接口对 account_type=2+openid 的口径可能仍开放——
     // 用召唤师名字搜索自己的 openid，换口径重试（仅 self 场景）
@@ -68,6 +76,7 @@ const request = useAsyncData(async (signal) => {
         const summoner = await lolBattleApi.getSummonerInfo(rq, { signal });
         const players = await lolBattleApi.searchPlayer(summoner.name, { signal });
         const match = players.find((p) => Number(p.area) === Number(props.area));
+        trail.push("搜索:" + (match ? "ok" : "无匹配"));
         if (match) {
           return await lolBattleApi.getBattleDetail(
             { ...rq, account_type: 2, id: match.openid },
@@ -75,16 +84,24 @@ const request = useAsyncData(async (signal) => {
             { signal }
           );
         }
-      } catch { /* 搜索也被限制时走下一层回退 */ }
+      } catch (error) {
+        trail.push("搜索:" + codeOf(error));
+      }
     }
-    // 回退二：掌盟公开详情（GM 传输带 qt.qq.com 登录 cookie）
-    const mlol = await fetchMlolBattleDetail({
-      gameId: String(props.gameId),
-      areaId: props.area,
-      startTime: props.startTime
-    });
-    if (mlol.player_details.length > 0) return mlol as unknown as GetBattleDetailLike;
-    throw error;
+    // 回退二：掌盟公开详情（桥）
+    try {
+      const mlol = await fetchMlolBattleDetail({
+        gameId: String(props.gameId),
+        areaId: props.area,
+        startTime: props.startTime
+      }, signal);
+      trail.push("掌盟:ok");
+      if (mlol.player_details.length > 0) return mlol as unknown as GetBattleDetailLike;
+      trail.push("掌盟:空数据");
+    } catch (error) {
+      trail.push("掌盟:" + codeOf(error));
+    }
+    throw new ApiError("DETAIL_ALL_FAILED", "GetBattleDetail", "全部详情来源失败 [" + trail.join(" | ") + "]");
   }
 });
 
