@@ -87,6 +87,8 @@ const emit = defineEmits<{
   openSummoner: [player: PlayerDetail];
   championChange: [id: number | null];
   selectionChange: [gameId: string | null];
+  /** 列表数据完成一次「初始加载 / 主动刷新」，用于展示“更新于 HH:MM” */
+  updated: [at: Date];
 }>();
 
 const listRoot = ref<HTMLElement | null>(null);
@@ -94,7 +96,8 @@ const rqOptions = computed(() => toRqOptions({ area: props.area, accountType: pr
 const listState = useBattleList(() => rqOptions.value);
 const {
   battles, page, hasPrev, hasNext, loading, error, selectedGameId, filter, sampleSize,
-  rawLoaded, championPool, setFilter, goToPage, select, focusGame: locateGame
+  rawLoaded, championPool, setFilter, goToPage, select, focusGame: locateGame,
+  refresh: refreshList, dispose: disposeList
 } = listState;
 
 const modeOptions: Array<{ key: ModeFilter; label: string }> = [
@@ -150,7 +153,7 @@ const sampleText = computed(() => {
 const rawCount = rawLoaded;
 
 onMounted(() => {
-  void goToPage(1);
+  void goToPage(1).then(() => { emit("updated", new Date()); });
 });
 
 // 外部受控 prop → 内部筛选；相等判断避免与下方 emit 来回触发
@@ -200,6 +203,7 @@ function showNotice(text: string): void {
 onBeforeUnmount(() => {
   if (noticeTimer) clearTimeout(noticeTimer);
   noticeTimer = undefined;
+  disposeList();
 });
 
 function handleOpenSummoner(player: PlayerDetail): void {
@@ -226,5 +230,13 @@ async function focusGame(game: BattleSummary): Promise<FocusGameResult> {
 function applyChampionFilter(id: number | null): void {
   void setFilter({ champion: id });
 }
-defineExpose({ focusGame, applyChampionFilter });
+
+/** 主动刷新：保留筛选条件与当前查看的比赛（只有该场已不在结果里时才重新选择） */
+async function refresh(): Promise<void> {
+  focusedBattle.value = null;
+  await refreshList();
+  emit("updated", new Date());
+}
+
+defineExpose({ focusGame, applyChampionFilter, refresh });
 </script>

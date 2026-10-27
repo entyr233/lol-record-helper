@@ -154,6 +154,39 @@ describe("整页冒烟（mock 数据）", () => {
     }
   });
 
+  it("正常状态下「刷新战绩」可点击，显示更新时间并保留当前查看的比赛", async () => {
+    const instance = mountLolTft({ host });
+    await instance.router.isReady();
+    await instance.router.push({ name: "summary", params: { area: "1", accountType: "2", id: "10001" } });
+    for (let i = 0; i < 10; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    const shadow = host.shadowRoot as ShadowRoot;
+    const refreshButton = shadow.querySelector(".summary-refresh") as HTMLButtonElement | null;
+    expect(refreshButton).not.toBeNull();
+    expect(refreshButton!.disabled).toBe(false);
+    expect(shadow.querySelector(".summary-updated")?.textContent).toMatch(/更新于 \d{2}:\d{2}/);
+
+    const before = (shadow.querySelector(".battle-list-item.selected") as HTMLElement | null)?.getAttribute("data-game-id");
+    expect(before).toBeTruthy();
+
+    refreshButton!.click();
+    for (let i = 0; i < 20; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    // 刷新后：仍停在原来那场比赛，详情与更新时间都在
+    const after = (shadow.querySelector(".battle-list-item.selected") as HTMLElement | null)?.getAttribute("data-game-id");
+    expect(after).toBe(before);
+    expect(shadow.querySelector(".summary-updated")?.textContent).toMatch(/更新于 \d{2}:\d{2}/);
+    expect(refreshButton!.disabled).toBe(false);
+    expect(shadow.querySelectorAll(".detail-player")).toHaveLength(10);
+    instance.unmount();
+  });
+
   it("切换「技能」tab 后渲染技能释放次数区", async () => {
     const instance = mountLolTft({ host });
     await instance.router.isReady();

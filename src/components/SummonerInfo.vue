@@ -56,7 +56,7 @@
         </details>
       </div>
       <div class="summoner-recent">
-        <RecentStats :area="area" :account-type="accountType" :id="id" :active-champion="activeChampion"
+        <RecentStats ref="recentRef" :area="area" :account-type="accountType" :id="id" :active-champion="activeChampion"
           :active-game-id="activeGameId"
           @focus-game="(g: BattleSummary) => emit('focusGame', g)" @filter-champion="(id: number | null) => emit('filterChampion', id)" />
       </div>
@@ -194,5 +194,15 @@ function relogin(): Promise<void> {
 onMounted(() => {
   void summonerTask.run();
   void reportTask.run();
+});
+
+/** 近期表现的刷新句柄（与“刷新战绩”按钮联动） */
+const recentRef = ref<InstanceType<typeof RecentStats> | null>(null);
+
+/** 主动刷新：召唤师资料 + 场次统计 + 近期表现一起更新 */
+defineExpose({
+  refresh: async (): Promise<void> => {
+    await Promise.all([summonerTask.run(), reportTask.run(), recentRef.value?.reload()]);
+  }
 });
 </script>

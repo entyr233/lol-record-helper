@@ -136,4 +136,10 @@ const topChampions = computed(() => {
   }
   return [...byId.values()].sort((a, b) => b.count - a.count).slice(0, 3);
 });
+
+/** 主动刷新（“刷新战绩”按钮联动；保留当前英雄筛选展示） */
+function reload(): Promise<void> {
+  return task.run();
+}
+defineExpose({ reload });
 </script>

@@ -41,7 +41,11 @@ describe("useBattleList（翻页版）", () => {
     const state = useBattleList(() => rq);
     await state.goToPage(1);
 
-    expect(getBattleList).toHaveBeenCalledWith(rq, { count: PAGE_SIZE, offset: 0 });
+    expect(getBattleList).toHaveBeenCalledWith(
+      rq,
+      { count: PAGE_SIZE, offset: 0 },
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(state.battles.value).toHaveLength(PAGE_SIZE);
     expect(state.page.value).toBe(1);
     expect(state.hasNext.value).toBe(true);
@@ -57,7 +61,12 @@ describe("useBattleList（翻页版）", () => {
     await state.goToPage(1);
     await state.goToPage(2);
 
-    expect(getBattleList).toHaveBeenNthCalledWith(2, rq, { count: PAGE_SIZE, offset: 10 });
+    expect(getBattleList).toHaveBeenNthCalledWith(
+      2,
+      rq,
+      { count: PAGE_SIZE, offset: 10 },
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(state.battles.value).toHaveLength(PAGE_SIZE);
     expect(state.battles.value[0].game_id).toBe("b0");
     expect(state.hasPrev.value).toBe(true);
@@ -115,7 +124,12 @@ describe("useBattleList.focusGame（跨页定位）", () => {
     expect(state.page.value).toBe(2);
     expect(state.selectedGameId.value).toBe("b1");
     expect(state.error.value).toBeNull();
-    expect(getBattleList).toHaveBeenNthCalledWith(2, rq, { count: PAGE_SIZE, offset: 10 });
+    expect(getBattleList).toHaveBeenNthCalledWith(
+      2,
+      rq,
+      { count: PAGE_SIZE, offset: 10 },
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 
   it("筛选状态且该场匹配时，在筛选结果里定位并翻到所在页", async () => {
@@ -244,6 +258,31 @@ describe("useBattleList.focusGame（跨页定位）", () => {
     // 关键：定位探测过末尾空页，但当前展示页仍是第 1 页，「下一页」必须可用
     expect(state.hasNext.value).toBe(true);
     expect(state.battles.value).toHaveLength(PAGE_SIZE);
+  });
+
+  it("筛选结果到达末页后「下一页」会正确禁用", async () => {
+    const page0 = Array.from({ length: PAGE_SIZE }, (_, i) => battle("a" + i));
+    const page1 = Array.from({ length: PAGE_SIZE }, (_, i) => battle("b" + i));
+    getBattleList.mockImplementation((_rq: unknown, query: { offset?: number }) => {
+      const offset = query.offset ?? 0;
+      if (offset === 0) return Promise.resolve(page0);
+      if (offset === PAGE_SIZE) return Promise.resolve(page1);
+      return Promise.resolve([]);
+    });
+
+    const state = useBattleList(() => rq);
+    await state.goToPage(1);
+    await state.setFilter({ champion: 17 });
+    expect(state.hasNext.value).toBe(true);
+
+    await state.goToPage(2);
+    expect(state.page.value).toBe(2);
+    expect(state.hasNext.value).toBe(true);
+
+    // 第三页取到空结果：界面停在第二页，且「下一页」必须禁用（依赖响应式的原始前沿状态）
+    await state.goToPage(3);
+    expect(state.page.value).toBe(2);
+    expect(state.hasNext.value).toBe(false);
   });
 
   it("筛选模式下定位时一次翻页就选中目标，不先选该页第一场", async () => {
@@ -405,5 +444,86 @@ describe("useBattleList 筛选口径与竞态", () => {
     expect(state.page.value).toBe(1);
     expect(state.battles.value).toHaveLength(PAGE_SIZE);
     expect(state.battles.value.every((item) => item.win === "Fail")).toBe(true);
+  });
+});
+
+describe("useBattleList 刷新与请求取消", () => {
+  it("刷新保留筛选与当前查看的对局，并绕过缓存重新请求", async () => {
+    const page = Array.from({ length: PAGE_SIZE }, (_, i) => battle("r" + i));
+    getBattleList.mockResolvedValue(page);
+
+    const state = useBattleList(() => rq);
+    await state.goToPage(1);
+    await state.setFilter({ champion: 17 });
+    state.select("r3");
+    getBattleList.mockClear();
+
+    await state.refresh();
+
+    expect(state.filter.value.champion).toBe(17);
+    expect(state.page.value).toBe(1);
+    expect(state.selectedGameId.value).toBe("r3");
+    // 缓存被清掉，需要重新取当页数据
+    expect(getBattleList).toHaveBeenCalledTimes(1);
+    expect(getBattleList.mock.calls[0]![1]).toEqual({ count: PAGE_SIZE, offset: 0 });
+  });
+
+  it("刷新后当前对局已不在结果中时，重新选择当前页第一场", async () => {
+    const oldPage = [battle("x1"), battle("x2")];
+    const newPage = [battle("y1"), battle("y2")];
+    getBattleList.mockResolvedValueOnce(oldPage).mockResolvedValueOnce(newPage);
+
+    const state = useBattleList(() => rq);
+    await state.goToPage(1);
+    state.select("x2");
+
+    await state.refresh();
+
+    expect(state.selectedGameId.value).toBe("y1");
+    expect(state.battles.value.map((item) => item.game_id)).toEqual(["y1", "y2"]);
+  });
+
+  it("切换筛选会中止旧请求，且取消不显示为错误", async () => {
+    let aborted = false;
+    getBattleList.mockImplementationOnce((_rq: unknown, _params: unknown, options?: { signal?: AbortSignal }) =>
+      new Promise<BattleSummary[]>((_resolve, reject) => {
+        options?.signal?.addEventListener("abort", () => {
+          aborted = true;
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      })
+    );
+    getBattleList.mockResolvedValueOnce([]);
+
+    const state = useBattleList(() => rq);
+    const loading = state.goToPage(1);
+    const filtering = state.setFilter({ result: "win" });
+    await Promise.all([loading, filtering]);
+
+    expect(aborted).toBe(true);
+    expect(state.error.value).toBeNull();
+    expect(state.filter.value.result).toBe("win");
+    expect(state.page.value).toBe(1);
+  });
+
+  it("卸载（dispose）会中止在途请求，且不显示错误", async () => {
+    let aborted = false;
+    getBattleList.mockImplementationOnce((_rq: unknown, _params: unknown, options?: { signal?: AbortSignal }) =>
+      new Promise<BattleSummary[]>((_resolve, reject) => {
+        options?.signal?.addEventListener("abort", () => {
+          aborted = true;
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      })
+    );
+
+    const state = useBattleList(() => rq);
+    const loading = state.goToPage(1);
+    state.dispose();
+    await loading;
+
+    expect(aborted).toBe(true);
+    expect(state.error.value).toBeNull();
+    expect(state.loading.value).toBe(false);
   });
 });

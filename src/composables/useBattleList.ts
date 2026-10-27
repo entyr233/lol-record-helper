@@ -1,5 +1,6 @@
 import { computed, ref, type Ref } from "vue";
 import { lolBattleApi } from "../api/client";
+import { isAbortError } from "../api/errors";
 import { classifyBattle } from "../const/wins";
 import type { BattleSummary, RqOptions } from "../api/types";
 
@@ -51,6 +52,10 @@ export interface BattleListState {
   select: (gameId: string) => void;
   /** 定位并选中一场对局（筛选不匹配时先重置筛选） */
   focusGame: (game: BattleSummary) => Promise<FocusGameResult>;
+  /** 刷新：清掉页缓存、按当前筛选与页码重新拉取；保留当前查看的对局（已不存在时才重新选择） */
+  refresh: () => Promise<void>;
+  /** 组件卸载时中止在途请求 */
+  dispose: () => void;
 }
 
 function isDefaultFilter(f: ListFilter): boolean {
@@ -82,13 +87,28 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   const pageCache = new Map<number, { data: BattleSummary[]; hasMore: boolean; at: number }>();
   /** 原始页缓存有效期：既避免同一交互内重复请求，也不至于长期记住旧战绩 */
   const PAGE_CACHE_TTL = 30000;
-  let fetchedPages = 0;
-  /** 原始数据的前沿：已拉到的最后一页是否还有更多（与「当前展示页的翻页状态」分开） */
-  let rawHasMore = true;
+  /** 已累积的原始页数（响应式：参与「下一页」按钮状态计算） */
+  const fetchedPages = ref(0);
+  /** 原始数据的前沿：已拉到的最后一页是否还有更多（响应式，与「当前展示页的翻页状态」分开） */
+  const rawHasMore = ref(true);
   let inflight: Promise<void> | null = null;
   let focusing = false;
   /** 代际：筛选变化时自增；旧请求的结果因代际不同被丢弃 */
   let generation = 0;
+  /** 列表请求的取消信号：切换筛选 / 组件卸载时结束在途请求 */
+  let requestController: AbortController | null = null;
+  let disposed = false;
+
+  function signalOf(): AbortSignal {
+    if (!requestController) requestController = new AbortController();
+    return requestController.signal;
+  }
+
+  /** 中止在途列表请求，并为后续请求换一个新的 controller */
+  function abortRequests(): void {
+    requestController?.abort();
+    requestController = new AbortController();
+  }
 
   const DAY_MS = 86400000;
   const matches = (b: BattleSummary): boolean => {
@@ -118,7 +138,7 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   const hasNext = computed(() => {
     if (isDefaultFilter(filter.value)) return displayedHasMore.value;
     // 筛选模式：本地还能切出更多匹配，或原始数据前沿还没到头
-    return filteredAll.value.length > page.value * PAGE_SIZE || (rawHasMore && fetchedPages < MAX_RAW_PAGES);
+    return filteredAll.value.length > page.value * PAGE_SIZE || (rawHasMore.value && fetchedPages.value < MAX_RAW_PAGES);
   });
 
   /** 统计口径：无筛选=当前页 10 场；有筛选=已加载的匹配场次 */
@@ -155,11 +175,16 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
    * gen 用于丢弃「筛选已变化但响应才回来」的旧结果：既不写缓存，也不更新英雄池。
    */
   async function fetchPage(n: number, gen: number = generation): Promise<{ items: BattleSummary[]; hasMore: boolean }> {
+    if (disposed) throw new DOMException("aborted", "AbortError");
     const cached = pageCache.get(n);
     if (cached && Date.now() - cached.at < PAGE_CACHE_TTL) {
       return { items: cached.data, hasMore: cached.hasMore };
     }
-    const items = await lolBattleApi.getBattleList(rqOptions(), { count: PAGE_SIZE, offset: n * PAGE_SIZE });
+    const items = await lolBattleApi.getBattleList(
+      rqOptions(),
+      { count: PAGE_SIZE, offset: n * PAGE_SIZE },
+      { signal: signalOf() }
+    );
     const hasMore = items.length >= PAGE_SIZE;
     if (gen === generation) {
       pageCache.set(n, { data: items, hasMore, at: Date.now() });
@@ -171,15 +196,15 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   /** 把原始页追加进本地累积（筛选模式下做本地过滤时用），不改页码与选中；返回原始数据前沿 */
   async function appendRawPage(n: number, gen: number = generation): Promise<boolean> {
     const { items, hasMore } = await fetchPage(n, gen);
-    if (gen !== generation) return rawHasMore;
+    if (gen !== generation) return rawHasMore.value;
     const seen = new Set(rawBattles.value.map((item) => item.game_id));
     for (const item of items) {
       if (seen.has(item.game_id)) continue;
       seen.add(item.game_id);
       rawBattles.value.push(item);
     }
-    fetchedPages = n + 1;
-    rawHasMore = hasMore;
+    fetchedPages.value = n + 1;
+    rawHasMore.value = hasMore;
     return hasMore;
   }
 
@@ -207,8 +232,8 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
         else pickSelection(fresh);
         return;
       }
-      while (filteredAll.value.length < n * PAGE_SIZE && rawHasMore && fetchedPages < MAX_RAW_PAGES) {
-        await appendRawPage(fetchedPages, gen);
+      while (filteredAll.value.length < n * PAGE_SIZE && rawHasMore.value && fetchedPages.value < MAX_RAW_PAGES) {
+        await appendRawPage(fetchedPages.value, gen);
         if (gen !== generation) return;
       }
       if (gen !== generation) return;
@@ -218,14 +243,14 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
       if (presetGameId && visible.some((item) => item.game_id === presetGameId)) selectedGameId.value = presetGameId;
       else pickSelection(visible);
     } catch (err) {
-      if (gen === generation) error.value = err as Error;
+      if (gen === generation && !isAbortError(err)) error.value = err as Error;
     } finally {
       if (gen === generation) loading.value = false;
     }
   }
 
   function goToPage(n: number, presetGameId?: string): Promise<void> {
-    if (n < 1 || inflight) return Promise.resolve();
+    if (n < 1 || inflight || disposed) return Promise.resolve();
     const gen = generation;
     const run = loadPage(n, gen, presetGameId);
     inflight = run;
@@ -238,21 +263,45 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   }
 
   async function setFilter(patch: Partial<ListFilter>): Promise<void> {
+    if (disposed) return;
     const next = { ...filter.value, ...patch };
     if (next.mode === filter.value.mode && next.champion === filter.value.champion
       && next.result === filter.value.result && next.days === filter.value.days) return;
     filter.value = next;
-    // 让在途请求作废，并等它结束，避免旧响应晚于新请求写回
+    // 中止在途请求（网络慢时不用等旧请求跑完），并让旧响应作废
+    abortRequests();
     generation += 1;
     rawBattles.value = [];
     page.value = 1;
     selectedGameId.value = null;
     displayedHasMore.value = true;
-    rawHasMore = true;
-    fetchedPages = 0;
+    rawHasMore.value = true;
+    fetchedPages.value = 0;
     const pending = inflight;
     if (pending) await pending.catch(() => {});
     await goToPage(1);
+  }
+
+  /** 刷新：清掉原始页缓存，按当前筛选与页码重新拉取；保留选中项（已不存在时再重新选择） */
+  async function refresh(): Promise<void> {
+    if (disposed || focusing) return;
+    while (inflight) await inflight.catch(() => {});
+    abortRequests();
+    generation += 1;
+    pageCache.clear();
+    rawBattles.value = [];
+    rawHasMore.value = true;
+    displayedHasMore.value = true;
+    fetchedPages.value = 0;
+    const targetPage = Math.max(1, page.value);
+    await goToPage(targetPage);
+  }
+
+  /** 组件卸载时中止所有在途列表请求 */
+  function dispose(): void {
+    disposed = true;
+    requestController?.abort();
+    requestController = null;
   }
 
   function select(gameId: string): void {
@@ -260,14 +309,14 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   }
 
   /** 顺序探测目标所在页（1 基）：近期对局在前，通常 1~2 次即可命中；命中缓存则不请求。
-   *  探测只读：不更新当前页的翻页状态。 */
+   *  探测只读：不更新当前页的翻页状态；被取消（切筛选/卸载）时静默结束。 */
   async function findPageOf(game: BattleSummary): Promise<number | null> {
     for (let n = 1; n <= MAX_RAW_PAGES; n += 1) {
       let page: { items: BattleSummary[]; hasMore: boolean };
       try {
         page = await fetchPage(n - 1);
       } catch (err) {
-        error.value = err as Error;
+        if (!isAbortError(err)) error.value = err as Error;
         return null;
       }
       if (page.items.some((item) => item.game_id === game.game_id)) return n;
@@ -320,11 +369,11 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
 
       // 筛选模式：先看已累积的匹配结果，不够再续拉原始页（不改变当前页码；仅成功命中后才翻页）
       let index = filteredAll.value.findIndex((item) => item.game_id === game.game_id);
-      while (index < 0 && rawHasMore && fetchedPages < MAX_RAW_PAGES) {
+      while (index < 0 && rawHasMore.value && fetchedPages.value < MAX_RAW_PAGES) {
         try {
-          await appendRawPage(fetchedPages);
+          await appendRawPage(fetchedPages.value);
         } catch (err) {
-          error.value = err as Error;
+          if (!isAbortError(err)) error.value = err as Error;
           return { battle: null, filterReset };
         }
         index = filteredAll.value.findIndex((item) => item.game_id === game.game_id);
@@ -358,6 +407,8 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
     setFilter,
     goToPage,
     select,
-    focusGame
+    focusGame,
+    refresh,
+    dispose
   };
 }

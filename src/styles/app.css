@@ -303,6 +303,36 @@ button {
   min-width: 0;
   margin: 0 auto;
 }
+/* 正常状态下的刷新入口 + 更新时间（在总览之上，作用于总览与列表） */
+.summary-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.summary-updated {
+  color: #6c7683;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.summary-refresh {
+  padding: 6px 14px;
+  color: #b59758;
+  background-color: #242c37;
+  border: 1px solid #2f3844;
+  border-radius: 14px;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.summary-refresh:hover:not(:disabled) {
+  background-color: rgba(181, 151, 88, 0.16);
+  border-color: #b59758;
+}
+.summary-refresh:disabled {
+  color: #56606c;
+  cursor: default;
+}
 .summary-battles {
   display: block;
   margin-top: 32px;
