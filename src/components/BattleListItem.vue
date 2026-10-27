@@ -7,13 +7,15 @@
       <span v-else-if="(battle.svp ?? battle.was_svp)" class="badge badge--svp">SVP</span>
     </span>
     <span class="battle-state">
-      <span class="battle-result">{{ resultLabel }}</span>
-      <span class="battle-queue">({{ queueName }})</span>
-      <span class="battle-state-row2">
+      <span class="battle-state-heading">
+        <span class="battle-result">{{ resultLabel }}</span>
+        <span class="battle-queue">{{ queueName }}</span>
+        <span class="battle-duration" title="游戏时长">{{ duration }}</span>
+      </span>
+      <span v-if="tierSnapshot || judgementLabel" class="battle-state-row2">
         <span v-if="tierSnapshot" class="battle-tier" title="对局时段位">{{ tierSnapshot }}</span>
         <span v-if="judgementLabel" class="battle-judgement" :title="'对局评价：' + judgementLabel">{{ judgementLabel }}</span>
       </span>
-      <span class="battle-duration" title="游戏时长">{{ duration }}</span>
       <span class="battle-time" title="对局开始时间">{{ startTime }}</span>
     </span>
     <span class="battle-index">#{{ index + 1 }}</span>
@@ -41,8 +43,8 @@ const tierSnapshot = computed(() => {
   const raw = props.battle.game_level;
   if (!raw) return "";
   try {
-    const parsed = JSON.parse(raw) as { tier?: string | number; queue?: number };
-    const label = tierLabel(parsed.tier, parsed.queue);
+    const parsed = JSON.parse(raw) as { tier?: string | number; rank?: number; queue?: number };
+    const label = tierLabel(parsed.tier, parsed.rank ?? parsed.queue);
     return label === "未定级" ? "" : label;
   } catch { return ""; }
 });

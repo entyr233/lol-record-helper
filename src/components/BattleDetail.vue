@@ -21,6 +21,7 @@
           :player="player"
           :players="detail.player_details"
           :mode="mode"
+          :hex-aram="isHexAram"
           :is-self="canOpenPlayer && player.openid === selfOpenid"
           @open-summoner="canOpenPlayer && $emit('openSummoner', $event)"
         />
@@ -49,8 +50,12 @@ const props = defineProps<{
   id: string;
   gameId: string | null;
   startTime?: number | string;
+  /** 选中对局的队列 id（2400 = 海克斯大乱斗：无符文，有海克斯强化） */
+  queueId?: number | string;
   mode: "概要" | "技能" | "伤害";
 }>();
+
+const isHexAram = computed(() => Number(props.queueId) === 2400);
 
 defineEmits<{ openSummoner: [player: PlayerDetail] }>();
 

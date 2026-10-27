@@ -46,7 +46,7 @@ describe("BattleListItem", () => {
         index: 3
       }
     });
-    expect(wrapper.text()).toContain("钻石");
+    expect(wrapper.text()).toContain("钻石Ⅱ");
     expect(wrapper.text()).not.toContain("未定级");
   });
 

@@ -15,6 +15,22 @@
 | 对局列表 | 翻页制（每页 10 条），胜负/队列/时长/时间、MVP/SVP/逃跑徽章、对局评价标签（Carry局等） |
 | 对局详情 | 10 人全量：KDA、伤害四系柱状图、装备、符文、召唤师技能与释放次数、评分、补刀/经济；点名字跳转其战绩页 |
 | 搜索 | 按昵称搜索全大区同名玩家 |
+| 历史段位 | 掌盟 HAR 离线导入 / 官方段位页链接查询；按赛季和模式筛选；近期段位走势与在线刷新 |
+
+## 历史段位查询（v1.3.0）
+
+在总览下方展开「历史段位查询」：
+
+- 点击「导入掌盟 HAR」，选择打开过掌盟历史段位页的抓包文件。文件在浏览器本地解析，导入时不联网。
+- 或粘贴掌盟官方段位页链接 `https://lol.qq.com/m/zmlolzone/page/tier-detail/?scene=...`，点击「查询」。
+- 可按单双排 / 灵活组排和历史赛季筛选，展开「近期段位走势」查看最近记录。
+- HAR 中的玩家可能与上方正在查看的战绩玩家不同，历史区域单独显示来源昵称和采集时间。包含多个玩家时可选择记录。
+- 点击「刷新查询」才使用该记录的 scene 请求掌盟。失败保留已导入快照；链接过期或权限受限时需更新掌盟链接。
+
+`scene` 由掌盟签发，现有 WeGame UIN/openid 不能直接替代。链接、scene 和 HAR 不会写入本地存储或分发包。
+导入与查询后的内容只保留在当前页面，切换战绩玩家或关闭面板后需重新导入。
+
+v1.3.0 同时移除了上游捐赠、主页和 GitHub 导航，将左侧战绩改为自适应高度，修复文字重叠。
 
 ## 数据源与鉴权（重要）
 
@@ -22,6 +38,7 @@
 | --- | --- | --- |
 | `wegame.com.cn/api/v1/wegame.pallas.game.LolBattle/*` | 列表/资料/统计/详情 | wegame 登录 cookie（同源自动携带） |
 | `mlol.qt.qq.com/go/battle_info/get_battle_detail_h5` | 详情**回退源** | `.qq.com` 登录 cookie（QQ 侧） |
+| `mlol.qt.qq.com/go/battle_info/get_rank_trend` | 历史段位与近期走势 | 掌盟段位页的 `scene` |
 
 - 2026 现任格式：列表 `GetBattleList`；资料 `GetSummonerInfo`（含 `season` 段位）；统计 `GetBattleReport`（带 `sids:[255]`，返回 `season_list`）
 - 老接口被限制时（8000120 等）：先弹**官方人机验证**（TCaptcha + VerifyRecongnition）后自动重试；详情再失败则回退掌盟接口（postMessage 桥：脚本同时在 lol.qq.com 上运行，替面板做同源请求绕过 CORS）
@@ -56,7 +73,8 @@ npm run build:app          # dist/site/（演示页）
 ~~~
 
 安装：把 `dist/userscript/lol-tft.user.js` 拖进浏览器（ScriptCat/Tampermonkey）→ 覆盖安装 → F5。
-发布：同一份文件提交到 greasyfork 脚本 454184（https://greasyfork.org/zh-CN/scripts/454184）。
+本地定制版已停用上游自动更新地址，后续通过重新构建安装更新，避免被上游脚本覆盖。
+原项目来源：https://greasyfork.org/zh-CN/scripts/454184（保留作者与许可证信息）。
 
 ## 目录
 
@@ -69,7 +87,7 @@ src/data/         构建期固化的符文/装备映射（node scripts/sync-stat
 src/styles/       全部样式（仅注入 Shadow DOM）
 userscript/       用户脚本模板（bundle 构建时内联）+ 注入探针
 scripts/          静态数据同步 / userscript 构建
-tests/            266 个测试（契约/策略/生命周期/冒烟）
+tests/            契约/策略/生命周期/历史段位/冒烟测试
 docs/             代码审查报告 / HAR 分析 / 迁移说明
 ~~~
 
@@ -94,4 +112,5 @@ docs/             代码审查报告 / HAR 分析 / 迁移说明
 
 - 代码审查报告：docs/code-review-2026-10.md
 - HAR 分析（掌盟接口族逆向）：docs/har-analysis-20261027.md
+- 历史段位接口与验证：docs/har-rank-history-20261027.md
 - Vue2→Vue3 迁移说明：docs/migration-vue2-to-vue3.md

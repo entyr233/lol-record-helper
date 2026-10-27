@@ -75,6 +75,13 @@ export interface PlayerDetail {
   physicalDamageToChampions: number;
   trueDemageToChampions: number;
   goldEarned?: number;
+  /** 海克斯大乱斗（2400）的海克斯强化 id，普通模式为 0/缺省 */
+  playerAugment1?: number;
+  playerAugment2?: number;
+  playerAugment3?: number;
+  playerAugment4?: number;
+  playerAugment5?: number;
+  playerAugment6?: number;
   minionsKilled?: number;
   neutralMinionsKilled?: number;
   sightWardsBoughtInGame?: number;

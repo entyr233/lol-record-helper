@@ -15,8 +15,8 @@ describe.skipIf(!available)("单文件油猴脚本（构建产物）", () => {
     expect(code).not.toContain("__VERSION__");
     expect(code).not.toContain("__BUNDLE__");
     expect(code).toContain("__LOL_TFT__"); // Runtime debugging API is not a build placeholder.
-    expect(metadata).toMatch(/^\/\/ @downloadURL[ \t]+https:\/\/update\.greasyfork\.org\/scripts\/454184\/[^\r\n]+\.user\.js\r?$/m);
-    expect(metadata).toMatch(/^\/\/ @updateURL[ \t]+https:\/\/update\.greasyfork\.org\/scripts\/454184\/[^\r\n]+\.meta\.js\r?$/m);
+    expect(metadata).not.toContain("@downloadURL");
+    expect(metadata).toMatch(/^\/\/ @updateURL[ \t]+none\r?$/m);
   });
 
   it("内联 bundle 能执行，并导出 mountLolTft", () => {

@@ -2,7 +2,7 @@
 // @name         LOL战绩查询
 // @namespace    mscststs
 // @version      __VERSION__
-// @description  在 WeGame 页面内查询英雄联盟国服战绩（无需任何配置，登录即用）
+// @description  英雄联盟国服战绩查询，支持掌盟历史段位 HAR 导入与段位页链接查询
 // @author       mscststs
 // @match        https://www.wegame.com.cn/*
 // @match        https://wegame.com.cn/*
@@ -15,8 +15,7 @@
 // @connect      www.wegame.com.cn
 // @connect      wegame.com.cn
 // @run-at       document-idle
-// @downloadURL  https://update.greasyfork.org/scripts/454184/LOL%E6%88%98%E7%BB%A9%E6%9F%A5%E8%AF%A2.user.js
-// @updateURL    https://update.greasyfork.org/scripts/454184/LOL%E6%88%98%E7%BB%A9%E6%9F%A5%E8%AF%A2.meta.js
+// @updateURL    none
 // ==/UserScript==
 
 /**

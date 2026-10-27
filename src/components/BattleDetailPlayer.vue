@@ -10,10 +10,16 @@
       <GameIcon kind="summon-spell" :id="player.summonSpell2Id" />
     </span>
 
-    <span class="dp-runes">
+    <span v-if="!hexAram" class="dp-runes">
       <GameIcon v-if="player.perkStyleUrl" kind="url" id="keystone" :src="player.perkStyleUrl" />
       <GameIcon v-else kind="rune" :id="player.keystoneId" />
       <GameIcon kind="rune" :id="player.perkSubStyle" />
+    </span>
+    <span v-else class="dp-runes" title="海克斯强化">
+      <template v-for="slot in augmentSlots" :key="slot.id">
+        <GameIcon v-if="slot.icon" kind="url" :id="String(slot.id)" :src="slot.icon" :title="slot.name" />
+        <span v-else class="dp-augment-empty" :data-level="slot.level" />
+      </template>
     </span>
 
     <span class="dp-summoner">
@@ -134,6 +140,7 @@ import type { PlayerDetail } from "../api/types";
 import { getTeamMadeName } from "../const/queues";
 import { tierName } from "../const/tiers";
 import { formatGameScore, formatThousands, kdaRatio } from "../utils/format";
+import augmentMap from "../data/kiwi-augments.json";
 
 type DamageKey =
   | "totalDamageToChampions"
@@ -147,6 +154,8 @@ const props = defineProps<{
   players: PlayerDetail[];
   mode: "概要" | "技能" | "伤害";
   isSelf?: boolean;
+  /** 海克斯大乱斗（2400）：无符文，改显海克斯强化 */
+  hexAram?: boolean;
 }>();
 
 defineEmits<{ openSummoner: [player: PlayerDetail] }>();
@@ -174,6 +183,18 @@ const maxValues = computed(() => {
     }
   }
   return result;
+});
+
+const AUGMENTS = augmentMap as Record<string, { name: string; icon: string; level: string }>;
+const augmentSlots = computed(() => {
+  const slots: Array<{ id: number; name: string; icon: string; level: string }> = [];
+  for (const key of ["playerAugment1", "playerAugment2", "playerAugment3", "playerAugment4", "playerAugment5", "playerAugment6"] as const) {
+    const id = Number(props.player[key] ?? 0);
+    if (!Number.isFinite(id) || id === 0) continue;
+    const info = AUGMENTS[String(id)];
+    slots.push({ id, name: info?.name ?? "", icon: info?.icon ?? "", level: info?.level ?? "" });
+  }
+  return slots;
 });
 
 const decodedName = computed(() => {
