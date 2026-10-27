@@ -129,6 +129,16 @@
     </template>
 
     <span class="dp-score">{{ gameScore }}</span>
+      <div v-if="mode === '海克斯'" class="dp-hex">
+      <template v-if="hexAram">
+        <span v-if="augmentSlots.length === 0" class="dp-hex-empty">本场无强化记录</span>
+        <span v-for="slot in augmentSlots" :key="slot.id" class="dp-hex-item" :data-level="slot.level">
+          <GameIcon kind="url" :id="String(slot.id)" :src="slot.icon" :title="slot.name" />
+          <span class="dp-hex-name" :data-level="slot.level">{{ slot.name }}</span>
+        </span>
+      </template>
+      <span v-else class="dp-hex-empty">海克斯强化仅在海克斯大乱斗中存在</span>
+    </div>
   </div>
 </template>
 
@@ -152,7 +162,7 @@ type DamageKey =
 const props = defineProps<{
   player: PlayerDetail;
   players: PlayerDetail[];
-  mode: "概要" | "技能" | "伤害";
+  mode: "概要" | "技能" | "伤害" | "海克斯";
   isSelf?: boolean;
   /** 海克斯大乱斗（2400）：无符文，改显海克斯强化 */
   hexAram?: boolean;

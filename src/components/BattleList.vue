@@ -80,7 +80,7 @@ import { toErrorMessage } from "../api/errors";
 const props = defineProps<{ area: string; accountType: string; id: string }>();
 const emit = defineEmits<{ openSummoner: [player: PlayerDetail] }>();
 
-const MODES = ["概要", "技能", "伤害"] as const;
+const MODES = ["概要", "技能", "伤害", "海克斯"] as const;
 const currentMode = ref<(typeof MODES)[number]>("概要");
 
 const rqOptions = computed(() => toRqOptions({ area: props.area, accountType: props.accountType, id: props.id }));

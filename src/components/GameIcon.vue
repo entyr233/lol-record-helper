@@ -33,6 +33,8 @@ const props = defineProps<{
   championId?: number;
   /** kind="url" 时直接作为图标地址 */
   src?: string;
+  /** 悬停提示（海克斯强化的中文名等） */
+  title?: string;
 }>();
 
 const FALLBACK_ICON =

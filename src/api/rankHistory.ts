@@ -27,7 +27,9 @@ const record = (value: unknown): Record<string, unknown> =>
 
 /** 赛季记录：GetBattleReport.season_list -> 展示行（最高排位优先排序用 tierOrder） */
 export function buildSeasonRows(report: unknown): SeasonRankRow[] {
-  const battleCount = record(record(record(report).battle_count));
+  const root = record(report);
+  // getBattleReport 返回的是已解包的 battle_count；也兼容整包 payload
+  const battleCount = record(root.battle_count ?? root);
   const list = battleCount.season_list;
   if (!Array.isArray(list)) return [];
   const rows: SeasonRankRow[] = [];

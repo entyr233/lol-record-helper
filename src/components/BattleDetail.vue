@@ -52,7 +52,7 @@ const props = defineProps<{
   startTime?: number | string;
   /** 选中对局的队列 id（2400 = 海克斯大乱斗：无符文，有海克斯强化） */
   queueId?: number | string;
-  mode: "概要" | "技能" | "伤害";
+  mode: "概要" | "技能" | "伤害" | "海克斯";
 }>();
 
 const isHexAram = computed(() => Number(props.queueId) === 2400);
