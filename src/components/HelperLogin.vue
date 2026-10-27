@@ -25,11 +25,14 @@
             <option :value="0">请选择大区</option>
             <option v-for="area in areas" :key="area.value" :value="area.value">{{ area.label }}</option>
           </select>
+        </div>
+        <div class="open-row">
           <button type="button" class="open-official" :disabled="!areaId" @click="openOfficialCareer">打开官方战绩</button>
+          <button type="button" class="open-tft" :disabled="!areaId" @click="openOfficialTft">打开云顶战绩</button>
         </div>
         <p class="hint">
           <template v-if="uin">
-            官方助手页通过地址栏的 uin / area_id / account_type 识别玩家；打开时会带上当前账号与所选大区。
+            官方助手页通过地址栏的 uin / area_id / account_type 识别玩家；打开时会带上当前账号与所选大区（LOL 用 /life/overview，云顶用 /tft/overview）。
           </template>
           <template v-else>
             未读取到登录账号：地址里只会带大区，官方页面可能仍提示「未选定大区」。建议先登录，或去官网登录后刷新此页。
@@ -49,7 +52,6 @@ import { getSelfUinFromCookie, triggerLogin, waitForLogin } from "../utils/weGam
 import { useLoginAction } from "../composables/useLoginAction";
 
 const HOME_URL = "https://www.wegame.com.cn/home/";
-const OFFICIAL_HELPER_PATH = "/helper/lol/";
 const AREA_STORAGE_KEY = "lol-tft-helper-area";
 
 const emit = defineEmits<{ authenticated: []; refresh: [] }>();
@@ -75,17 +77,27 @@ function login(): Promise<void> {
 }
 
 /** 官方页面启动时会解析 hash 里的 ?uin=&area_id=&account_type=，借此把查询对象切换为当前账号 */
-function officialCareerHash(): string {
+type OfficialSection = "life" | "tft";
+function officialCareerHash(section: OfficialSection): string {
   const query = new URLSearchParams();
   if (uin.value) query.set("uin", uin.value);
   query.set("area_id", String(areaId.value));
   query.set("account_type", "1");
-  return "#/life/overview?" + query.toString();
+  return "#/" + section + "/overview?" + query.toString();
+}
+
+function openOfficial(section: OfficialSection): void {
+  if (!areaId.value) return;
+  location.hash = officialCareerHash(section);
 }
 
 function openOfficialCareer(): void {
-  if (!areaId.value) return;
-  location.hash = officialCareerHash();
+  openOfficial("life");
+}
+
+/** 云顶之弈战绩页（/helper/lol/v2/frame.html#/tft/overview）走同一条 hash 参数约定 */
+function openOfficialTft(): void {
+  openOfficial("tft");
 }
 
 /** 打开脚本自建的战绩面板；如果当前页没有挂载面板，则回官网页面使用 */
@@ -97,7 +109,4 @@ function openSelfPanel(): void {
   }
   window.open("https://www.wegame.com.cn/", "_blank", "noopener");
 }
-
-// 供 mountHelperLogin 的测试/外部诊断使用（同时避免打包器把常量摇掉）
-void OFFICIAL_HELPER_PATH;
 </script>

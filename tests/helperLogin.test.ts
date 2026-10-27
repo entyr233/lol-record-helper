@@ -136,6 +136,18 @@ describe("官方助手登录入口", () => {
     expect(sdk.popup).not.toHaveBeenCalled();
   });
 
+  it("在 v2 frame.html（云顶战绩页）同样挂载面板", () => {
+    vi.stubGlobal("location", {
+      hostname: "www.wegame.com.cn",
+      pathname: "/helper/lol/v2/frame.html",
+      hash: "#/tft/overview",
+      reload
+    });
+    instance = mountHelperLogin();
+    expect(instance).not.toBeNull();
+    expect(root().textContent).toContain("LOL 助手增强");
+  });
+
   it("选择大区后把 uin / area_id / account_type 写进 hash 再打开官方战绩", async () => {
     document.cookie = "uin=o012345; path=/";
     instance = mountHelperLogin();
@@ -148,6 +160,17 @@ describe("官方助手登录入口", () => {
     await nextTick();
     expect(location.hash).toBe("#/life/overview?uin=12345&area_id=1&account_type=1");
     expect(localStorage.getItem("lol_tft:lol-tft-helper-area")).toBe("1");
+  });
+
+  it("云顶战绩按钮写入 #/tft/overview 的相同参数", async () => {
+    instance = mountHelperLogin();
+    const select = root().querySelector<HTMLSelectElement>("select")!;
+    select.value = "3";
+    select.dispatchEvent(new Event("change"));
+    await nextTick();
+
+    root().querySelector<HTMLButtonElement>(".open-tft")!.click();
+    expect(location.hash).toBe("#/tft/overview?area_id=3&account_type=1");
   });
 
   it("打开自建战绩时调用页面挂载的 __LOL_TFT__.open", () => {
