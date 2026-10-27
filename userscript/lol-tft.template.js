@@ -13,6 +13,7 @@
 // @grant        GM_xmlhttpRequest
 // @connect      mlol.qt.qq.com
 // @connect      lol.qq.com
+// @connect      game.gtimg.cn
 // @connect      www.wegame.com.cn
 // @connect      wegame.com.cn
 // @run-at       document-idle

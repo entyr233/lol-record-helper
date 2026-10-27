@@ -1571,3 +1571,9 @@ button {
   color: #56606c;
   font-size: 12px;
 }
+
+.mode-filter-select option,
+.sort-select option {
+  background-color: #1c232d;
+  color: #c6cfda;
+}

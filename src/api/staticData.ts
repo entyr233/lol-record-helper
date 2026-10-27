@@ -1,4 +1,5 @@
 import { computed, ref } from "vue";
+import { gmGet } from "./transport";
 import runeMap from "../data/runes.json";
 import itemMap from "../data/items.json";
 import type { ChampionSpell } from "./types";
@@ -114,14 +115,25 @@ export const versionReady = computed(() => ddragonVersion.value !== null);
 
 let championNames: Map<number, string> | null = null;
 
-/** 拉一次 ddragon 的中文名映射（英雄筛选/近期英雄用） */
+/**
+ * 拉一次英雄中文名映射（英雄筛选/近期英雄用）。
+ * 沙箱里跨域 fetch 会被网络层拦（HTTP 0），所以走 GM GET 公共 CDN 的 hero_list.js。
+ */
 export async function ensureChampionNames(): Promise<void> {
   if (championNames) return;
   try {
-    const version = await ensureDdragonVersion();
-    const res = await fetch("https://ddragon.leagueoflegends.com/cdn/" + version + "/data/zh_CN/champion.json");
-    const data = (await res.json()) as { data: Record<string, { key: string; name: string }> };
-    championNames = new Map(Object.values(data.data).map((c) => [Number(c.key), c.name]));
+    const raw = await gmGet("https://game.gtimg.cn/images/lol/act/img/js/heroList/hero_list.js");
+    // 文件形态：var heroList = [ {...}, ... ];（或带 window.xxx 前缀）
+    const start = raw.indexOf("[");
+    const end = raw.lastIndexOf("]");
+    if (start < 0 || end < 0) throw new Error("shape");
+    const arr = JSON.parse(raw.slice(start, end + 1)) as Array<{ heroId?: string | number; name?: string }>;
+    const entries: Array<[number, string]> = [];
+    for (const h of arr) {
+      const id = Number(h.heroId);
+      if (Number.isFinite(id) && h.name) entries.push([id, h.name]);
+    }
+    championNames = new Map(entries);
   } catch {
     championNames = new Map();
   }

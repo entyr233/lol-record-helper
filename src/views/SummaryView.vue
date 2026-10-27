@@ -2,7 +2,6 @@
   <div class="page page--summary">
     <SummonerInfo :area="area" :account-type="accountType" :id="id"
       @focus-game="focusGame" @filter-champion="filterChampion" />
-    <RecentStats class="summary-recent" :area="area" :account-type="accountType" :id="id" />
     <BattleList ref="listRef" class="summary-battles" :area="area" :account-type="accountType" :id="id" @open-summoner="openSummoner" />
   </div>
 </template>
@@ -11,7 +10,6 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import SummonerInfo from "../components/SummonerInfo.vue";
-import RecentStats from "../components/RecentStats.vue";
 import BattleList from "../components/BattleList.vue";
 import type { BattleSummary } from "../api/types";
 import type { PlayerDetail } from "../api/types";
