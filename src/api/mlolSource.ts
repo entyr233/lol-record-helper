@@ -43,7 +43,7 @@ export function ensureMlolBridge(): Promise<Window> {
     }, 15000);
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== MLOR_ORIGIN) return;
-      const data = event.data as { type?: string; id?: string; text?: string } | null;
+      const data = event.data as { type?: string; id?: string; text?: string; status?: number } | null;
       if (!data) return;
       if (data.type === "lol-tft-bridge-ready") {
         clearTimeout(timer);
@@ -53,7 +53,7 @@ export function ensureMlolBridge(): Promise<Window> {
         const entry = pending.get(data.id);
         if (entry) {
           pending.delete(data.id);
-          entry.resolve(String(data.text ?? ""));
+          entry.resolve(String(data.text ?? "") + "\u0000" + String(data.status ?? 0));
         }
       }
     };
@@ -82,13 +82,18 @@ export async function mlolRequest(path: string, body: Record<string, string | nu
   signal?.addEventListener("abort", () => { pending.delete(id); }, { once: true });
   const request: BridgeRequest = { type: "lol-tft-mlol-request", id, path, method, body };
   win.postMessage(request, MLOR_ORIGIN);
-  const text = await payloadPromise;
+  const raw = await payloadPromise;
+  const sep = raw.lastIndexOf("\u0000");
+  const text = sep >= 0 ? raw.slice(0, sep) : raw;
+  const status = Number(sep >= 0 ? raw.slice(sep + 1) : 0) || 0;
+  if (!text) {
+    throw new ApiError("MLOL_EMPTY", "MlolRequest", "掌盟返回空响应（HTTP " + status + "）——可能被风控或需要更完整的登录态");
+  }
   let parsed: Record<string, unknown>;
   try {
     parsed = JSON.parse(text) as Record<string, unknown>;
   } catch {
-    // 带出原文头部：登录页 HTML / JSONP / 空响应 一眼可辨
-    throw new ApiError("MLOL_BAD_JSON", "MlolRequest", "掌盟响应解析失败，响应头部: " + text.slice(0, 200));
+    throw new ApiError("MLOL_BAD_JSON", "MlolRequest", "掌盟响应非 JSON（HTTP " + status + "），头部: " + text.slice(0, 160));
   }
   return parsed;
 }
@@ -104,7 +109,7 @@ export function parseSceneFromLink(url: string): string {
 
 /** 昵称搜索：返回玩家卡（uuid + 服务器现签 scene） */
 export async function searchMlolPlayers(keyword: string, signal?: AbortSignal): Promise<MlolPlayerCard[]> {
-  const payload = await mlolRequest(MLOL_SEARCH_PATH, {
+  const params = {
     keyWord: keyword,
     searchType: 1,
     page: 0,
@@ -112,7 +117,14 @@ export async function searchMlolPlayers(keyword: string, signal?: AbortSignal): 
     gameId: "lol",
     source_game_zone: "lol",
     game_zone: "lol"
-  }, "GET", signal);
+  };
+  let payload: Record<string, unknown>;
+  try {
+    payload = await mlolRequest(MLOL_SEARCH_PATH, params, "GET", signal);
+  } catch (error) {
+    // GET 空响应时换 POST 再试一次（掌盟两种都认）
+    payload = await mlolRequest(MLOL_SEARCH_PATH, params, "POST", signal);
+  }
   const data = record(payload.data);
   const list = Array.isArray(data.userList) ? data.userList : [];
   const cards: MlolPlayerCard[] = [];

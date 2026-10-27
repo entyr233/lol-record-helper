@@ -74,8 +74,8 @@
 
       var opt = { method: isGetIn(data) ? "GET" : "POST", credentials: "include" };
       if (opt.method === "POST") opt.body = form;
-      fetch(url, opt).then(function (r) { return r.text(); }).then(function (text) {
-        event.source.postMessage({ type: "lol-tft-mlol-response", id: data.id, text: text }, event.origin);
+      fetch(url, opt).then(function (r) { return r.text().then(function (text) { return { text: text, status: r.status }; }); }).then(function (res) {
+        event.source.postMessage({ type: "lol-tft-mlol-response", id: data.id, text: res.text, status: res.status }, event.origin);
       }).catch(function (error) {
         event.source.postMessage({ type: "lol-tft-mlol-response", id: data.id, error: String(error && error.message || error) }, event.origin);
       });

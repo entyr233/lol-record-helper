@@ -59,7 +59,8 @@ const history = computed(() => task.data.value);
 const diagReport = computed(() => {
   const value = history.value;
   if (!value) return "未返回";
-  return "seasons=" + (value.seasons?.length ?? "空");
+  const keys = Object.keys(value).slice(0, 8).join(",");
+  return "keys=[" + keys + "] seasons=" + (value.seasons?.length ?? "无该键") ;
 });
 const trendSample = computed(() => history.value?.trend?.length ?? 0);
 const seasons = computed(() => history.value?.seasons ?? []);
