@@ -30,3 +30,27 @@ export function getTeamMadeName(size: number | string): string | undefined {
   const map: Record<number, string> = { 2: "双排", 3: "三黑", 4: "四黑", 5: "五黑" };
   return map[Number(size)];
 }
+
+/** 排位类队列（单双排 / 灵活组排）：只有这些模式才用「单排/双排」的说法 */
+const RANKED_QUEUES = new Set([420, 421, 422, 440, 441, 442, 470]);
+
+export function isRankedQueue(id: number | string): boolean {
+  return RANKED_QUEUES.has(Number(id));
+}
+
+/**
+ * 组队人数标签：排位用「单排/双排/三排…」，其他模式用「单人/双人开黑/三人开黑…」。
+ * size 为预组队人数（1 = 单独进入）。
+ */
+export function getTeamMadeLabel(size: number | string, ranked: boolean): string | undefined {
+  const count = Number(size);
+  const rankedLabels: Record<number, string> = { 1: "单排", 2: "双排", 3: "三排", 4: "四排", 5: "五排" };
+  const normalLabels: Record<number, string> = {
+    1: "单人",
+    2: "双人开黑",
+    3: "三人开黑",
+    4: "四人开黑",
+    5: "五人开黑"
+  };
+  return (ranked ? rankedLabels : normalLabels)[count];
+}

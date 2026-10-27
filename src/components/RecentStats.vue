@@ -108,7 +108,7 @@ import { championName, ensureChampionNames } from "../api/staticData";
 import type { BattleSummary } from "../api/types";
 import { battleResultLabel, classifyBattle } from "../const/wins";
 import { MODE_FILTER_OPTIONS, type ModeFilter } from "../const/modes";
-import { getQueueName } from "../const/queues";
+import { getQueueName, getTeamMadeLabel, isRankedQueue } from "../const/queues";
 import type { DaysFilter } from "../composables/useBattleList";
 
 const props = defineProps<{
@@ -308,24 +308,30 @@ const avgDuration = computed(() => {
   const seconds = Math.round(total / size);
   return Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
 });
-/** 组队情况：按预组队人数聚合（1 单排 / 2 双排 / 3-5 黑） */
-const TEAM_LABELS: Record<number, string> = { 1: "单排", 2: "双排", 3: "三黑", 4: "四黑", 5: "五黑" };
+/**
+ * 组队情况：按「排位 / 非排位 + 预组队人数」聚合。
+ * 只有排位模式才叫单排/双排，其他模式叫单人/双人开黑…
+ */
 const teamStats = computed(() => {
   const size = sample.value.length;
   if (!size) return [];
-  const counts = new Map<number, number>();
+  const buckets = new Map<string, { id: string; made: number; ranked: boolean; count: number }>();
   for (const g of sample.value) {
     const made = Number(g.team_made_size ?? 1) || 1;
-    counts.set(made, (counts.get(made) ?? 0) + 1);
+    const ranked = isRankedQueue(g.game_queue_id);
+    const key = (ranked ? "rank" : "normal") + "-" + made;
+    const entry = buckets.get(key) ?? { id: key, made, ranked, count: 0 };
+    entry.count += 1;
+    buckets.set(key, entry);
   }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
+  return [...buckets.values()]
+    .sort((a, b) => b.count - a.count)
     .slice(0, 4)
-    .map(([made, count]) => ({
-      id: made,
-      count,
-      label: TEAM_LABELS[made] ?? "其他",
-      percent: Math.round((count / size) * 100)
+    .map((entry) => ({
+      id: entry.id,
+      count: entry.count,
+      label: getTeamMadeLabel(entry.made, entry.ranked) ?? (entry.ranked ? "排位" : "开黑"),
+      percent: Math.round((entry.count / size) * 100)
     }));
 });
 /** 连胜连败：跳过重开取第一场非重开结果，之后连续相同结果计数（重开不打断） */

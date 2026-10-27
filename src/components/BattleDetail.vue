@@ -40,6 +40,7 @@
           :players="detail.player_details"
           :mode="currentMode"
           :hex-aram="isHexAram"
+          :ranked="rankedQueue"
           :rank-info="rankOf(team.players, player, sortBy)"
           :is-self="canOpenPlayer && player.openid === viewedOpenid"
           @open-summoner="canOpenPlayer && $emit('openSummoner', $event)"
@@ -62,7 +63,7 @@ import { toRqOptions } from "../composables/useUserInfo";
 import { useAsyncData } from "../composables/useAsyncData";
 import { getResultClass, getResultLabel } from "../const/wins";
 import { formatDateTime, formatDuration } from "../utils/format";
-import { getQueueName } from "../const/queues";
+import { getQueueName, isRankedQueue } from "../const/queues";
 
 const diag = lastCaptchaAttempt;
 
@@ -78,6 +79,8 @@ const props = defineProps<{
 }>();
 
 const isHexAram = computed(() => Number(props.queueId) === 2400);
+/** 排位类队列：组队标签用「单排/双排」，其他模式用「单人/双人开黑」 */
+const rankedQueue = computed(() => isRankedQueue(props.queueId ?? 0));
 
 /** 模式页签内化到详情头部（左侧列表负责选比赛，右侧负责看详情） */
 const MODES = ["概要", "伤害", "技能"] as const;

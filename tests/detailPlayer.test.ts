@@ -83,6 +83,23 @@ function mountPlayer(overrides: MountProps = {}) {
 }
 
 describe("BattleDetailPlayer 悬浮说明", () => {
+  it("组队标签按队列类型区分：排位用双排，其他模式用双人开黑", () => {
+    const player = makePlayer({ teamMadeSize: 2 });
+    const ranked = mount(BattleDetailPlayer, {
+      props: { player, players: [player], mode: "概要", ranked: true },
+      global: { stubs: { GameIcon: IconStub, Histogram: HistogramStub } }
+    });
+    const normal = mount(BattleDetailPlayer, {
+      props: { player, players: [player], mode: "概要", ranked: false },
+      global: { stubs: { GameIcon: IconStub, Histogram: HistogramStub } }
+    });
+
+    expect(ranked.get(".tag--team").text()).toBe("双排");
+    expect(normal.get(".tag--team").text()).toBe("双人开黑");
+    ranked.unmount();
+    normal.unmount();
+  });
+
   it("伤害模式的 4 个柱子分别带总/魔法/物理/真实伤害说明", () => {
     const wrapper = mountPlayer({ mode: "伤害" });
 

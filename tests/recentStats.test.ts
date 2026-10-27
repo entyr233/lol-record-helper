@@ -101,6 +101,23 @@ describe("RecentStats 三分类统计口径", () => {
     } finally { wrapper.unmount(); }
   });
 
+  it("组队标签按模式区分：排位叫单排/双排，其他模式叫单人/双人开黑", async () => {
+    mockPages([
+      battle(1, { game_queue_id: 420, team_made_size: 1 }),
+      battle(2, { game_queue_id: 420, team_made_size: 2 }),
+      battle(3, { game_queue_id: 450, team_made_size: 1 }),
+      battle(4, { game_queue_id: 450, team_made_size: 2 }),
+      battle(5, { game_queue_id: 450, team_made_size: 2 })
+    ]);
+    const wrapper = render();
+    try {
+      await flushPromises();
+      const labels = wrapper.findAll(".recent-teams .recent-queue-name").map((item) => item.text());
+      expect(labels).toEqual(expect.arrayContaining(["单排", "双排", "单人", "双人开黑"]));
+      expect(labels).not.toContain("三黑");
+    } finally { wrapper.unmount(); }
+  });
+
   it("模式分布按场次排序展示前 4 类并给出占比", async () => {
     mockPages([
       ...Array.from({ length: 5 }, (_, index) => battle(30 + index, { game_queue_id: 420 })),

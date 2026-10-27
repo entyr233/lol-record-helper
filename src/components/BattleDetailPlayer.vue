@@ -129,7 +129,7 @@ import { computed } from "vue";
 import GameIcon from "./GameIcon.vue";
 import Histogram from "./Histogram.vue";
 import type { PlayerDetail } from "../api/types";
-import { getTeamMadeName } from "../const/queues";
+import { getTeamMadeLabel } from "../const/queues";
 import { tierName } from "../const/tiers";
 import { formatGameScore, formatThousands, kdaRatio } from "../utils/format";
 import augmentMap from "../data/kiwi-augments.json";
@@ -146,6 +146,8 @@ const props = defineProps<{
   players: PlayerDetail[];
   mode: "概要" | "技能" | "伤害";
   isSelf?: boolean;
+  /** 是否排位类队列：排位用单排/双排，其他模式用单人/双人开黑 */
+  ranked?: boolean;
   /** 海克斯大乱斗（2400）：无符文，改显海克斯强化 */
   hexAram?: boolean;
   /** 排序模式的行内名次与对应数值 */
@@ -199,7 +201,7 @@ const decodedName = computed(() => {
   }
 });
 
-const teamLabel = computed(() => getTeamMadeName(props.player.teamMadeSize) ?? "");
+const teamLabel = computed(() => getTeamMadeLabel(props.player.teamMadeSize, props.ranked ?? false) ?? "");
 const tierLabel = computed(() => {
   const gl = props.player.gameLevel;
   if (!gl || !gl.tier || tierName(gl.tier) === "未定级") return "";
