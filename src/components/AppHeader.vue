@@ -44,7 +44,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { areas } from "../const/areas";
 import { readStorage, writeStorage } from "../utils/storage";
-import { getLoginUser, hasLoginState, logout, triggerLogin, waitForLogin, waitForSdk } from "../utils/weGameLogin";
+import { getLoginUser, hasLoginState, logout, triggerLogin, waitForLogin } from "../utils/weGameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
 
 const DONATE_URL = "https://wsd.pages.interface.work/view?src=https%3A%2F%2Fpic.mscststs.com%2Fdonate.jpg";
@@ -70,9 +70,8 @@ const currentArea = computed(() => {
 onMounted(() => {
   // 以登录 cookie 为准（SDK 状态刷新后不可靠），SDK 就绪后再校正一次
   loggedIn.value = hasLoginState();
-  void waitForSdk({ signal: initialWait.signal }).then(() => {
-    if (!initialWait.signal.aborted) loggedIn.value = hasLoginState();
-  }).catch(() => { /* 登录操作会显示具体错误；初始化不阻塞搜索。 */ });
+  // 不主动等 SDK：登录态以 cookie 为准；SDK 只在用户点「登录」时按需注入
+  void initialWait;
   const fromRoute = route.params.area;
   if (fromRoute) {
     selectedArea.value = Number(fromRoute) || 0;

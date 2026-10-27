@@ -175,8 +175,8 @@
       return;
     }
     try {
-      host.textContent = "正在准备登录态…";
-      await ensureLoginSdk();
+      // 不预载登录 SDK：其初始化票据握手在拦截插件环境下会把有效会话换失效。
+      // 需要登录时由应用内「登录 / 重新登录」按钮按需注入。
       if (currentGeneration !== generation || overlay !== currentOverlay || !host.isConnected) return;
       host.textContent = "";
       mounted = lib.mountLolTft({ host: host });

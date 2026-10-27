@@ -13,11 +13,6 @@ function scripts(): HTMLScriptElement[] {
   return Array.from(document.querySelectorAll<HTMLScriptElement>('script[src$="/login.sdk.js"]'));
 }
 
-function sdkLoaded(script: HTMLScriptElement): void {
-  vi.stubGlobal("WegameLogin", { default: {} });
-  script.dispatchEvent(new Event("load"));
-}
-
 beforeEach(() => {
   vi.useFakeTimers();
   unmount = vi.fn();
@@ -40,75 +35,35 @@ afterEach(() => {
 });
 
 describe("userscript panel lifecycle", () => {
-  it("等待 SDK 时关闭，不向 detached host 挂载", async () => {
-    const pending = api.open();
-    const host = document.getElementById("lol-tft-overlay-host")!;
-    document.querySelector<HTMLButtonElement>(".lol-tft-overlay-close")!.click();
-    sdkLoaded(scripts()[0]!);
-    await pending;
-    expect(host.isConnected).toBe(false);
-    expect(mount).not.toHaveBeenCalled();
+  it("打开面板立即挂载，且不注入登录 SDK（登录按钮才按需注入）", async () => {
+    await api.open();
+    expect(mount).toHaveBeenCalledTimes(1);
+    expect(scripts()).toHaveLength(0);
+    expect(document.querySelectorAll("#lol-tft-overlay")).toHaveLength(1);
+    api.close();
+    expect(unmount).toHaveBeenCalledTimes(1);
     expect(document.documentElement.style.overflow).toBe("");
     expect(document.getElementById("lol-tft-launcher")!.style.display).toBe("");
   });
 
-  it.each(["old-first", "new-first"])("关闭重开，SDK %s 完成时仅新面板可挂载", async (order) => {
-    const oldPending = api.open();
-    const oldScript = scripts()[0]!;
+  it("关闭重开：两个面板各挂载/卸载一次", async () => {
+    await api.open();
     api.close();
-    const newPending = api.open();
-    const newScript = scripts()[1]!;
-    const newHost = document.getElementById("lol-tft-overlay-host")!;
-    if (order === "old-first") {
-      sdkLoaded(oldScript);
-      await oldPending;
-      expect(mount).not.toHaveBeenCalled();
-      sdkLoaded(newScript);
-    } else {
-      sdkLoaded(newScript);
-      await newPending;
-      sdkLoaded(oldScript);
-    }
-    await Promise.all([oldPending, newPending]);
-    expect(mount).toHaveBeenCalledExactlyOnceWith({ host: newHost });
+    await api.open();
+    expect(mount).toHaveBeenCalledTimes(2);
     api.close();
+    expect(unmount).toHaveBeenCalledTimes(2);
+  });
+
+  it("同时打开只创建一个面板", async () => {
+    await Promise.all([api.open(), api.open(), api.open()]);
+    expect(document.querySelectorAll("#lol-tft-overlay")).toHaveLength(1);
+    expect(mount).toHaveBeenCalledTimes(1);
     api.close();
     expect(unmount).toHaveBeenCalledTimes(1);
   });
 
-  it("同时打开只创建一个面板和 SDK 请求", async () => {
-    const pending = [api.open(), api.open(), api.open()];
-    expect(document.querySelectorAll("#lol-tft-overlay")).toHaveLength(1);
-    expect(scripts()).toHaveLength(1);
-    sdkLoaded(scripts()[0]!);
-    await Promise.all(pending);
-    expect(mount).toHaveBeenCalledTimes(1);
-  });
-
-  it("SDK 已存在时，微任务完成前关闭也不挂载", async () => {
-    vi.stubGlobal("WegameLogin", { default: {} });
-    const pending = api.open();
-    api.close();
-    await pending;
-    expect(mount).not.toHaveBeenCalled();
-    expect(scripts()).toHaveLength(0);
-  });
-
-  it.each(["error", "timeout"])("SDK %s 后保留搜索功能，关闭后能恢复登录 SDK", async (failure) => {
-    const pending = api.open();
-    if (failure === "error") scripts()[0]!.dispatchEvent(new Event("error"));
-    else await vi.advanceTimersByTimeAsync(4000);
-    await pending;
-    expect(mount).toHaveBeenCalledTimes(1);
-    api.close();
-    const reopened = api.open();
-    sdkLoaded(scripts()[1]!);
-    await reopened;
-    expect(mount).toHaveBeenCalledTimes(2);
-  });
-
   it("挂载失败后关闭重开可以恢复", async () => {
-    vi.stubGlobal("WegameLogin", { default: {} });
     mount.mockImplementationOnce(() => { throw new Error("mount failed"); });
     await api.open();
     expect(document.getElementById("lol-tft-overlay-host")!.textContent).toContain("mount failed");
@@ -117,5 +72,11 @@ describe("userscript panel lifecycle", () => {
     expect(mount).toHaveBeenCalledTimes(2);
     api.close();
     expect(unmount).toHaveBeenCalledTimes(1);
+  });
+
+  it("bundle 缺失时入口按钮仍可用（手动入口保留）", () => {
+    new Function("LolTft", "console", source)(undefined as unknown as { mountLolTft: unknown }, { log: vi.fn(), warn: vi.fn(), error: vi.fn() });
+    expect(document.getElementById("lol-tft-launcher")).not.toBeNull();
+    expect(page.__LOL_TFT__).toBeDefined();
   });
 });

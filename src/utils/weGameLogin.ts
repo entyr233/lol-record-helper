@@ -86,6 +86,8 @@ export function waitForSdk(options: LoginWaitOptions = {}): Promise<WeGameLoginS
 }
 
 export async function triggerLogin(options: LoginWaitOptions = {}): Promise<void> {
+  // SDK 不在（面板默认不注入）时按需加载
+  if (!sdk()) await injectLoginSdk();
   const deadline = Date.now() + (options.timeoutMs ?? 4000);
   const api = await readySdk(deadline, options.signal);
   if (options.signal?.aborted) throw cancelled();
@@ -218,4 +220,44 @@ export function getSelfUinFromCookie(): string | null {
 export function hasLoginState(): boolean {
   if (getSelfUinFromCookie()) return true;
   return isSdkAvailable() && isLoggedIn();
+}
+
+const LOGIN_SDK_URL = "https://www.wegame.com.cn/middle/login/login.sdk.js";
+
+/**
+ * 按需注入登录 SDK。
+ * 注意：不在面板打开时注入——SDK 初始化会做票据握手，在不利的网络环境
+ * （拦截插件打断跨域换票）下会把还有效的会话换成"半更新"状态，表现为掉登录。
+ */
+export function injectLoginSdk(timeoutMs = 6000): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (sdk()) {
+      resolve(true);
+      return;
+    }
+    const started = Date.now();
+    const inject = () => {
+      try {
+        const target = (globalThis as unknown as { unsafeWindow?: { document?: Document } }).unsafeWindow?.document ?? document;
+        const script = target.createElement("script");
+        script.src = LOGIN_SDK_URL;
+        script.async = true;
+        script.onerror = () => resolve(false);
+        (target.head || target.documentElement || target.body).appendChild(script);
+      } catch {
+        try {
+          const script = document.createElement("script");
+          script.src = LOGIN_SDK_URL;
+          script.async = true;
+          script.onerror = () => resolve(false);
+          (document.head || document.documentElement).appendChild(script);
+        } catch { resolve(false); }
+      }
+    };
+    inject();
+    const timer = setInterval(() => {
+      if (sdk()) { clearInterval(timer); resolve(true); return; }
+      if (Date.now() - started > timeoutMs) { clearInterval(timer); resolve(false); }
+    }, 300);
+  });
 }
