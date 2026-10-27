@@ -12,17 +12,33 @@ interface CaptchaResult {
   randstr?: string;
 }
 
+interface CaptchaCtor {
+  new (appid: string, callback: (result: CaptchaResult) => void, options?: { forceLang?: string }): { show: () => void };
+}
+
+/** TCaptcha 由 script 标签加载，挂在【页面】window 上；沙箱里必须从 unsafeWindow 拿 */
+function captchaApi(): CaptchaCtor | null {
+  const g = globalThis as unknown as { TencentCaptcha?: CaptchaCtor; unsafeWindow?: { TencentCaptcha?: CaptchaCtor } };
+  return g.unsafeWindow?.TencentCaptcha ?? g.TencentCaptcha ?? null;
+}
+
 let sdkPromise: Promise<void> | null = null;
 
 function loadCaptchaSdk(): Promise<void> {
-  if ((globalThis as unknown as { TencentCaptcha?: unknown }).TencentCaptcha) {
+  if (captchaApi()) {
     return Promise.resolve();
   }
   if (sdkPromise) return sdkPromise;
   sdkPromise = new Promise<void>((resolve, reject) => {
     const script = document.createElement("script");
     script.src = CAPTCHA_SDK_URL;
-    script.onload = () => resolve();
+    script.onload = () => {
+      // 脚本执行在页面上下文，全局挂在 unsafeWindow，给一拍时间
+      setTimeout(() => {
+        if (captchaApi()) resolve();
+        else { sdkPromise = null; reject(new ApiError("CAPTCHA_SDK", "VerifyRecongnition", "验证码 SDK 加载后不可用")); }
+      }, 50);
+    };
     script.onerror = () => {
       sdkPromise = null;
       reject(new ApiError("CAPTCHA_SDK", "VerifyRecongnition", "验证码 SDK 加载失败"));
@@ -40,7 +56,7 @@ export function readCookieValue(name: string): string {
 /** 弹腾讯滑块验证，把 ticket/randstr 提交给 VerifyRecongnition 完成登记 */
 export async function runCaptchaVerification(): Promise<void> {
   await loadCaptchaSdk();
-  const TC = (globalThis as unknown as { TencentCaptcha?: new (appid: string, callback: (result: CaptchaResult) => void, options?: { forceLang?: string }) => { show: () => void } }).TencentCaptcha;
+  const TC = captchaApi();
   if (!TC) throw new ApiError("CAPTCHA_SDK", "VerifyRecongnition", "验证码组件不可用");
 
   const result = await new Promise<CaptchaResult>((resolve) => {
