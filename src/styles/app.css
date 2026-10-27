@@ -1577,3 +1577,19 @@ button {
   background-color: #1c232d;
   color: #c6cfda;
 }
+
+.mode-filter-select,
+.sort-select {
+  padding: 5px 10px;
+  background-color: #1c232d;
+  border: 1px solid #2f3844;
+  border-radius: 4px;
+  color: #c6cfda;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 12px;
+}
+.mode-filter-select option,
+.sort-select option {
+  background-color: #1c232d;
+  color: #c6cfda;
+}

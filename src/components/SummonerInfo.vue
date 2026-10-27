@@ -35,10 +35,7 @@
             <button type="button" class="link-button" @click="retryReport">重试统计</button>
           </p>
           <template v-else>
-            <p v-if="tierText" class="count-row">
-              <span class="count-label">段位：</span>
-              <span class="count-tier">{{ tierText }}</span>
-            </p>
+            
           </template>
         </div>
         <details class="summoner-more">
@@ -146,10 +143,10 @@ const authExpired = computed(() => {
 
 /** 段位：summoner.season 优先（现任接口随资料返回），season_list 兜底（数字越小段位越高） */
 const tierText = computed(() => {
-  const candidates: Array<{ tier?: number; win_point?: number | string }> = [];
+  const candidates: Array<{ tier?: number; win_point?: number | string; queue?: number }> = [];
   const ownSeason = summoner.value?.season;
-  if (ownSeason && ownSeason.tier !== undefined) candidates.push({ tier: ownSeason.tier, win_point: ownSeason.win_point });
-  for (const entry of counts.value?.season_list ?? []) candidates.push({ tier: entry.tier, win_point: entry.win_point });
+  if (ownSeason && ownSeason.tier !== undefined) candidates.push({ tier: ownSeason.tier, win_point: ownSeason.win_point, queue: ownSeason.queue });
+  for (const entry of counts.value?.season_list ?? []) candidates.push({ tier: entry.tier, win_point: entry.win_point, queue: Number(entry.queue) || 0 });
   if (candidates.length === 0) return "";
   const best = candidates.slice().sort((a, b) => tierOrder(a.tier) - tierOrder(b.tier))[0];
   const label = tierLabel(best.tier, (best as { queue?: number }).queue);
