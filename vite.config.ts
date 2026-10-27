@@ -1,4 +1,7 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
+
+const pkgVersion = JSON.parse(readFileSync("./package.json", "utf8")).version as string;
 import vue from "@vitejs/plugin-vue";
 import { fileURLToPath, URL } from "node:url";
 import { devApiPlugin } from "./dev/mockServer.ts";
@@ -13,7 +16,8 @@ export default defineConfig(({ mode }) => {
     // lib 模式下 Vite 不会自动替换 process.env.NODE_ENV（留给库使用者决定），
     // 但我们要产出直接在浏览器跑的单文件，必须静态替换掉，否则会 "process is not defined"
     define: {
-      "process.env.NODE_ENV": JSON.stringify("production")
+      "process.env.NODE_ENV": JSON.stringify("production"),
+      __APP_VERSION__: JSON.stringify(pkgVersion)
     },
     resolve: {
       alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) }

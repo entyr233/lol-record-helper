@@ -166,8 +166,11 @@ export function createLolBattleApi(): LolBattleApi {
           throw cause instanceof ApiError ? cause : error;
         }
       }
-      if (error instanceof ApiError && (error.isUnauthenticated || error.isHidden || error.needsCaptcha
-        || ["401", "403", "8000009", "8000021"].includes(String(error.code)))) details.clear();
+      if (error instanceof ApiError) {
+        try { console.debug("[lol-tft] " + error.method + " -> " + error.code + " " + error.message); } catch { /* ignore */ }
+        if (error.isUnauthenticated || error.isHidden || error.needsCaptcha
+          || ["401", "403", "8000009", "8000021"].includes(String(error.code))) details.clear();
+      }
       throw error;
     }
   };

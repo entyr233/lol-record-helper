@@ -55,7 +55,9 @@ export function readCookieValue(name: string): string {
 
 /** 弹腾讯滑块验证，把 ticket/randstr 提交给 VerifyRecongnition 完成登记 */
 export async function runCaptchaVerification(): Promise<void> {
+  note("开始（加载 SDK）");
   await loadCaptchaSdk();
+  note("SDK 就绪，弹滑块");
   const TC = captchaApi();
   if (!TC) throw new ApiError("CAPTCHA_SDK", "VerifyRecongnition", "验证码组件不可用");
 
@@ -63,8 +65,10 @@ export async function runCaptchaVerification(): Promise<void> {
     new TC(CAPTCHA_APP_ID, (res) => resolve(res), { forceLang: "zh-cn" }).show();
   });
   if (!result || result.ret !== 0 || !result.ticket) {
+    note("用户未完成滑块（ret=" + (result?.ret ?? "null") + "）");
     throw new ApiError("CAPTCHA_CANCELLED", "VerifyRecongnition", "人机验证未完成，无法继续查询");
   }
+  note("滑块通过，提交 VerifyRecongnition");
 
   const response = await postJson(VERIFY_URL, {
     tgp_id: readCookieValue("tgp_id"),
@@ -76,8 +80,19 @@ export async function runCaptchaVerification(): Promise<void> {
 
   const payload = (await response.json()) as { result?: { error_code?: number | string; error_message?: string } };
   if (payload?.result?.error_code !== 0) {
+    note("VerifyRecongnition 被拒（" + String(payload?.result?.error_code) + "）");
     throw new ApiError(payload?.result?.error_code ?? "VERIFY_FAIL", "VerifyRecongnition", "人机验证未通过，请重试");
   }
+  note("验证登记成功");
+}
+
+/** 最近一次验证码尝试的留痕（诊断用，界面会显示） */
+export const lastCaptchaAttempt = { at: "", outcome: "从未尝试" };
+
+function note(outcome: string): void {
+  lastCaptchaAttempt.at = new Date().toLocaleTimeString();
+  lastCaptchaAttempt.outcome = outcome;
+  try { console.debug("[lol-tft] 验证码环节:", outcome); } catch { /* ignore */ }
 }
 
 /** 是否允许触发验证码流程（测试环境跳过，避免挂起） */

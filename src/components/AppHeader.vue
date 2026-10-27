@@ -36,6 +36,7 @@
     <button type="button" class="header-button" @click="openLink(SCRIPT_HOME)">主页</button>
     <span class="header-divider"></span>
     <button type="button" class="header-button" @click="openLink(REPO_URL)">Github</button>
+    <span class="header-version" title="脚本版本">v{{ version }}</span>
   </header>
 </template>
 
@@ -51,6 +52,7 @@ const DONATE_URL = "https://wsd.pages.interface.work/view?src=https%3A%2F%2Fpic.
 const LOGIN_PAGE_URL = "https://www.wegame.com.cn/home/";
 const SCRIPT_HOME = "https://greasyfork.org/zh-CN/scripts/454184";
 const REPO_URL = "https://github.com/mscststs/lol-tft";
+const version = __APP_VERSION__;
 
 const route = useRoute();
 const router = useRouter();

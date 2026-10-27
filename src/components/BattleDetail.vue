@@ -3,6 +3,7 @@
     <p v-if="loading" class="state-text">加载对局详情…</p>
     <div v-else-if="error" class="state-text state-text--error">
       {{ toErrorMessage(error) }}
+      <span class="detail-diag">（验证码：{{ diag.outcome }}）</span>
       <button type="button" class="link-button" @click="run">重试</button>
     </div>
     <template v-else-if="detail">
@@ -34,10 +35,13 @@ import BattleDetailPlayer from "./BattleDetailPlayer.vue";
 import { lolBattleApi } from "../api/client";
 import { ApiError, toErrorMessage } from "../api/errors";
 import { fetchMlolBattleDetail } from "../api/mlolDetail";
+import { lastCaptchaAttempt } from "../api/captcha";
 import type { BattleDetail, PlayerDetail } from "../api/types";
 import { toRqOptions } from "../composables/useUserInfo";
 import { useAsyncData } from "../composables/useAsyncData";
 import { getResultClass, getResultLabel } from "../const/wins";
+
+const diag = lastCaptchaAttempt;
 
 const props = defineProps<{
   area: string;
