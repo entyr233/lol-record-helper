@@ -1,7 +1,6 @@
 <template>
   <div class="page page--summary">
     <SummonerInfo :area="area" :account-type="accountType" :id="id" />
-    <RankHistory :area="area" :account-type="accountType" :id="id" />
     <BattleList class="summary-battles" :area="area" :account-type="accountType" :id="id" @open-summoner="openSummoner" />
   </div>
 </template>
@@ -9,7 +8,6 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
 import SummonerInfo from "../components/SummonerInfo.vue";
-import RankHistory from "../components/RankHistory.vue";
 import BattleList from "../components/BattleList.vue";
 import type { PlayerDetail } from "../api/types";
 
