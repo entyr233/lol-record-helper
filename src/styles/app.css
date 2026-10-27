@@ -681,6 +681,13 @@ button {
   border-radius: 3px;
   background-color: #1c232d;
 }
+/* 海克斯强化横排：6 个图标一行放不下时换行，不再纵向撑高行 */
+.dp-runes--hex {
+  flex-direction: row;
+  flex-wrap: wrap;
+  max-width: 150px;
+  gap: 3px;
+}
 .dp-runes {
   display: flex;
   flex: none;
