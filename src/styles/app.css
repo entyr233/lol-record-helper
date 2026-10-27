@@ -436,6 +436,19 @@ button {
 .battle-list-item.remake .battle-result {
   color: #dddddd;
 }
+.battle-state-row2 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.battle-tier {
+  padding: 0 5px;
+  background-color: #b59758;
+  border-radius: 8px;
+  color: #111;
+  font-size: 11px;
+  font-weight: 600;
+}
 .battle-judgement {
   width: fit-content;
   padding: 0 5px;

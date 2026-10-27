@@ -46,6 +46,8 @@ export interface BattleSummary {
   team_made_size?: number;
   battle_type?: number;
   win_with_less_teammate?: number;
+  /** JSON 字符串：对局时段位快照 {"tier":"1","league_points":"43","rank":"1"} */
+  game_level?: string;
   [key: string]: unknown;
 }
 
@@ -232,6 +234,8 @@ export interface OverviewBattle {
   queue_id?: number;
   game_queue_id?: number;
   battle_type?: number;
+  /** JSON 字符串：对局时段位快照 {"tier":"1","league_points":"43","rank":"1"} */
+  game_level?: string;
   champion?: { name?: string; cname?: string; icon?: string };
   [key: string]: unknown;
 }

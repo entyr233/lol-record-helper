@@ -59,7 +59,7 @@ import { useAsyncData } from "../composables/useAsyncData";
 import { toRqOptions } from "../composables/useUserInfo";
 import { triggerLogin, waitForLogin } from "../utils/weGameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
-import { tierName, tierOrder } from "../const/tiers";
+import { tierLabel, tierOrder } from "../const/tiers";
 
 const props = defineProps<{ area: string; accountType: string; id: string }>();
 const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
@@ -96,10 +96,10 @@ const tierText = computed(() => {
   for (const entry of counts.value?.season_list ?? []) candidates.push({ tier: entry.tier, win_point: entry.win_point });
   if (candidates.length === 0) return "";
   const best = candidates.slice().sort((a, b) => tierOrder(a.tier) - tierOrder(b.tier))[0];
-  const name = tierName(best.tier);
-  if (name === "未定级") return "未定级";
+  const label = tierLabel(best.tier, (best as { queue?: number }).queue);
+  if (label === "未定级") return label;
   const lp = best.win_point !== undefined && best.win_point !== "" ? " · " + best.win_point + " LP" : "";
-  return name + lp;
+  return label + lp;
 });
 
 /** 修正旧版「匹配/排位」标签取反的问题：match = 匹配, rank = 排位 */

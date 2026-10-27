@@ -38,4 +38,20 @@ describe("BattleListItem", () => {
     expect(wrapper.text()).toContain("重开");
     expect(wrapper.classes()).toContain("remake");
   });
+
+  it("game_level 快照显示对局时段位", () => {
+    const wrapper = mount(BattleListItem, {
+      props: {
+        battle: makeBattle({ game_level: JSON.stringify({ tier: "1", league_points: "43", rank: "1" }) }),
+        index: 3
+      }
+    });
+    expect(wrapper.text()).toContain("钻石");
+    expect(wrapper.text()).not.toContain("未定级");
+  });
+
+  it("对局评价标签（battle_type 位掩码）", () => {
+    const wrapper = mount(BattleListItem, { props: { battle: makeBattle({ battle_type: 256 }), index: 4 } });
+    expect(wrapper.text()).toContain("碾压局");
+  });
 });
