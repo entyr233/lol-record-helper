@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { OverviewBattle, RqOptions } from "../src/api/types";
+import type { BattleSummary, RqOptions } from "../src/api/types";
 
-const getBattleOverview = vi.fn();
+const getBattleList = vi.fn();
 
 vi.mock("../src/api/client", () => ({
   lolBattleApi: {
-    getBattleOverview: (...args: unknown[]) => getBattleOverview(...args)
+    getBattleList: (...args: unknown[]) => getBattleList(...args)
   }
 }));
 
@@ -13,60 +13,59 @@ const { useBattleList } = await import("../src/composables/useBattleList");
 
 const rq: RqOptions = { account_type: 2, area: 1, id: "abc", from_src: "lol_helper" };
 
-function battle(id: string): OverviewBattle {
+function battle(id: string): BattleSummary {
   return {
     game_id: id,
-    game_start_time: 1700000000000,
+    game_start_time: "1700000000000",
     game_time_played: 1800,
-    queue_id: 420,
+    game_queue_id: 420,
     champion_id: 17,
     win: "Win",
-    mvp: 0,
-    svp: 0
+    kills: 1,
+    deaths: 2,
+    assists: 3
   };
 }
 
 beforeEach(() => {
-  getBattleOverview.mockReset();
+  getBattleList.mockReset();
 });
 
-describe("useBattleList（GetBattleOverview 版）", () => {
-  it("一次加载最近对局并自动选中第一局", async () => {
-    getBattleOverview.mockResolvedValueOnce({
-      nick: "测试",
-      battles: [battle("a"), battle("b")],
-      season: { sid: 100, tier: 15, win_point: 59 }
-    });
+describe("useBattleList", () => {
+  it("offset 用服务端已消费条数，而不是去重后的本地长度", async () => {
+    const page = Array.from({ length: 10 }, (_, i) => battle(String(i + 1)));
+    getBattleList.mockResolvedValueOnce(page).mockResolvedValueOnce(page);
 
     const state = useBattleList(() => rq);
-    await state.load();
+    await state.loadMore();
+    await state.loadMore();
 
-    expect(state.battles.value).toHaveLength(2);
+    expect(getBattleList).toHaveBeenNthCalledWith(1, rq, { count: 10, offset: 0 });
+    expect(getBattleList).toHaveBeenNthCalledWith(2, rq, { count: 10, offset: 10 });
+    // 第二页全是重复数据，本地去重后不应增长，但 offset 仍必须前进
+    expect(state.battles.value).toHaveLength(10);
+  });
+
+  it("首屏自动选中第一局", async () => {
+    getBattleList.mockResolvedValueOnce([battle("a"), battle("b")]);
+    const state = useBattleList(() => rq);
+    await state.loadMore();
     expect(state.selectedGameId.value).toBe("a");
-    expect(state.overview.value?.season?.tier).toBe(15);
   });
 
-  it("请求体使用现任格式（gameids 空数组 + source lcu）", async () => {
-    getBattleOverview.mockResolvedValueOnce({ battles: [] });
+  it("返回不足一页时停止加载", async () => {
+    getBattleList.mockResolvedValueOnce([battle("a")]);
     const state = useBattleList(() => rq);
-    await state.load();
-    expect(getBattleOverview).toHaveBeenCalledWith(rq);
+    await state.loadMore();
+    expect(state.hasMore.value).toBe(false);
   });
 
-  it("空列表不选中、hasMore 概念不再存在", async () => {
-    getBattleOverview.mockResolvedValueOnce({ battles: [] });
+  it("请求失败时记录错误且不中断后续重试", async () => {
+    getBattleList.mockRejectedValueOnce(new Error("网络错误")).mockResolvedValueOnce([battle("a")]);
     const state = useBattleList(() => rq);
-    await state.load();
-    expect(state.selectedGameId.value).toBeNull();
-    expect(state.battles.value).toHaveLength(0);
-  });
-
-  it("请求失败时记录错误且可重试", async () => {
-    getBattleOverview.mockRejectedValueOnce(new Error("网络错误")).mockResolvedValueOnce({ battles: [battle("a")] });
-    const state = useBattleList(() => rq);
-    await state.load();
+    await state.loadMore();
     expect(state.error.value?.message).toBe("网络错误");
-    await state.load();
+    await state.loadMore();
     expect(state.error.value).toBeNull();
     expect(state.battles.value).toHaveLength(1);
   });

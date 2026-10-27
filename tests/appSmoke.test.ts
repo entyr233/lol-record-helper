@@ -59,10 +59,9 @@ describe("整页冒烟（mock 数据）", () => {
     expect(text).toContain("匹配");
     expect(text).toContain("排位");
 
-    // 对局列表：GetBattleOverview 一次返回全部最近对局（mock 28 场）
+    // 对局列表：GetBattleList 分页，第一页 10 条
     const items = shadow.querySelectorAll(".battle-list-item");
-    expect(items.length).toBeGreaterThan(0);
-    expect(shadow.textContent).toContain("最近对局总览");
+    expect(items).toHaveLength(10);
 
     // 首局自动展开详情：两支队伍 + 10 名玩家
     await flushPromises();
