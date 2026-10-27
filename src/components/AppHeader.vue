@@ -42,7 +42,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { areas } from "../const/areas";
 import { readStorage, writeStorage } from "../utils/storage";
-import { getLoginUser, hasLoginState, logout, triggerLogin, waitForLogin } from "../utils/weGameLogin";
+import { getLoginUser, getSelfUinFromCookie, hasLoginState, logout, triggerLogin, waitForLogin } from "../utils/weGameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
 
 const LOGIN_PAGE_URL = "https://www.wegame.com.cn/home/";
@@ -70,6 +70,11 @@ const currentArea = computed(() => {
 onMounted(() => {
   // 以登录 cookie 为准（SDK 状态刷新后不可靠），SDK 就绪后再校正一次
   loggedIn.value = hasLoginState();
+  // 记住过区服且登录态在 → 直接落地自己的战绩页（刷新后不再退回「请先选择区服」）
+  const lastArea = readStorage<string>("last-area", "");
+  if (lastArea && !route.params.area && hasLoginState()) {
+    void router.push({ name: "area", params: { area: lastArea } });
+  }
   // 不主动等 SDK：登录态以 cookie 为准；SDK 只在用户点「登录」时按需注入
   void initialWait;
   const fromRoute = route.params.area;
@@ -112,9 +117,19 @@ function rememberArea(area: string): void {
 }
 
 function goSelf(): Promise<void> {
+  const area = String(selectedArea.value || currentArea.value || "");
+  if (!area) return Promise.resolve();
+  rememberArea(area);
+  // cookie 直达（不碰 SDK）；cookie 缺失才走 SDK 解析（fallback 恢复场景）
+  const cookieUin = getSelfUinFromCookie();
+  if (cookieUin) {
+    return router.push({ name: "summary", params: { area, accountType: "1", id: cookieUin } }).then(() => undefined);
+  }
   return run(async (signal) => {
     const user = await getLoginUser({ signal });
-    await showSelf(user, signal);
+    if (signal.aborted) return;
+    loggedIn.value = true;
+    await router.replace({ name: "summary", params: { area, accountType: "1", id: user.uin } });
   });
 }
 function goMlol(): void {
