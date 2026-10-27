@@ -127,6 +127,10 @@
       </span>
     </template>
 
+    <span v-if="rankInfo" class="dp-rank">
+      <span class="dp-rank-no">No.{{ rankInfo.rank }}</span>
+      <span class="dp-rank-label">{{ rankInfo.label }}</span>
+    </span>
     <span class="dp-score">{{ gameScore }}</span>
   </div>
 </template>
@@ -155,6 +159,8 @@ const props = defineProps<{
   isSelf?: boolean;
   /** 海克斯大乱斗（2400）：无符文，改显海克斯强化 */
   hexAram?: boolean;
+  /** 排序模式的行内名次与对应数值 */
+  rankInfo?: { rank: number; label: string } | null;
 }>();
 
 defineEmits<{ openSummoner: [player: PlayerDetail] }>();

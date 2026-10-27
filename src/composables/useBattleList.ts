@@ -29,6 +29,7 @@ export interface BattleListState {
   selectedGameId: Ref<string | null>;
   filter: Ref<ListFilter>;
   sampleSize: Ref<number>;
+  rawLoaded: Ref<number>;
   setFilter: (patch: Partial<ListFilter>) => Promise<void>;
   goToPage: (n: number) => Promise<void>;
   select: (gameId: string) => void;
@@ -158,5 +159,6 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
     selectedGameId.value = gameId;
   }
 
-  return { battles: visiblePage, page, hasPrev, hasNext, loading, error, selectedGameId, filter, sampleSize, setFilter, goToPage, select };
+  const rawLoaded = computed(() => rawBattles.value.length);
+  return { battles: visiblePage, page, hasPrev, hasNext, loading, error, selectedGameId, filter, sampleSize, rawLoaded, setFilter, goToPage, select };
 }

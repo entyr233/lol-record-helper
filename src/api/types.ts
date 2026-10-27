@@ -136,6 +136,8 @@ export interface TeamDetail {
 }
 
 export interface BattleDetail {
+  /** 被查看玩家的 openid（2026 响应顶层返回） */
+  openid?: string;
   area_id: string;
   game_id: string;
   game_start_time: string;

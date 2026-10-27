@@ -7,14 +7,22 @@
       <button type="button" class="link-button" @click="run">重试</button>
     </div>
     <template v-else-if="detail">
+      <div class="detail-summary">
+        <GameIcon kind="champion" :id="viewedChampionId" />
+        <span class="detail-summary-result" :class="teams[0]?.resultClass">{{ teams[0]?.resultLabel ?? "" }}</span>
+        <span class="detail-summary-meta">{{ summaryMeta }}</span>
+      </div>
       <div class="detail-toolbar">
         <div class="mode-switch">
-          <button v-for="m in MODES" :key="m" type="button" class="mode-button" :class="{ active: currentMode === m }" @click="currentMode = m">{{ m }}</button>
+          <button v-for="m in visibleModes" :key="m" type="button" class="mode-button" :class="{ active: currentMode === m }" @click="currentMode = m">{{ m }}</button>
         </div>
-        <div class="sort-switch">
-          <span class="sort-label">排序</span>
-          <button v-for="opt in SORT_OPTIONS" :key="opt.key" type="button" class="sort-button" :class="{ active: sortBy === opt.key }" @click="sortBy = opt.key">{{ opt.label }}</button>
-        </div>
+        <select class="sort-select" :value="sortBy" @change="onSortChange">
+          <option value="default">默认排序</option>
+          <option value="damage">按输出</option>
+          <option value="taken">按承伤</option>
+          <option value="gold">按经济</option>
+          <option value="participation">按参团率</option>
+        </select>
       </div>
       <section v-for="team in teams" :key="team.teamId" class="detail-team" :class="team.resultClass">
         <header class="detail-team-head">
@@ -31,6 +39,7 @@
           :players="detail.player_details"
           :mode="currentMode"
           :hex-aram="isHexAram"
+          :rank-info="rankOf(team.players, player, sortBy)"
           :is-self="canOpenPlayer && player.openid === selfOpenid"
           @open-summoner="canOpenPlayer && $emit('openSummoner', $event)"
         />
@@ -50,6 +59,8 @@ import type { BattleDetail, PlayerDetail } from "../api/types";
 import { toRqOptions } from "../composables/useUserInfo";
 import { useAsyncData } from "../composables/useAsyncData";
 import { getResultClass, getResultLabel } from "../const/wins";
+import { formatDateTime, formatDuration } from "../utils/format";
+import { getQueueName } from "../const/queues";
 
 const diag = lastCaptchaAttempt;
 
@@ -71,24 +82,65 @@ const MODES = ["概要", "伤害", "技能", "海克斯"] as const;
 const currentMode = ref<(typeof MODES)[number]>(props.mode ?? "概要");
 watch(() => props.mode, (m) => { if (m) currentMode.value = m; });
 
+const visibleModes = computed(() => MODES.filter((m) => m !== "海克斯" || isHexAram.value));
+const viewedChampionId = computed(() => {
+  const viewed = detail.value?.player_details.find((p) => p.openid === detail.value?.openid);
+  return viewed?.championId ?? 0;
+});
+const summaryMeta = computed(() => {
+  const d = detail.value;
+  if (!d) return "";
+  const parts: string[] = [];
+  const viewed = d.player_details.find((p) => p.openid === d.openid);
+  if (viewed) parts.push(decodedPlayerName(viewed));
+  const modeName = d.game_mode || queueNameById(d.game_queue_id);
+  if (modeName) parts.push(modeName);
+  const start = Number(d.game_start_time);
+  if (Number.isFinite(start) && start > 0) parts.push(formatDateTime(start > 1e12 ? start : start * 1000));
+  if (d.game_time_played) parts.push(formatDuration(d.game_time_played));
+  return parts.join(" · ");
+});
+function decodedPlayerName(player: PlayerDetail): string {
+  try { return decodeURIComponent(player.name || ""); } catch { return player.name || ""; }
+}
+function queueNameById(queueId: number): string {
+  return getQueueName(Number(queueId)) || "";
+}
+function onSortChange(event: Event): void {
+  sortBy.value = (event.target as HTMLSelectElement).value as SortKey;
+}
 type SortKey = "default" | "damage" | "taken" | "gold" | "participation";
 const sortBy = ref<SortKey>("default");
-const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
-  { key: "default", label: "默认" },
-  { key: "damage", label: "输出" },
-  { key: "taken", label: "承伤" },
-  { key: "gold", label: "经济" },
-  { key: "participation", label: "参团" }
-];
+function participationOf(p: PlayerDetail, teamKills: number): number {
+  if (!teamKills) return 0;
+  return (p.championsKilled + p.assists) / teamKills;
+}
+function teamKillCount(players: PlayerDetail[]): number {
+  return players.reduce((sum, p) => sum + (p.championsKilled || 0), 0);
+}
 function sortPlayers(players: PlayerDetail[], key: SortKey): PlayerDetail[] {
   if (key === "default") return players;
+  const teamKills = teamKillCount(players);
   const sorted = players.slice().sort((a, b) => {
     if (key === "damage") return (b.totalDamageToChampions || 0) - (a.totalDamageToChampions || 0);
     if (key === "taken") return (b.totalDamageTaken || 0) - (a.totalDamageTaken || 0);
     if (key === "gold") return (b.goldEarned || 0) - (a.goldEarned || 0);
-    return ((b.championsKilled + b.assists) / Math.max(1, b.numDeaths)) - ((a.championsKilled + a.assists) / Math.max(1, a.numDeaths));
+    return participationOf(b, teamKills) - participationOf(a, teamKills);
   });
   return sorted;
+}
+/** 行内名次（排序时显示第 N 名 + 该项数值） */
+function rankOf(players: PlayerDetail[], player: PlayerDetail, key: SortKey): { rank: number; label: string } | null {
+  if (key === "default") return null;
+  const teamKills = teamKillCount(players);
+  const sorted = sortPlayers(players, key);
+  const rank = sorted.indexOf(player) + 1;
+  let label = "";
+  if (key === "damage") label = (player.totalDamageToChampions || 0) + " 伤害";
+  else if (key === "taken") label = (player.totalDamageTaken || 0) + " 承伤";
+  else if (key === "gold") label = (player.goldEarned || 0) + " 经济";
+  else label = "参团 " + Math.round(participationOf(player, teamKills) * 100) + "%";
+  return { rank, label };
 }
 /** 排序后的队伍（模板用） */
 function teamPlayers(players: PlayerDetail[]): PlayerDetail[] {

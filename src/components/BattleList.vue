@@ -13,17 +13,19 @@
               <option value="">全部英雄</option>
               <option v-for="c in championOptions" :key="c.id" :value="String(c.id)">{{ c.name }}（{{ c.count }}场）</option>
             </select>
-            <button type="button" class="mode-filter-tab" :class="{ 'mode-filter-tab--cur': filter.result !== 'all' }"
-              @click="emitFilter({ result: filter.result === 'all' ? 'win' : filter.result === 'win' ? 'fail' : 'all' })">
-              {{ filter.result === 'win' ? '只看胜' : filter.result === 'fail' ? '只看败' : '胜负' }}
-            </button>
-            <button type="button" class="mode-filter-tab" :class="{ 'mode-filter-tab--cur': filter.days !== 0 }"
-              @click="emitFilter({ days: filter.days === 0 ? 7 : filter.days === 7 ? 30 : 0 })">
-              {{ filter.days ? '最近 ' + filter.days + ' 天' : '时间' }}
-            </button>
+            <select class="mode-filter-select" :value="filter.result" @change="onResultChange">
+              <option value="all">全部胜负</option>
+              <option value="win">只看胜利</option>
+              <option value="fail">只看失败</option>
+            </select>
+            <select class="mode-filter-select" :value="String(filter.days)" @change="onDaysChange">
+              <option value="0">不限时间</option>
+              <option value="7">最近 7 天</option>
+              <option value="30">最近 30 天</option>
+            </select>
             <button v-if="!isDefault" type="button" class="mode-filter-tab mode-filter-tab--clear" @click="emitFilter(defaultPatch)">重置</button>
           </div>
-          <p class="sample-note">基于已加载的 {{ sampleSize }} 场</p>
+          <p class="sample-note">{{ sampleText }}</p>
           <ul class="battle-list-items">
             <li v-if="!battles.length && loading" class="state-text">加载中…</li>
             <li v-else-if="!battles.length && error" class="state-text state-text--error">
@@ -84,7 +86,7 @@ const emit = defineEmits<{ openSummoner: [player: PlayerDetail] }>();
 
 const rqOptions = computed(() => toRqOptions({ area: props.area, accountType: props.accountType, id: props.id }));
 const listState = useBattleList(() => rqOptions.value);
-const { battles, page, hasPrev, hasNext, loading, error, selectedGameId, filter, sampleSize, setFilter, goToPage, select } = listState;
+const { battles, page, hasPrev, hasNext, loading, error, selectedGameId, filter, sampleSize, rawLoaded, setFilter, goToPage, select } = listState;
 
 const modeOptions: Array<{ key: ModeFilter; label: string }> = [
   { key: "all", label: "全部" },
@@ -118,6 +120,19 @@ function onChampionChange(event: Event): void {
   const value = (event.target as HTMLSelectElement).value;
   emitFilter({ champion: value === "" ? null : Number(value) });
 }
+function onResultChange(event: Event): void {
+  emitFilter({ result: (event.target as HTMLSelectElement).value as ListFilter["result"] });
+}
+function onDaysChange(event: Event): void {
+  emitFilter({ days: Number((event.target as HTMLSelectElement).value) as ListFilter["days"] });
+}
+const sampleText = computed(() => {
+  const f = filter.value;
+  const active = f.mode !== "all" || f.champion !== null || f.result !== "all" || f.days !== 0;
+  if (!active) return "统计口径：当前页 " + sampleSize.value + " 场";
+  return "已查询 " + rawCount.value + " 场，符合条件 " + sampleSize.value + " 场";
+});
+const rawCount = rawLoaded;
 
 onMounted(() => {
   void goToPage(1);
@@ -135,4 +150,15 @@ const selectedQueueId = computed(() => {
 function handleOpenSummoner(player: PlayerDetail): void {
   emit("openSummoner", player);
 }
+
+/** 近期表现联动：色块定位对局（最近 20 场在前两页内），英雄点击筛选 */
+function focusGame(game: { game_id: string }): void {
+  void goToPage(1).then(() => {
+    select(game.game_id);
+  });
+}
+function applyChampionFilter(id: number | null): void {
+  void setFilter({ champion: id });
+}
+defineExpose({ focusGame, applyChampionFilter });
 </script>

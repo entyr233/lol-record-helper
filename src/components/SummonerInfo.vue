@@ -19,12 +19,14 @@
           <p class="summoner-name">
             {{ summoner.name }}
             <button type="button" class="copy-name" @click="copyName">{{ copied ? "已复制" : "复制昵称" }}</button>
+            <button type="button" class="fav-star" :class="{ 'fav-star--on': isFavorite }" @click="toggleFavorite">
+              {{ isFavorite ? "★" : "☆" }}
+            </button>
           </p>
-          <p class="summoner-line">
-            等级: {{ summoner.level }}
-            <span class="summoner-sub">({{ summoner.experience }})</span>
+          <p v-if="tierText" class="count-row count-row--tier">
+            <span class="count-label">段位：</span>
+            <span class="count-tier">{{ tierText }}</span>
           </p>
-          <p class="summoner-line">赞: {{ summoner.praise }} | 黑: {{ summoner.discredit }}</p>
         </div>
         <div class="summoner-counts">
           <p v-if="reportLoading" class="state-text">统计加载中…</p>
@@ -37,14 +39,26 @@
               <span class="count-label">段位：</span>
               <span class="count-tier">{{ tierText }}</span>
             </p>
-            <p v-for="row in countRows" :key="row.label" class="count-row">
-              <span class="count-label">{{ row.label }}：</span>
-              <span class="count-total">{{ row.total }}</span>
-              <span class="count-win">{{ row.win }}</span>
-              <span class="count-lose">{{ row.lose }}</span>
-            </p>
           </template>
         </div>
+        <details class="summoner-more">
+          <summary>更多资料</summary>
+          <p class="summoner-line">
+            等级: {{ summoner.level }}
+            <span class="summoner-sub">({{ summoner.experience }})</span>
+          </p>
+          <p class="summoner-line">赞: {{ summoner.praise }} | 黑: {{ summoner.discredit }}</p>
+          <p v-for="row in countRows" :key="row.label" class="count-row">
+            <span class="count-label">{{ row.label }}：</span>
+            <span class="count-total">{{ row.total }}</span>
+            <span class="count-win">{{ row.win }}</span>
+            <span class="count-lose">{{ row.lose }}</span>
+          </p>
+        </details>
+      </div>
+      <div class="summoner-recent">
+        <RecentStats :area="area" :account-type="accountType" :id="id" :active-champion="activeChampion"
+          @focus-game="(g: BattleSummary) => emit('focusGame', g)" @filter-champion="(id: number | null) => emit('filterChampion', id)" />
       </div>
       <p v-if="loginError" class="state-text state-text--error" role="alert">{{ loginError }}</p>
       <button v-if="loggingIn" type="button" class="link-button" @click="cancel">取消等待</button>
@@ -56,7 +70,9 @@
 import { computed, onMounted, ref } from "vue";
 import Panel from "./Panel.vue";
 import GameIcon from "./GameIcon.vue";
+import RecentStats from "./RecentStats.vue";
 import { lolBattleApi } from "../api/client";
+import type { BattleSummary } from "../api/types";
 import { ApiError, toErrorMessage } from "../api/errors";
 import { useAsyncData } from "../composables/useAsyncData";
 import { toRqOptions } from "../composables/useUserInfo";
@@ -64,7 +80,31 @@ import { triggerLogin, waitForLogin } from "../utils/weGameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
 import { tierLabel, tierOrder } from "../const/tiers";
 
-const props = defineProps<{ area: string; accountType: string; id: string }>();
+const props = defineProps<{ area: string; accountType: string; id: string; activeChampion?: number | null }>();
+
+const emit = defineEmits<{ focusGame: [game: BattleSummary]; filterChampion: [id: number | null] }>();
+
+const FAV_KEY = "lol-tft-favorites";
+const favorites = ref<Array<{ name: string; area: number; id: string; accountType: string; level?: number }>>([]);
+try {
+  favorites.value = JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]") as typeof favorites.value;
+} catch { favorites.value = []; }
+
+const isFavorite = computed(() => favorites.value.some((f) => f.id === props.id && f.accountType === props.accountType));
+function toggleFavorite(): void {
+  if (isFavorite.value) {
+    favorites.value = favorites.value.filter((f) => !(f.id === props.id && f.accountType === props.accountType));
+  } else {
+    favorites.value = [{
+      name: summoner.value?.name ?? props.id,
+      area: Number(props.area) || 0,
+      id: props.id,
+      accountType: props.accountType,
+      level: summoner.value?.level
+    }, ...favorites.value].slice(0, 20);
+  }
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(favorites.value)); } catch { /* ignore */ }
+}
 const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
 
 const rqOptions = computed(() => toRqOptions({ area: props.area, accountType: props.accountType, id: props.id }));
