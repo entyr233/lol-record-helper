@@ -12,11 +12,7 @@
       <p v-if="loading" class="state-text">搜索中…</p>
       <template v-else-if="error">
         <p class="state-text state-text--error">{{ toErrorMessage(error) }}</p>
-        <p v-if="isPrivacyError" class="state-text">
-          该玩家可能设置了战绩隐私。可尝试
-          <button type="button" class="link-button" @click="goMlol">掌盟源查询</button>
-          （输入其游戏昵称，掌盟搜索自带访问凭证）
-        </p>
+        <p v-if="isPrivacyError" class="state-text">该玩家设置了战绩隐私（服务端强制，无法绕过）</p>
       </template>
       <template v-else-if="players.length">
         <p class="state-text search-hint">找到 {{ players.length }} 位同名玩家，点击其中一位查看战绩</p>
@@ -97,9 +93,6 @@ const isPrivacyError = computed(() => {
   return code === "8000009" || code === "8000021" || String((err as Error).message).includes("8000009") || String((err as Error).message).includes("8000021");
 });
 
-function goMlol(): void {
-  void router.push({ name: "mlol" });
-}
 
 function openPlayer(player: PlayerSearchResult): void {
   void router.push({
