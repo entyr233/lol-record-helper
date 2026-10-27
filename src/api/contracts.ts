@@ -16,11 +16,10 @@ function identified(value: unknown, key: string): value is RecordValue {
   return object(value) && typeof value[key] === "string" && value[key].length > 0;
 }
 
-/** 最近一次被校验拒绝的响应（诊断用，__LOL_TFT_DUMP__ 一键导出） */
-export const lastRejected: { method: string; payload: unknown } = { method: "", payload: null };
+/** 最近接口响应（按方法记录，诊断用，__LOL_TFT_DUMP__ 一键导出） */
+export const lastPayloads: Record<string, unknown> = {};
 
 export function invalidResponse(method: string, payload?: unknown): ApiError {
-  if (payload !== undefined) lastRejected.method = method, lastRejected.payload = payload;
   let digest = "";
   if (payload !== undefined) {
     try {
@@ -36,6 +35,7 @@ export function invalidResponse(method: string, payload?: unknown): ApiError {
  * Some WeGame successes omit result; an explicit empty array is still required for no results.
  */
 export function assertResponse(method: string, payload: unknown): void {
+  lastPayloads[method] = payload;
   if (!object(payload)) throw invalidResponse(method, payload);
   if (payload.result !== undefined) {
     const result = payload.result;

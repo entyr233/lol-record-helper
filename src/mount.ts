@@ -52,7 +52,7 @@ export function mountLolTft(options: MountOptions = {}): MountedInstance {
   // 必须同时挂到页面上下文（unsafeWindow）——DevTools 控制台默认跑在页面环境
   void import("./api/contracts").then((mod) => {
     const dump = () => {
-      const text = JSON.stringify(mod.lastRejected, null, 2);
+      const text = JSON.stringify(mod.lastPayloads, null, 2);
       try { void navigator.clipboard?.writeText(text).catch(() => undefined); } catch { /* ignore */ }
       return text;
     };
