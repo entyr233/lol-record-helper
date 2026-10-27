@@ -15,7 +15,7 @@ const FRIENDLY: Record<string, string> = {
   "8000021": "这位召唤师设置了查询权限",
   "8000022": "需要人机校验，请先在 LOL 助手页刷新后重试",
   "8000023": "该用户已注销",
-  "8000101": "未选定大区，请先选择区服",
+  "8000101": "请求被拒绝（参数不合法），请重新选择区服后重试",
   "8000102": "登录状态已失效，请在 WeGame 页面重新登录"
 };
 
@@ -26,7 +26,8 @@ export class ApiError extends Error {
   readonly serverMessage: string;
 
   constructor(code: number | string, method: string, message?: string) {
-    super(message || FRIENDLY[String(code)] || "请求失败(" + method + "，" + code + ")");
+    // 映射表优先（服务端常返回 WG_COMM_ERR_XXX 这类不可读码串），服务端文案兜底
+    super(FRIENDLY[String(code)] || message || "请求失败(" + method + "，" + code + ")");
     this.name = "ApiError";
     this.code = code;
     this.method = method;

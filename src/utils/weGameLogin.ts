@@ -208,7 +208,8 @@ export function getSelfUinFromCookie(): string | null {
     const raw = read(name);
     if (!raw) continue;
     const digits = raw.replace(/^o/, "").replace(/\D/g, "");
-    if (digits) return digits;
+    // 必须去掉前导零：o0643194418 -> 643194418（保留前导零会被服务端判 ILLEGAL_REQ 8000101）
+    if (digits) return String(Number(digits));
   }
   return null;
 }

@@ -129,3 +129,18 @@ describe("WeGame SDK readiness and account recovery", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 });
+
+describe("getSelfUinFromCookie（8000101 修复）", () => {
+  it("p_uin 带 o 前缀与前导零时规整为数字 uin", async () => {
+    document.cookie = "p_uin=o0643194418; path=/";
+    const mod = await import("../src/utils/weGameLogin");
+    expect(mod.getSelfUinFromCookie()).toBe("643194418");
+  });
+
+  it("无相关 cookie 时返回 null", async () => {
+    document.cookie = "p_uin=; path=/; max-age=0";
+    document.cookie = "uin=; path=/; max-age=0";
+    const mod = await import("../src/utils/weGameLogin");
+    expect(mod.getSelfUinFromCookie()).toBeNull();
+  });
+});
