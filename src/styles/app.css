@@ -1566,11 +1566,12 @@ button {
   padding: 12px 16px 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
-/* 上半区：标题/模式/走势 + 右侧趋势卡与模式分布；下半区：常用英雄 + 场均摘要 */
+/* 上半区：标题/模式/走势 + 右侧趋势卡与模式分布；用 grid 保证两张卡等高对齐 */
 .recent-top {
-  display: flex;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px 240px;
   gap: 20px;
+  align-items: stretch;
 }
 .recent-top-main {
   flex: 1 1 0;
@@ -1592,11 +1593,13 @@ button {
   font-size: 11px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
-/* 走势色块下方：常用英雄 + 场均摘要并排，填满中部空白 */
+/* 走势色块下方：常用英雄 + 组队情况 + 场均摘要，列宽与上半区一致（1fr 240 240），
+   保证上下两行的卡片左右边缘、列分隔线完全对齐 */
 .recent-bottom {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px 240px;
   gap: 20px;
+  align-items: stretch;
   margin-top: 10px;
 }
 .recent-champs {
@@ -2041,30 +2044,21 @@ button {
     flex-direction: column;
     gap: 12px;
   }
-  .recent-side {
-    flex: 1 1 240px;
-    width: auto;
-  }
-  .recent-champs {
-    flex-basis: 100%;
-  }
-  .recent-bottom {
-    flex-wrap: wrap;
-  }
+  /* 窄窗口：主内容占满一行，卡片两两并排；再窄时单列 */
   .recent-top {
-    flex-wrap: wrap;
+    grid-template-columns: 1fr 1fr;
   }
   .recent-top-main {
-    flex-basis: 100%;
+    grid-column: 1 / -1;
+  }
+  .recent-bottom {
+    grid-template-columns: 1fr 1fr;
+  }
+  .recent-champs {
+    grid-column: 1 / -1;
   }
   .recent-metrics {
-    flex: 1 1 300px;
-  }
-  .recent-queues {
-    flex: 1 1 200px;
-  }
-  .recent-teams {
-    flex: 1 1 200px;
+    grid-column: 1 / -1;
   }
   .recent-headline {
     flex-wrap: wrap;
