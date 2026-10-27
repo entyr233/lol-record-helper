@@ -16,6 +16,7 @@
 // @license      ISC
 // @grant        GM_xmlhttpRequest
 // @grant        GM_registerMenuCommand
+// @grant        unsafeWindow
 // @connect      mlol.qt.qq.com
 // @connect      lol.qq.com
 // @connect      game.gtimg.cn
@@ -314,6 +315,8 @@
         return;
       }
       parent.appendChild(launcher);
+      var lib = getLib();
+      if (lib && typeof lib.mountHelperLogin === "function") lib.mountHelperLogin();
       log("入口按钮已挂载", parent === document.body ? "body" : "html");
     } catch (error) {
       warn("入口按钮挂载失败：", error);

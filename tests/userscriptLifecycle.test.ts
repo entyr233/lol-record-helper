@@ -8,6 +8,7 @@ const page = window as unknown as { __LOL_TFT__?: PanelApi };
 let api: PanelApi;
 let mount: ReturnType<typeof vi.fn>;
 let unmount: ReturnType<typeof vi.fn>;
+let mountHelper: ReturnType<typeof vi.fn>;
 
 function scripts(): HTMLScriptElement[] {
   return Array.from(document.querySelectorAll<HTMLScriptElement>('script[src$="/login.sdk.js"]'));
@@ -17,8 +18,9 @@ beforeEach(() => {
   vi.useFakeTimers();
   unmount = vi.fn();
   mount = vi.fn(() => ({ unmount }));
+  mountHelper = vi.fn();
   const logger = { log: vi.fn(), warn: vi.fn(), error: vi.fn() };
-  new Function("LolTft", "console", source)({ mountLolTft: mount }, logger);
+  new Function("LolTft", "console", source)({ mountLolTft: mount, mountHelperLogin: mountHelper }, logger);
   document.dispatchEvent(new Event("DOMContentLoaded"));
   api = page.__LOL_TFT__!;
 });
@@ -35,6 +37,12 @@ afterEach(() => {
 });
 
 describe("userscript panel lifecycle", () => {
+  it("脚本启动时安装助手页入口，不需要先打开自建面板", () => {
+    expect(mountHelper).toHaveBeenCalledTimes(1);
+    expect(mount).not.toHaveBeenCalled();
+    expect(scripts()).toHaveLength(0);
+  });
+
   it("打开面板立即挂载，且不注入登录 SDK（登录按钮才按需注入）", async () => {
     await api.open();
     expect(mount).toHaveBeenCalledTimes(1);

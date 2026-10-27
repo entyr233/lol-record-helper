@@ -74,6 +74,7 @@
     <span class="header-spacer"></span>
 
     <a class="header-link" :href="GITHUB_URL" target="_blank" rel="noopener noreferrer" title="项目 GitHub 主页">GitHub ↗</a>
+    <a class="header-link" :href="officialHelperUrl" target="_blank" rel="noopener noreferrer" title="官方 LOL 助手（同一账号与大区）">官方助手 ↗</a>
     <span class="header-version" title="脚本版本">v{{ version }}</span>
   </header>
 </template>
@@ -200,6 +201,21 @@ const currentArea = computed(() => {
   if (fromRoute) return String(fromRoute);
   // 掌盟查询等无区服参数的页面：用上次选择过的大区，保证「我的战绩」按钮不消失
   return readStorage<string>("last-area", "");
+});
+
+/**
+ * 官方助手页通过地址栏 uin / area_id / account_type 初始化查询对象，
+ * 这里带上当前账号和大区，打开后官方页面能直接查这个玩家的战绩。
+ */
+const officialHelperUrl = computed(() => {
+  const area = String(selectedArea.value || currentArea.value || "");
+  if (!area) return "https://www.wegame.com.cn/helper/lol/#/info/selection";
+  const query = new URLSearchParams();
+  const uin = getSelfUinFromCookie();
+  if (uin) query.set("uin", uin);
+  query.set("area_id", area);
+  query.set("account_type", "1");
+  return "https://www.wegame.com.cn/helper/lol/#/life/overview?" + query.toString();
 });
 
 onMounted(() => {
