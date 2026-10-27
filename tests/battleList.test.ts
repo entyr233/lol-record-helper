@@ -221,6 +221,60 @@ describe("useBattleList.focusGame（跨页定位）", () => {
     expect(changes).toBe(1);
   });
 
+  it("定位失败不改动当前页的翻页状态（末尾空页不会禁用「下一页」）", async () => {
+    const pages = [
+      Array.from({ length: PAGE_SIZE }, (_, i) => battle("a" + i)),
+      Array.from({ length: PAGE_SIZE }, (_, i) => battle("b" + i)),
+      Array.from({ length: PAGE_SIZE }, (_, i) => battle("c" + i))
+    ];
+    // 30 场：第 1~3 页有数据，第 4 页为空（查找会探测到这一页）
+    getBattleList.mockImplementation((_rq: unknown, query: { offset?: number }) => {
+      const offset = query.offset ?? 0;
+      return Promise.resolve(pages[offset / PAGE_SIZE] ?? []);
+    });
+
+    const state = useBattleList(() => rq);
+    await state.goToPage(1);
+    expect(state.hasNext.value).toBe(true);
+
+    const result = await state.focusGame(battle("nope"));
+
+    expect(result.battle).toBeNull();
+    expect(state.page.value).toBe(1);
+    // 关键：定位探测过末尾空页，但当前展示页仍是第 1 页，「下一页」必须可用
+    expect(state.hasNext.value).toBe(true);
+    expect(state.battles.value).toHaveLength(PAGE_SIZE);
+  });
+
+  it("筛选模式下定位时一次翻页就选中目标，不先选该页第一场", async () => {
+    const page0 = Array.from({ length: PAGE_SIZE }, (_, i) => battle("a" + i));
+    const page1 = Array.from({ length: PAGE_SIZE }, (_, i) => battle("b" + i));
+    const page2 = Array.from({ length: PAGE_SIZE }, (_, i) => battle("c" + i));
+    const target = page2[4]!;
+    getBattleList.mockImplementation((_rq: unknown, query: { offset?: number }) => {
+      const offset = query.offset ?? 0;
+      if (offset === 0) return Promise.resolve(page0);
+      if (offset === PAGE_SIZE) return Promise.resolve(page1);
+      if (offset === PAGE_SIZE * 2) return Promise.resolve(page2);
+      return Promise.resolve([]);
+    });
+
+    const state = useBattleList(() => rq);
+    await state.goToPage(1);
+    await state.setFilter({ champion: 17 });
+
+    let changes = 0;
+    const stop = watch(state.selectedGameId, () => { changes += 1; }, { flush: "sync" });
+    const result = await state.focusGame(target);
+    stop();
+
+    expect(result.battle?.game_id).toBe(target.game_id);
+    expect(state.page.value).toBe(3);
+    expect(state.selectedGameId.value).toBe(target.game_id);
+    // 选中顺序不应是「第 21 场 → 第 25 场」：翻页与选中一次完成
+    expect(changes).toBe(1);
+  });
+
   it("找不到时返回 null 且不改动选中", async () => {
     getBattleList.mockResolvedValue([]);
     const state = useBattleList(() => rq);

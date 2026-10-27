@@ -125,4 +125,38 @@ describe("掌盟桥接消息约定", () => {
 
     await expect(promise).rejects.toMatchObject({ code: "BRIDGE_ERROR", message: "桥接请求失败" });
   });
+
+  it("取消后等待立即以 AbortError 结束，迟到的响应/超时不再结算", async () => {
+    const { fetchMlolBattleDetail } = await import("../src/api/mlolDetail");
+    const controller = new AbortController();
+    const promise = fetchMlolBattleDetail({ gameId: "bridge-game", areaId: 1 }, controller.signal);
+    const request = await waitForRequest(harness!);
+
+    controller.abort();
+    await expect(promise).rejects.toMatchObject({ name: "AbortError" });
+
+    // 记录已清理：迟到的响应不会再触发任何结算（这里只验证不抛错）
+    expect(() => dispatchBridgeResponse({
+      type: "lol-tft-mlol-response",
+      id: request.id,
+      text: JSON.stringify(makeMlolPayload())
+    })).not.toThrow();
+  });
+
+  it("等待桥接就绪期间取消也会结束等待，并清理就绪定时器", async () => {
+    vi.useFakeTimers();
+    try {
+      const { fetchMlolBattleDetail } = await import("../src/api/mlolDetail");
+      const controller = new AbortController();
+      const promise = fetchMlolBattleDetail({ gameId: "bridge-game", areaId: 1 }, controller.signal);
+
+      controller.abort();
+      await expect(promise).rejects.toMatchObject({ name: "AbortError" });
+
+      // 就绪超时定时器仍会清理自己（桥接 Promise 内部已处理，不会变成未捕获拒绝）
+      await vi.advanceTimersByTimeAsync(15000);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

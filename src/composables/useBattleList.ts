@@ -67,7 +67,8 @@ function isDefaultFilter(f: ListFilter): boolean {
 export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   const rawBattles = ref<BattleSummary[]>([]);
   const page = ref(1);
-  const serverHasMore = ref(true);
+  /** 当前展示页之后是否还有更多（只由「正式展示某一页」更新，定位探测不碰它） */
+  const displayedHasMore = ref(true);
   const loading = ref(false);
   const error = ref<Error | null>(null);
   const selectedGameId = ref<string | null>(null);
@@ -78,10 +79,12 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   /** 已计入池子的 game_id：同一对局在不同页/重复拉同一页时只算一次 */
   const seenGameIds = new Set<string>();
   /** 原始页缓存：offset 页号 → 数据。翻页与定位复用，避免重复请求（原始数据与筛选无关） */
-  const pageCache = new Map<number, { data: BattleSummary[]; at: number }>();
+  const pageCache = new Map<number, { data: BattleSummary[]; hasMore: boolean; at: number }>();
   /** 原始页缓存有效期：既避免同一交互内重复请求，也不至于长期记住旧战绩 */
   const PAGE_CACHE_TTL = 30000;
   let fetchedPages = 0;
+  /** 原始数据的前沿：已拉到的最后一页是否还有更多（与「当前展示页的翻页状态」分开） */
+  let rawHasMore = true;
   let inflight: Promise<void> | null = null;
   let focusing = false;
   /** 代际：筛选变化时自增；旧请求的结果因代际不同被丢弃 */
@@ -113,8 +116,9 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
 
   const hasPrev = computed(() => page.value > 1);
   const hasNext = computed(() => {
-    if (isDefaultFilter(filter.value)) return serverHasMore.value;
-    return filteredAll.value.length > page.value * PAGE_SIZE || (serverHasMore.value && fetchedPages < MAX_RAW_PAGES);
+    if (isDefaultFilter(filter.value)) return displayedHasMore.value;
+    // 筛选模式：本地还能切出更多匹配，或原始数据前沿还没到头
+    return filteredAll.value.length > page.value * PAGE_SIZE || (rawHasMore && fetchedPages < MAX_RAW_PAGES);
   });
 
   /** 统计口径：无筛选=当前页 10 场；有筛选=已加载的匹配场次 */
@@ -146,35 +150,37 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   });
 
   /**
-   * 取第 n 个原始页（0 基）：命中缓存不发请求；成功页顺带更新英雄池与「是否还有更多」。
-   * gen 用于丢弃「筛选已变化但响应才回来」的旧结果：既不写缓存，也不更新状态。
+   * 取第 n 个原始页（0 基）：命中缓存不发请求。
+   * 只读探测用——不修改当前页面的翻页状态（displayedHasMore），只有正式展示某一页时才更新翻页按钮。
+   * gen 用于丢弃「筛选已变化但响应才回来」的旧结果：既不写缓存，也不更新英雄池。
    */
-  async function fetchPage(n: number, gen: number = generation): Promise<BattleSummary[]> {
+  async function fetchPage(n: number, gen: number = generation): Promise<{ items: BattleSummary[]; hasMore: boolean }> {
     const cached = pageCache.get(n);
     if (cached && Date.now() - cached.at < PAGE_CACHE_TTL) {
-      if (gen === generation) serverHasMore.value = cached.data.length >= PAGE_SIZE;
-      return cached.data;
+      return { items: cached.data, hasMore: cached.hasMore };
     }
-    const data = await lolBattleApi.getBattleList(rqOptions(), { count: PAGE_SIZE, offset: n * PAGE_SIZE });
+    const items = await lolBattleApi.getBattleList(rqOptions(), { count: PAGE_SIZE, offset: n * PAGE_SIZE });
+    const hasMore = items.length >= PAGE_SIZE;
     if (gen === generation) {
-      pageCache.set(n, { data, at: Date.now() });
-      serverHasMore.value = data.length >= PAGE_SIZE;
-      recordChampionCounts(data);
+      pageCache.set(n, { data: items, hasMore, at: Date.now() });
+      recordChampionCounts(items);
     }
-    return data;
+    return { items, hasMore };
   }
 
-  /** 把原始页追加进本地累积（筛选模式下做本地过滤时用），不改页码与选中 */
-  async function appendRawPage(n: number, gen: number = generation): Promise<void> {
-    const data = await fetchPage(n, gen);
-    if (gen !== generation) return;
+  /** 把原始页追加进本地累积（筛选模式下做本地过滤时用），不改页码与选中；返回原始数据前沿 */
+  async function appendRawPage(n: number, gen: number = generation): Promise<boolean> {
+    const { items, hasMore } = await fetchPage(n, gen);
+    if (gen !== generation) return rawHasMore;
     const seen = new Set(rawBattles.value.map((item) => item.game_id));
-    for (const item of data) {
+    for (const item of items) {
       if (seen.has(item.game_id)) continue;
       seen.add(item.game_id);
       rawBattles.value.push(item);
     }
     fetchedPages = n + 1;
+    rawHasMore = hasMore;
+    return hasMore;
   }
 
   async function loadPage(n: number, gen: number, presetGameId?: string): Promise<void> {
@@ -182,24 +188,26 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
     error.value = null;
     try {
       if (isDefaultFilter(filter.value)) {
-        const data = await fetchPage(n - 1, gen);
+        const { items, hasMore } = await fetchPage(n - 1, gen);
         // 代际不同说明等待期间筛选变了：旧结果直接丢弃
         if (gen !== generation) return;
         const seen = new Set<string>();
         const fresh: BattleSummary[] = [];
-        for (const item of data) {
+        for (const item of items) {
           if (seen.has(item.game_id)) continue;
           seen.add(item.game_id);
           fresh.push(item);
         }
         rawBattles.value = fresh;
         page.value = n;
+        // 只有正式展示这一页时才更新「下一页」状态
+        displayedHasMore.value = hasMore;
         // 定位场景：一次性选中目标；普通翻页才按「本页第一场」兜底
         if (presetGameId && fresh.some((item) => item.game_id === presetGameId)) selectedGameId.value = presetGameId;
         else pickSelection(fresh);
         return;
       }
-      while (filteredAll.value.length < n * PAGE_SIZE && serverHasMore.value && fetchedPages < MAX_RAW_PAGES) {
+      while (filteredAll.value.length < n * PAGE_SIZE && rawHasMore && fetchedPages < MAX_RAW_PAGES) {
         await appendRawPage(fetchedPages, gen);
         if (gen !== generation) return;
       }
@@ -239,7 +247,8 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
     rawBattles.value = [];
     page.value = 1;
     selectedGameId.value = null;
-    serverHasMore.value = true;
+    displayedHasMore.value = true;
+    rawHasMore = true;
     fetchedPages = 0;
     const pending = inflight;
     if (pending) await pending.catch(() => {});
@@ -250,18 +259,19 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
     selectedGameId.value = gameId;
   }
 
-  /** 顺序探测目标所在页（1 基）：近期对局在前，通常 1~2 次即可命中；命中缓存则不请求 */
+  /** 顺序探测目标所在页（1 基）：近期对局在前，通常 1~2 次即可命中；命中缓存则不请求。
+   *  探测只读：不更新当前页的翻页状态。 */
   async function findPageOf(game: BattleSummary): Promise<number | null> {
     for (let n = 1; n <= MAX_RAW_PAGES; n += 1) {
-      let data: BattleSummary[];
+      let page: { items: BattleSummary[]; hasMore: boolean };
       try {
-        data = await fetchPage(n - 1);
+        page = await fetchPage(n - 1);
       } catch (err) {
         error.value = err as Error;
         return null;
       }
-      if (data.some((item) => item.game_id === game.game_id)) return n;
-      if (data.length < PAGE_SIZE) return null;
+      if (page.items.some((item) => item.game_id === game.game_id)) return n;
+      if (!page.hasMore) return null;
     }
     return null;
   }
@@ -308,9 +318,9 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
         return { battle: hit, filterReset };
       }
 
-      // 筛选模式：先看已累积的匹配结果，不够再续拉原始页（不改变当前页码/选中）
+      // 筛选模式：先看已累积的匹配结果，不够再续拉原始页（不改变当前页码；仅成功命中后才翻页）
       let index = filteredAll.value.findIndex((item) => item.game_id === game.game_id);
-      while (index < 0 && serverHasMore.value && fetchedPages < MAX_RAW_PAGES) {
+      while (index < 0 && rawHasMore && fetchedPages < MAX_RAW_PAGES) {
         try {
           await appendRawPage(fetchedPages);
         } catch (err) {
@@ -321,7 +331,8 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
       }
       if (index < 0) return { battle: null, filterReset };
       const targetPage = Math.floor(index / PAGE_SIZE) + 1;
-      await goToPage(targetPage);
+      // 与无筛选分支一致：一次翻页就选中目标，避免先选第一场再改一次选中
+      await goToPage(targetPage, game.game_id);
       if (error.value) return { battle: null, filterReset };
       const hit = visiblePage.value.find((item) => item.game_id === game.game_id) ?? null;
       if (hit) selectedGameId.value = hit.game_id;

@@ -184,26 +184,63 @@ function ensureBridge(): Promise<Window> {
   return bridgeReadyPromise;
 }
 
+function abortError(): DOMException {
+  return new DOMException("aborted", "AbortError");
+}
+
+/** 让「等待桥接就绪」这类没有 signal 参数的等待也能被取消结束 */
+function raceAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(abortError());
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      signal.removeEventListener("abort", onAbort);
+      reject(abortError());
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      }
+    );
+  });
+}
+
 async function requestViaBridge(input: MlolDetailInput, signal?: AbortSignal): Promise<BattleDetail> {
-  const win = await ensureBridge();
+  if (signal?.aborted) throw abortError();
+  const win = await raceAbort(ensureBridge(), signal);
+  if (signal?.aborted) throw abortError();
   const id = "req-" + Date.now() + "-" + Math.floor(Math.random() * 1e6);
   let timer: ReturnType<typeof setTimeout> | undefined;
   const payloadPromise = new Promise<string>((resolve, reject) => {
-    bridgePending.set(id, {
-      resolve: (text) => { if (timer) clearTimeout(timer); resolve(text); },
-      reject: (error) => { if (timer) clearTimeout(timer); reject(error); }
+    let settled = false;
+    const settle = (finish: () => void) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener("abort", onAbort);
+      if (timer) clearTimeout(timer);
+      finish();
+    };
+    const onAbort = () => settle(() => {
+      bridgePending.delete(id);
+      reject(abortError());
     });
-    timer = setTimeout(() => {
-      if (bridgePending.has(id)) {
-        bridgePending.delete(id);
-        reject(new ApiError("BRIDGE_TIMEOUT", "GetBattleDetail(mlol)", "掌盟桥接响应超时"));
-      }
-    }, 15000);
+    bridgePending.set(id, {
+      resolve: (text) => settle(() => resolve(text)),
+      reject: (error) => settle(() => reject(error))
+    });
+    timer = setTimeout(() => settle(() => {
+      bridgePending.delete(id);
+      reject(new ApiError("BRIDGE_TIMEOUT", "GetBattleDetail(mlol)", "掌盟桥接响应超时"));
+    }), 15000);
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener("abort", onAbort, { once: true });
   });
-  signal?.addEventListener("abort", () => {
-    // 丢弃迟到响应即可；Promise 已交由上层竞速处理
-    bridgePending.delete(id);
-  }, { once: true });
   const request: BridgeRequest = {
     type: "lol-tft-detail-request",
     id,
