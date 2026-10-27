@@ -111,3 +111,23 @@ export function getChampionSpells(championId: number): Promise<ChampionSpell[]> 
 
 /** 版本号加载状态（模板可直接依赖） */
 export const versionReady = computed(() => ddragonVersion.value !== null);
+
+let championNames: Map<number, string> | null = null;
+
+/** 拉一次 ddragon 的中文名映射（英雄筛选/近期英雄用） */
+export async function ensureChampionNames(): Promise<void> {
+  if (championNames) return;
+  try {
+    const version = await ensureDdragonVersion();
+    const res = await fetch("https://ddragon.leagueoflegends.com/cdn/" + version + "/data/zh_CN/champion.json");
+    const data = (await res.json()) as { data: Record<string, { key: string; name: string }> };
+    championNames = new Map(Object.values(data.data).map((c) => [Number(c.key), c.name]));
+  } catch {
+    championNames = new Map();
+  }
+}
+
+/** 英雄数字 id -> 中文名（未加载/未知返回空串） */
+export function championName(id: number): string {
+  return championNames?.get(Number(id)) ?? "";
+}

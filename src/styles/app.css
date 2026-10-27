@@ -543,6 +543,35 @@ button {
 .battle-time {
   overflow-wrap: anywhere;
 }
+.battle-kda {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  margin-left: auto;
+}
+.battle-kda-line {
+  color: #e8edf2;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+.battle-kda-line .d {
+  color: #ff6b6b;
+}
+.battle-kda-line i {
+  color: #56606c;
+  font-style: normal;
+  font-weight: 400;
+  margin: 0 3px;
+  font-size: 11px;
+}
+.battle-kda-sub {
+  color: #56606c;
+  font-size: 10px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
 .battle-index {
   position: absolute;
   top: 4px;
@@ -1263,4 +1292,226 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* ---------- 近期表现总览 ---------- */
+.recent-stats {
+  padding: 10px 16px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+.recent-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.recent-title {
+  color: #9aa4b2;
+  font-size: 13px;
+}
+.recent-wl {
+  color: #9aa4b2;
+  font-size: 14px;
+}
+.recent-wl .w { color: #4cd4a0; font-size: 20px; margin-right: 2px; }
+.recent-wl .l { color: #ff6b6b; font-size: 20px; margin: 0 2px; }
+.recent-wr {
+  color: #e6c37a;
+  font-size: 20px;
+  font-weight: 700;
+}
+.recent-kda {
+  color: #e8edf2;
+  font-size: 20px;
+  font-weight: 700;
+}
+.recent-streak {
+  padding: 2px 10px;
+  background-color: rgba(230, 195, 122, 0.15);
+  border-radius: 10px;
+  color: #e6c37a;
+  font-size: 12px;
+}
+.recent-strip {
+  display: flex;
+  gap: 3px;
+  margin: 8px 0;
+}
+.strip-block {
+  width: 18px;
+  height: 6px;
+  border-radius: 2px;
+}
+.strip-win { background-color: #1dbaa9; }
+.strip-lose { background-color: #c15b5b; }
+.recent-champs {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.recent-champs-label {
+  color: #56606c;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.recent-champ {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.recent-champ .game-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.recent-champ-meta {
+  color: #9aa4b2;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+/* ---------- 首页（明确入口） ---------- */
+.page--landing {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 26px 30px;
+}
+.landing-sub {
+  margin-top: -8px;
+  color: #56606c;
+  font-size: 13px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.landing-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.landing-primary {
+  padding: 10px 26px;
+  background-color: rgba(181, 151, 88, 0.2);
+  border: 1px solid #b59758;
+  border-radius: 6px;
+  color: #e6c37a;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+}
+.landing-primary:disabled {
+  opacity: 0.45;
+}
+.landing-hint {
+  color: #56606c;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.landing-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 12px;
+}
+.landing-label {
+  margin-bottom: 8px;
+  color: #56606c;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.landing-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.landing-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 14px;
+  background-color: #242c37;
+  border: 1px solid #2f3844;
+  border-radius: 6px;
+  text-align: left;
+}
+.landing-chip--fav {
+  border-color: rgba(181, 151, 88, 0.45);
+}
+.landing-chip-name {
+  color: #e8edf2;
+  font-size: 13px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.landing-chip-area {
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.fav-star {
+  padding: 2px 6px;
+  color: #56606c;
+  font-size: 15px;
+}
+.fav-star--on {
+  color: #e6c37a;
+}
+
+/* ---------- 详情工具栏（页签+排序在右侧详情头部） ---------- */
+.detail-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.sort-switch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sort-label {
+  color: #56606c;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.sort-button {
+  padding: 4px 12px;
+  background-color: #242c37;
+  border: 1px solid #2f3844;
+  border-radius: 12px;
+  color: #9aa4b2;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.sort-button.active {
+  background-color: rgba(181, 151, 88, 0.2);
+  border-color: #b59758;
+  color: #e6c37a;
+}
+
+/* ---------- 窄窗口：单列 + 详情后置 ---------- */
+@media (max-width: 1100px) {
+  .battle-list-body {
+    flex-direction: column;
+  }
+  .battle-list-side {
+    width: auto !important;
+    max-height: none !important;
+  }
+  .battle-list-detail {
+    min-width: 0 !important;
+  }
+  .detail-player {
+    min-height: 72px;
+    padding: 6px 10px;
+    gap: 10px;
+  }
+  .dp-stat {
+    min-width: 84px;
+  }
+  .dp-stat--kda {
+    min-width: 96px;
+  }
+  .dp-items .game-icon {
+    width: 22px;
+    height: 22px;
+  }
 }

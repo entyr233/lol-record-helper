@@ -23,6 +23,9 @@
               <span class="search-name">{{ nickname }}</span>
               <span class="search-area">{{ getAreaName(player.area) }}</span>
               <span class="search-level">等级: {{ player.level }}</span>
+              <button type="button" class="fav-star" :class="{ 'fav-star--on': isFavorite(player) }"
+                :title="isFavorite(player) ? '取消收藏' : '收藏到首页'"
+                @click.stop="toggleFavorite(player)">{{ isFavorite(player) ? "★" : "☆" }}</button>
               <span class="search-arrow">查看战绩 →</span>
             </button>
           </li>
@@ -93,6 +96,25 @@ const isPrivacyError = computed(() => {
   return code === "8000009" || code === "8000021" || String((err as Error).message).includes("8000009") || String((err as Error).message).includes("8000021");
 });
 
+
+const FAV_KEY = "lol-tft-favorites";
+const favorites = ref<Array<{ name: string; area: number; id: string; level?: number }>>([]);
+try {
+  favorites.value = JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]") as typeof favorites.value;
+} catch { favorites.value = []; }
+
+function isFavorite(player: PlayerSearchResult): boolean {
+  return favorites.value.some((f) => f.id === player.openid && f.area === player.area);
+}
+
+function toggleFavorite(player: PlayerSearchResult): void {
+  if (isFavorite(player)) {
+    favorites.value = favorites.value.filter((f) => !(f.id === player.openid && f.area === player.area));
+  } else {
+    favorites.value = [{ name: props.nickname, area: player.area, id: player.openid, level: player.level }, ...favorites.value].slice(0, 20);
+  }
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(favorites.value)); } catch { /* ignore */ }
+}
 
 function openPlayer(player: PlayerSearchResult): void {
   void router.push({

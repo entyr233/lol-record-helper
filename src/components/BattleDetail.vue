@@ -7,6 +7,15 @@
       <button type="button" class="link-button" @click="run">重试</button>
     </div>
     <template v-else-if="detail">
+      <div class="detail-toolbar">
+        <div class="mode-switch">
+          <button v-for="m in MODES" :key="m" type="button" class="mode-button" :class="{ active: currentMode === m }" @click="currentMode = m">{{ m }}</button>
+        </div>
+        <div class="sort-switch">
+          <span class="sort-label">排序</span>
+          <button v-for="opt in SORT_OPTIONS" :key="opt.key" type="button" class="sort-button" :class="{ active: sortBy === opt.key }" @click="sortBy = opt.key">{{ opt.label }}</button>
+        </div>
+      </div>
       <section v-for="team in teams" :key="team.teamId" class="detail-team" :class="team.resultClass">
         <header class="detail-team-head">
           <span class="team-state">{{ team.resultLabel }}</span>
@@ -16,11 +25,11 @@
           <span v-if="team.teamElo" class="team-elo" title="ELO 评分">{{ team.teamElo }}</span>
         </header>
         <BattleDetailPlayer
-          v-for="player in team.players"
+          v-for="player in teamPlayers(team.players)"
           :key="player.openid"
           :player="player"
           :players="detail.player_details"
-          :mode="mode"
+          :mode="currentMode"
           :hex-aram="isHexAram"
           :is-self="canOpenPlayer && player.openid === selfOpenid"
           @open-summoner="canOpenPlayer && $emit('openSummoner', $event)"
@@ -31,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import BattleDetailPlayer from "./BattleDetailPlayer.vue";
 import { lolBattleApi } from "../api/client";
 import { ApiError, toErrorMessage } from "../api/errors";
@@ -52,10 +61,39 @@ const props = defineProps<{
   startTime?: number | string;
   /** 选中对局的队列 id（2400 = 海克斯大乱斗：无符文，有海克斯强化） */
   queueId?: number | string;
-  mode: "概要" | "技能" | "伤害" | "海克斯";
+  mode?: "概要" | "技能" | "伤害" | "海克斯";
 }>();
 
 const isHexAram = computed(() => Number(props.queueId) === 2400);
+
+/** 模式页签内化到详情头部（左侧列表负责选比赛，右侧负责看详情） */
+const MODES = ["概要", "伤害", "技能", "海克斯"] as const;
+const currentMode = ref<(typeof MODES)[number]>(props.mode ?? "概要");
+watch(() => props.mode, (m) => { if (m) currentMode.value = m; });
+
+type SortKey = "default" | "damage" | "taken" | "gold" | "participation";
+const sortBy = ref<SortKey>("default");
+const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
+  { key: "default", label: "默认" },
+  { key: "damage", label: "输出" },
+  { key: "taken", label: "承伤" },
+  { key: "gold", label: "经济" },
+  { key: "participation", label: "参团" }
+];
+function sortPlayers(players: PlayerDetail[], key: SortKey): PlayerDetail[] {
+  if (key === "default") return players;
+  const sorted = players.slice().sort((a, b) => {
+    if (key === "damage") return (b.totalDamageToChampions || 0) - (a.totalDamageToChampions || 0);
+    if (key === "taken") return (b.totalDamageTaken || 0) - (a.totalDamageTaken || 0);
+    if (key === "gold") return (b.goldEarned || 0) - (a.goldEarned || 0);
+    return ((b.championsKilled + b.assists) / Math.max(1, b.numDeaths)) - ((a.championsKilled + a.assists) / Math.max(1, a.numDeaths));
+  });
+  return sorted;
+}
+/** 排序后的队伍（模板用） */
+function teamPlayers(players: PlayerDetail[]): PlayerDetail[] {
+  return sortPlayers(players, sortBy.value);
+}
 
 defineEmits<{ openSummoner: [player: PlayerDetail] }>();
 

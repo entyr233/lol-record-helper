@@ -18,6 +18,10 @@
       </span>
       <span class="battle-time" title="对局开始时间">{{ startTime }}</span>
     </span>
+    <span class="battle-kda" title="击杀/死亡/助攻">
+      <span class="battle-kda-line"><b>{{ battle.kills ?? 0 }}</b><i>/</i><b class="d">{{ battle.deaths ?? 0 }}</b><i>/</i><b>{{ battle.assists ?? 0 }}</b></span>
+      <span class="battle-kda-sub">KDA</span>
+    </span>
     <span class="battle-index">#{{ index + 1 }}</span>
   </li>
 </template>
