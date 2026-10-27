@@ -12,6 +12,12 @@
         <span v-if="viewedTeam" class="detail-summary-result" :class="'detail-summary-result--' + viewedTeam.resultClass">{{ viewedTeam.resultLabel }}</span>
         <span v-if="viewedPlayer" class="detail-summary-name">{{ decodedPlayerName(viewedPlayer) }}</span>
         <span class="detail-summary-meta">{{ summaryMeta }}</span>
+        <button
+          type="button"
+          class="detail-copy"
+          :class="{ 'detail-copy--done': copied }"
+          @click="copyBattleText"
+        >{{ copied ? "已复制" : "复制战绩" }}</button>
       </div>
       <div class="detail-toolbar">
         <div class="mode-switch">
@@ -28,7 +34,7 @@
       <section v-for="team in teams" :key="team.teamId" class="detail-team" :class="team.resultClass">
         <header class="detail-team-head">
           <span class="team-state">{{ team.resultLabel }}</span>
-          <span class="team-side">({{ team.teamId === "100" ? "蓝方" : "红方" }})</span>
+          <span class="team-side">({{ sideLabel(team.teamId) }})</span>
           <span class="team-kda">{{ team.totalKills }} / {{ team.totalDeaths }} / {{ team.totalAssists }}</span>
           <span class="team-spacer"></span>
           <span v-if="team.teamElo" class="team-elo" title="ELO 评分">{{ team.teamElo }}</span>
@@ -42,6 +48,7 @@
           :hex-aram="isHexAram"
           :rank-info="rankOf(team.players, player, sortBy)"
           :is-self="canOpenPlayer && player.openid === viewedOpenid"
+          :same-team="viewedTeam ? player.teamId === viewedTeam.teamId : null"
           @open-summoner="canOpenPlayer && $emit('openSummoner', $event)"
         />
       </section>
@@ -50,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import GameIcon from "./GameIcon.vue";
 import BattleDetailPlayer from "./BattleDetailPlayer.vue";
 import { lolBattleApi } from "../api/client";
@@ -61,7 +68,7 @@ import type { BattleDetail, PlayerDetail } from "../api/types";
 import { toRqOptions } from "../composables/useUserInfo";
 import { useAsyncData } from "../composables/useAsyncData";
 import { getResultClass, getResultLabel } from "../const/wins";
-import { formatDateTime, formatDuration } from "../utils/format";
+import { formatDateTime, formatDuration, kdaRatio } from "../utils/format";
 import { getQueueName } from "../const/queues";
 
 const diag = lastCaptchaAttempt;
@@ -99,6 +106,10 @@ const summaryMeta = computed(() => {
 function decodedPlayerName(player: PlayerDetail | null): string {
   if (!player) return "";
   try { return decodeURIComponent(player.name || ""); } catch { return player.name || ""; }
+}
+/** 队伍阵营文案（team 100 = 蓝方） */
+function sideLabel(teamId: string): string {
+  return teamId === "100" ? "蓝方" : "红方";
 }
 function queueNameById(queueId: number): string {
   return getQueueName(Number(queueId)) || "";
@@ -259,5 +270,63 @@ const viewedTeam = computed(() => {
   const player = viewedPlayer.value;
   if (!player) return null;
   return teams.value.find((team) => team.players.some((item) => item.openid === player.openid)) ?? null;
+});
+
+/** 「已复制」提示的存活时间（毫秒） */
+const COPY_DONE_MS = 1500;
+const copied = ref(false);
+let copiedTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** 单行玩家战绩：昵称 击杀/死亡/助攻（KDA） */
+function playerLine(player: PlayerDetail): string {
+  const kda = kdaRatio(player.championsKilled, player.numDeaths, player.assists).toFixed(2);
+  return (
+    decodedPlayerName(player) + " " +
+    (player.championsKilled || 0) + "/" + (player.numDeaths || 0) + "/" + (player.assists || 0) +
+    "（" + kda + "）"
+  );
+}
+/** 每队一行：蓝方：玩家一 6/8/10（1.53）、玩家二 2/3/4（2.00） */
+function teamLine(team: { teamId: string; players: PlayerDetail[] }): string {
+  return sideLabel(team.teamId) + "：" + team.players.map(playerLine).join("、");
+}
+/** 复制用的纯文本：首行【胜负】阵营 击杀/死亡/助攻 · 队列 · 时间 · 时长，随后每队一行 */
+const battleText = computed(() => {
+  if (!detail.value) return "";
+  const head: string[] = [];
+  const team = viewedTeam.value;
+  if (team) {
+    head.push(
+      "【" + team.resultLabel + "】" + sideLabel(team.teamId) + " " +
+      team.totalKills + "/" + team.totalDeaths + "/" + team.totalAssists
+    );
+  }
+  if (summaryMeta.value) head.push(summaryMeta.value);
+  const lines: string[] = [];
+  if (head.length > 0) lines.push(head.join(" · "));
+  for (const item of teams.value) lines.push(teamLine(item));
+  return lines.join("\n");
+});
+
+/** 复制本场战绩：写剪贴板失败时静默，不打断查看 */
+async function copyBattleText(): Promise<void> {
+  const text = battleText.value;
+  if (!text || !navigator.clipboard?.writeText) return;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    return;
+  }
+  copied.value = true;
+  if (copiedTimer !== null) clearTimeout(copiedTimer);
+  copiedTimer = setTimeout(() => {
+    copied.value = false;
+    copiedTimer = null;
+  }, COPY_DONE_MS);
+}
+
+onUnmounted(() => {
+  if (copiedTimer !== null) clearTimeout(copiedTimer);
+  copiedTimer = null;
 });
 </script>

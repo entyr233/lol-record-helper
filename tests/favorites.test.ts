@@ -151,3 +151,95 @@ describe("useFavorites 三元组收藏", () => {
     expect(first.favorites.value).toEqual([]);
   });
 });
+
+describe("useFavorites 备注/分组与排序", () => {
+  it("旧数据缺 note/group 时正常读取，不补空字段；补齐后立即持久化", async () => {
+    localStorage.setItem(FAV_KEY, JSON.stringify([
+      { name: "老玩家", area: 1, accountType: "2", id: "10", savedAt: 5 }
+    ]));
+    const { favoriteKey, useFavorites } = await loadFavoritesModule();
+    const { favorites, update } = useFavorites();
+
+    // 缺字段不报错，也不写 undefined，保持与旧版本落盘一致
+    expect(favorites.value).toEqual([
+      { name: "老玩家", area: 1, accountType: "2", id: "10", savedAt: 5 }
+    ]);
+    expect("note" in favorites.value[0]!).toBe(false);
+    expect("group" in favorites.value[0]!).toBe(false);
+
+    update(favoriteKey(favorites.value[0]!), { group: "老友" });
+    const stored = JSON.parse(localStorage.getItem(FAV_KEY) as string) as Array<Record<string, unknown>>;
+    expect(stored[0]!.group).toBe("老友");
+    expect(stored[0]!.note).toBeUndefined();
+  });
+
+  it("读取时规整 note/group：去掉首尾空白，非字符串或空串视为未设置", async () => {
+    localStorage.setItem(FAV_KEY, JSON.stringify([
+      { name: "甲", area: 1, accountType: "2", id: "10", note: "  双排  ", group: " 车队 " },
+      { name: "乙", area: 1, accountType: "2", id: "11", note: "   ", group: 42 }
+    ]));
+    const { useFavorites } = await loadFavoritesModule();
+    const { favorites } = useFavorites();
+
+    expect(favorites.value[0]).toMatchObject({ note: "双排", group: "车队" });
+    expect("note" in favorites.value[1]!).toBe(false);
+    expect("group" in favorites.value[1]!).toBe(false);
+  });
+
+  it("update 写入备注/分组并立即持久化，savedAt 与顺序都不变", async () => {
+    const { favoriteKey, useFavorites } = await loadFavoritesModule();
+    const { favorites, toggle, update } = useFavorites();
+
+    toggle({ name: "甲", area: 1, accountType: "2", id: "10" });
+    const key = favoriteKey({ area: 1, accountType: "2", id: "10" });
+    const savedAt = favorites.value[0]!.savedAt;
+
+    update(key, { note: "  一起双排  ", group: "车队" });
+    expect(favorites.value).toHaveLength(1);
+    expect(favorites.value[0]).toMatchObject({ name: "甲", note: "一起双排", group: "车队", savedAt });
+    expect(JSON.parse(localStorage.getItem(FAV_KEY) as string)[0]).toMatchObject({
+      note: "一起双排", group: "车队", savedAt
+    });
+
+    // 空串清除备注，分组与 savedAt 不受影响
+    update(key, { note: "" });
+    expect(favorites.value[0]!.note).toBeUndefined();
+    expect(favorites.value[0]!.group).toBe("车队");
+    expect(favorites.value[0]!.savedAt).toBe(savedAt);
+    expect((JSON.parse(localStorage.getItem(FAV_KEY) as string)[0] as Record<string, unknown>).note).toBeUndefined();
+
+    // 未知 key：no-op，不影响已有条目
+    update("9:9:9", { note: "不存在" });
+    expect(favorites.value[0]!.note).toBeUndefined();
+    expect(favorites.value[0]!.group).toBe("车队");
+  });
+
+  it("move 调整顺序并持久化，找不到 key 时 no-op", async () => {
+    const { favoriteKey, useFavorites } = await loadFavoritesModule();
+    const { favorites, toggle, move } = useFavorites();
+    const keyOf = (id: string): string => favoriteKey({ area: 1, accountType: "2", id });
+
+    // toggle 新条目插到最前，得到 丙(12) 乙(11) 甲(10)
+    toggle({ name: "甲", area: 1, accountType: "2", id: "10" });
+    toggle({ name: "乙", area: 1, accountType: "2", id: "11" });
+    toggle({ name: "丙", area: 1, accountType: "2", id: "12" });
+    expect(favorites.value.map((entry) => entry.id)).toEqual(["12", "11", "10"]);
+
+    // 向上拖动：甲拖到 丙 的位置 → 落在目标之前
+    move(keyOf("10"), keyOf("12"));
+    expect(favorites.value.map((entry) => entry.id)).toEqual(["10", "12", "11"]);
+
+    // 向下拖动：甲拖到 丙 的位置 → 落在目标之后
+    move(keyOf("10"), keyOf("12"));
+    // 此时 甲 已在首位，12 在第二位：向下拖到 12 位置后落到其后
+    expect(favorites.value.map((entry) => entry.id)).toEqual(["12", "10", "11"]);
+    expect(JSON.parse(localStorage.getItem(FAV_KEY) as string).map((entry: { id: string }) => entry.id))
+      .toEqual(["12", "10", "11"]);
+
+    // 拖回自己 / 未知 key：保持原顺序
+    move(keyOf("12"), keyOf("12"));
+    move("9:9:9", keyOf("12"));
+    move(keyOf("12"), "9:9:9");
+    expect(favorites.value.map((entry) => entry.id)).toEqual(["12", "10", "11"]);
+  });
+});

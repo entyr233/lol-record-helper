@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { defineComponent, h } from "vue";
 import BattleDetailView from "../src/components/BattleDetail.vue";
@@ -153,6 +153,24 @@ function selfFlags(wrapper: Awaited<ReturnType<typeof mountDetail>>): Record<str
   return flags;
 }
 
+/** 给玩家行收集同队标记（stub 未声明 sameTeam，属性透传到根元素） */
+function sameTeamFlags(wrapper: Awaited<ReturnType<typeof mountDetail>>): Record<string, string | undefined> {
+  const flags: Record<string, string | undefined> = {};
+  for (const row of wrapper.findAll(".player-stub")) {
+    flags[String(row.attributes("data-openid"))] = row.attributes("same-team");
+  }
+  return flags;
+}
+
+/** jsdom 默认没有 navigator.clipboard，需要手动定义 */
+function stubClipboard(writeText: (text: string) => Promise<void>): void {
+  Object.defineProperty(navigator, "clipboard", {
+    value: { writeText },
+    configurable: true,
+    writable: true
+  });
+}
+
 beforeEach(() => {
   getBattleDetailMock.mockReset();
   getSummonerInfoMock.mockReset();
@@ -262,5 +280,99 @@ describe("BattleDetail 摘要身份一致", () => {
     expect(labels).toEqual(["概要", "伤害", "技能"]);
     expect(wrapper.find(".mode-button.active").text()).toBe("概要");
     expect(wrapper.text()).not.toContain("本场无强化记录");
+  });
+});
+
+describe("BattleDetail 同队/对手标记", () => {
+  it("身份明确时同队玩家传 true、对手玩家传 false", async () => {
+    getBattleDetailMock.mockResolvedValue(makeResponse("openid-blue"));
+
+    const wrapper = await mountDetail();
+
+    expect(sameTeamFlags(wrapper)).toEqual({ "openid-blue": "true", "openid-red": "false" });
+  });
+
+  it("掌盟源身份未知时不给任何玩家打同队标记（保持 null）", async () => {
+    getBattleDetailMock.mockRejectedValue(new ApiError("8000102", "GetBattleDetail", "登录状态已失效"));
+    fetchMlolMock.mockResolvedValue(makeMlolDetail());
+
+    const wrapper = await mountDetail({ accountType: "1" });
+
+    expect(sameTeamFlags(wrapper)).toEqual({
+      "mlol-my-1": undefined,
+      "mlol-my-2": undefined,
+      "mlol-opp-1": undefined
+    });
+  });
+});
+
+describe("BattleDetail 复制本场战绩", () => {
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, "clipboard");
+  });
+
+  it("点击复制写入含胜负、双方阵营与玩家名的文本，按钮变为「已复制」", async () => {
+    getBattleDetailMock.mockResolvedValue(makeResponse("openid-blue"));
+    const writeText = vi.fn(async (_text: string) => {});
+    stubClipboard(writeText);
+
+    const wrapper = await mountDetail();
+    const button = wrapper.find(".detail-copy");
+    expect(button.text()).toBe("复制战绩");
+
+    await button.trigger("click");
+    await flushPromises();
+
+    expect(writeText).toHaveBeenCalledTimes(1);
+    const text = String(writeText.mock.calls[0][0]);
+    const lines = text.split("\n");
+    // 首行：结果 + 阵营 + 全队 K/D/A + 队列 + 时间 + 时长
+    expect(lines[0]).toContain("【胜利】蓝方");
+    expect(lines[0]).toContain("10/8/20");
+    expect(lines[0]).toContain("单双排");
+    // 每队一行，玩家后附 KDA（(3+5)/2 = 4.00）
+    expect(lines[1]).toBe("蓝方：蓝方玩家 3/2/5（4.00）");
+    expect(lines[2]).toBe("红方：红方玩家 3/2/5（4.00）");
+
+    expect(button.text()).toBe("已复制");
+    expect(button.classes()).toContain("detail-copy--done");
+  });
+
+  it("剪贴板写入失败时静默，按钮保持「复制战绩」", async () => {
+    getBattleDetailMock.mockResolvedValue(makeResponse("openid-red"));
+    const writeText = vi.fn(async (_text: string): Promise<void> => {
+      throw new Error("浏览器拒绝写入剪贴板");
+    });
+    stubClipboard(writeText);
+
+    const wrapper = await mountDetail();
+    const button = wrapper.find(".detail-copy");
+    await button.trigger("click");
+    await flushPromises();
+
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(wrapper.find(".state-text--error").exists()).toBe(false);
+    expect(button.text()).toBe("复制战绩");
+    expect(wrapper.find(".detail-copy--done").exists()).toBe(false);
+  });
+
+  it("「已复制」提示 1.5 秒后自动恢复为「复制战绩」", async () => {
+    getBattleDetailMock.mockResolvedValue(makeResponse("openid-blue"));
+    stubClipboard(vi.fn(async (_text: string) => {}));
+
+    const wrapper = await mountDetail();
+    const button = wrapper.find(".detail-copy");
+    // 挂载阶段用真实定时器，进入提示周期后再接管
+    vi.useFakeTimers();
+    try {
+      await button.trigger("click");
+      await vi.advanceTimersByTimeAsync(0);
+      expect(button.text()).toBe("已复制");
+
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(button.text()).toBe("复制战绩");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -27,6 +27,9 @@
     <span class="dp-summoner">
       <button type="button" class="dp-name" @click="$emit('openSummoner', player)">{{ decodedName }}</button>
       <span class="dp-tags">
+        <!-- 当前查看玩家本身已有高亮，不再额外贴阵营标签 -->
+        <span v-if="!isSelf && sameTeam === true" class="tag tag--same">同队</span>
+        <span v-else-if="!isSelf && sameTeam === false" class="tag tag--opp">对手</span>
         <span v-if="player.battleHonour?.isSvp" class="tag tag--svp">SVP</span>
         <span v-if="player.battleHonour?.isMvp" class="tag tag--mvp">MVP</span>
         <span v-if="player.wasAfk" class="tag tag--afk">逃跑</span>
@@ -41,17 +44,17 @@
     </span>
 
     <template v-if="mode === '概要'">
-      <span class="dp-stat dp-stat--kda">
+      <span class="dp-stat dp-stat--kda" title="击杀/死亡/助攻">
         <span class="stat-value">
           <b class="kill">{{ player.championsKilled }}</b><i>/</i><b class="death">{{ player.numDeaths }}</b><i>/</i><b class="assist">{{ player.assists }}</b>
         </span>
         <span class="stat-sub stat-sub--kda" :class="kdaClass">{{ kdaText }} · 参与{{ killParticipation }}%</span>
       </span>
-      <span class="dp-stat">
+      <span class="dp-stat" title="伤害占团队比例">
         <span class="stat-value">{{ damageShare }}%</span>
         <span class="stat-sub">{{ formatThousands(player.totalDamageToChampions) }} 伤害</span>
       </span>
-      <span class="dp-stat">
+      <span class="dp-stat" title="补刀/经济">
         <span class="stat-value">{{ player.minionsKilled ?? "-" }}</span>
         <span class="stat-sub">经济 {{ formatThousands(player.goldEarned) }}</span>
       </span>
@@ -91,6 +94,7 @@
           color="#c85f13"
           :text="formatThousands(player.totalDamageToChampions)"
           :highlight="isTop('totalDamageToChampions')"
+          title="对英雄总伤害"
         />
         <Histogram
           :value="player.magicDamageToChampions"
@@ -98,6 +102,7 @@
           color="#7574c9"
           :text="formatThousands(player.magicDamageToChampions)"
           :highlight="isTop('magicDamageToChampions')"
+          title="魔法伤害"
         />
         <Histogram
           :value="player.physicalDamageToChampions"
@@ -105,6 +110,7 @@
           color="#009cda"
           :text="formatThousands(player.physicalDamageToChampions)"
           :highlight="isTop('physicalDamageToChampions')"
+          title="物理伤害"
         />
         <Histogram
           :value="player.trueDemageToChampions"
@@ -112,6 +118,7 @@
           color="#cccccc"
           :text="formatThousands(player.trueDemageToChampions)"
           :highlight="isTop('trueDemageToChampions')"
+          title="真实伤害"
         />
       </span>
     </template>
@@ -146,6 +153,8 @@ const props = defineProps<{
   hexAram?: boolean;
   /** 排序模式的行内名次与对应数值 */
   rankInfo?: { rank: number; label: string } | null;
+  /** 与当前查看玩家的队伍关系：true 同队 / false 对手 / null 未知（不显示徽标） */
+  sameTeam?: boolean | null;
 }>();
 
 defineEmits<{ openSummoner: [player: PlayerDetail] }>();

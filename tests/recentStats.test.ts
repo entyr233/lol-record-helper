@@ -253,9 +253,8 @@ describe("RecentStats 模式切换", () => {
     const wrapper = render();
     try {
       await flushPromises();
-      expect(wrapper.get(".recent-trend-label").text()).toBe("胜率趋势");
-      const chart = wrapper.get(".recent-trend-chart");
-      expect(chart.attributes("title")).toContain("最近 3 场累计胜率");
+      expect(wrapper.get(".recent-side-title").text()).toBe("胜率趋势（累计）");
+      expect(wrapper.get(".recent-side").attributes("title")).toContain("最近 3 场累计胜率");
       expect(wrapper.findAll(".trend-dot")).toHaveLength(3);
       expect(wrapper.find(".trend-line").exists()).toBe(true);
       // 折线号点按时间从旧到新：最后一场累计 2 胜 1 负 → 67%

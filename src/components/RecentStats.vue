@@ -1,57 +1,61 @@
 <template>
   <div v-if="games.length" class="recent-stats">
-    <div class="recent-headline">
-      <span class="recent-title">{{ titleText }}</span>
-      <template v-if="sample.length">
-        <span class="recent-wl"><b class="w">{{ wins }}</b>胜<b class="l">{{ losses }}</b>负</span>
-        <span v-if="remakes" class="recent-remake">（重开 {{ remakes }}）</span>
-        <span class="recent-wr" :title="'胜率 = 胜 /（胜 + 负），重开不计入分母'">{{ winRate }}% 胜率</span>
-        <span class="recent-kda" :title="'KDA =（击杀 + 助攻）/ 死亡；样本：' + titleText">{{ avgKda }} KDA</span>
-        <span v-if="streak" class="recent-streak" :class="{ 'recent-streak--lose': firstIsLose }">{{ streak }}</span>
-      </template>
-    </div>
-    <div class="mode-filter recent-modes" role="group" aria-label="选择统计模式">
-      <button v-for="option in MODE_OPTIONS" :key="String(option.key)" type="button"
-        class="mode-filter-tab" :class="{ 'mode-filter-tab--cur': selectedMode === option.key }"
-        :aria-pressed="selectedMode === option.key"
-        @click="selectMode(option.key)">{{ option.label }}</button>
-    </div>
-    <template v-if="sample.length">
-      <div class="recent-strip" :title="stripTitle">
-        <button v-for="(g, index) in recentGames" :key="g.game_id" type="button"
-          class="strip-block strip-block--btn" :class="{ 'strip-block--cur': g.game_id === activeGameId }"
-          :aria-pressed="g.game_id === activeGameId" :aria-label="stripAriaLabel(g, index)" :title="stripBlockTitle(g, index)"
-          @click="$emit('focusGame', g)">
-          <span class="strip-bar" :class="'strip-bar--' + classifyBattle(g)"></span>
-        </button>
+    <div class="recent-main">
+      <div class="recent-headline">
+        <span class="recent-title">{{ titleText }}</span>
+        <template v-if="sample.length">
+          <span class="recent-wl"><b class="w">{{ wins }}</b>胜<b class="l">{{ losses }}</b>负</span>
+          <span v-if="remakes" class="recent-remake">（重开 {{ remakes }}）</span>
+          <span class="recent-wr" :title="'胜率 = 胜 /（胜 + 负），重开不计入分母'">{{ winRate }}% 胜率</span>
+          <span class="recent-kda" :title="'KDA =（击杀 + 助攻）/ 死亡；样本：' + titleText">{{ avgKda }} KDA</span>
+          <span v-if="streak" class="recent-streak" :class="{ 'recent-streak--lose': firstIsLose }">{{ streak }}</span>
+        </template>
       </div>
-      <div v-if="trend.length" class="recent-trend">
-        <span class="recent-trend-label">胜率趋势</span>
-        <span class="recent-trend-chart" :title="trendTitle">
-          <svg width="168" height="40" viewBox="0 0 168 40" aria-hidden="true">
-            <line x1="4" y1="20" x2="164" y2="20" class="trend-baseline" />
+      <div class="mode-filter recent-modes" role="group" aria-label="选择统计模式">
+        <button v-for="option in MODE_OPTIONS" :key="String(option.key)" type="button"
+          class="mode-filter-tab" :class="{ 'mode-filter-tab--cur': selectedMode === option.key }"
+          :aria-pressed="selectedMode === option.key"
+          @click="selectMode(option.key)">{{ option.label }}</button>
+      </div>
+      <template v-if="sample.length">
+        <div class="recent-strip" :title="stripTitle">
+          <button v-for="(g, index) in recentGames" :key="g.game_id" type="button"
+            class="strip-block strip-block--btn" :class="{ 'strip-block--cur': g.game_id === activeGameId }"
+            :aria-pressed="g.game_id === activeGameId" :aria-label="stripAriaLabel(g, index)" :title="stripBlockTitle(g, index)"
+            @click="$emit('focusGame', g)">
+            <span class="strip-bar" :class="'strip-bar--' + classifyBattle(g)"></span>
+          </button>
+        </div>
+        <div class="recent-champs">
+          <span class="recent-champs-label">常用英雄（点击筛选）</span>
+          <button v-for="c in topChampions" :key="c.id" type="button" class="recent-champ"
+            :title="c.count + '场 ' + c.wins + '胜 · 点击筛选该英雄战绩'"
+            @click="$emit('filterChampion', c.id)">
+            <GameIcon kind="champion" :id="c.id" />
+            <span class="recent-champ-meta">{{ c.count }}场 {{ c.wins }}胜</span>
+          </button>
+          <button v-if="activeChampion" type="button" class="recent-champ-filter-clear" @click="$emit('filterChampion', null)">
+            清除筛选：{{ championName(activeChampion) }} ×
+          </button>
+        </div>
+      </template>
+      <p v-else class="recent-empty">{{ emptyText }}</p>
+    </div>
+    <div v-if="trend.length" class="recent-side" :title="trendTitle">
+      <p class="recent-side-title">胜率趋势（累计）</p>
+      <div class="recent-trend">
+        <span class="recent-trend-chart">
+          <svg width="196" height="46" viewBox="0 0 196 46" aria-hidden="true">
+            <line x1="4" y1="24" x2="192" y2="24" class="trend-baseline" />
             <polyline class="trend-line" :points="trendPoints" />
-            <circle v-for="point in trend" :key="point.key" class="trend-dot" :cx="point.x" :cy="point.y" r="1.8">
+            <circle v-for="point in trend" :key="point.key" class="trend-dot" :cx="point.x" :cy="point.y" r="1.9">
               <title>{{ trendPointTitle(point) }}</title>
             </circle>
           </svg>
-          <span class="recent-trend-dates">{{ trendFirstLabel }} → {{ trendLastLabel }}</span>
         </span>
       </div>
-      <div class="recent-champs">
-        <span class="recent-champs-label">常用英雄（点击筛选）</span>
-        <button v-for="c in topChampions" :key="c.id" type="button" class="recent-champ"
-          :title="c.count + '场 ' + c.wins + '胜 · 点击筛选该英雄战绩'"
-          @click="$emit('filterChampion', c.id)">
-          <GameIcon kind="champion" :id="c.id" />
-          <span class="recent-champ-meta">{{ c.count }}场 {{ c.wins }}胜</span>
-        </button>
-        <button v-if="activeChampion" type="button" class="recent-champ-filter-clear" @click="$emit('filterChampion', null)">
-          清除筛选：{{ championName(activeChampion) }} ×
-        </button>
-      </div>
-    </template>
-    <p v-else class="recent-empty">{{ emptyText }}</p>
+      <span class="recent-trend-dates">{{ trendFirstLabel }} → {{ trendLastLabel }}</span>
+    </div>
   </div>
 </template>
 
@@ -276,7 +280,8 @@ interface TrendPoint {
   y: number;
 }
 
-const TREND_WIDTH = 168;
+const TREND_WIDTH = 196;
+const TREND_PADDING = 4;
 
 function dateLabelOf(g: BattleSummary): string {
   const ts = Number(g.game_start_time);
@@ -302,11 +307,11 @@ const trend = computed<TrendPoint[]>(() => {
     const decided = wins + losses;
     points.push({ key: g.game_id, label: dateLabelOf(g), winRate: decided ? Math.round((wins / decided) * 100) : 0 });
   }
-  const step = (TREND_WIDTH - 8) / Math.max(1, points.length - 1);
+  const step = (TREND_WIDTH - TREND_PADDING * 2) / Math.max(1, points.length - 1);
   return points.map((point, index) => ({
     ...point,
-    x: 4 + index * step,
-    y: 34 - (point.winRate / 100) * 28
+    x: TREND_PADDING + index * step,
+    y: 38 - (point.winRate / 100) * 34
   }));
 });
 const trendPoints = computed(() => trend.value.map((point) => point.x.toFixed(1) + "," + point.y.toFixed(1)).join(" "));

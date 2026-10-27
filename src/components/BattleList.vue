@@ -27,10 +27,25 @@
           </div>
           <p class="sample-note">{{ sampleText }}</p>
           <p v-if="notice" class="list-notice">{{ notice }}</p>
-          <ul class="battle-list-items">
-            <li v-if="!battles.length && loading" class="state-text">加载中…</li>
+          <ul
+            ref="listEl"
+            class="battle-list-items"
+            tabindex="0"
+            @keydown.up.prevent="moveSelection(-1)"
+            @keydown.down.prevent="moveSelection(1)"
+          >
+            <template v-if="!battles.length && loading">
+              <li v-for="n in 6" :key="n" class="battle-skeleton">
+                <span class="skeleton-block skeleton-block--avatar"></span>
+                <span class="skeleton-lines">
+                  <span class="skeleton-line"></span>
+                  <span class="skeleton-line skeleton-line--short"></span>
+                </span>
+              </li>
+            </template>
             <li v-else-if="!battles.length && error" class="state-text state-text--error">
               {{ toErrorMessage(error) }}
+              <button type="button" class="list-retry" @click="retryCurrent">重试</button>
             </li>
             <li v-else-if="!battles.length" class="state-text">当前筛选下没有对局</li>
             <BattleListItem
@@ -50,6 +65,7 @@
           </div>
           <p v-if="error && battles.length" class="state-text state-text--error load-error">
             翻页失败：{{ toErrorMessage(error) }}
+            <button type="button" class="list-retry" @click="retryCurrent">重试</button>
           </p>
         </div>
 
@@ -104,6 +120,8 @@ const emit = defineEmits<{
 }>();
 
 const listRoot = ref<HTMLElement | null>(null);
+/** 对局列表容器：键盘 ↑/↓ 与点选后都从这里接管焦点 */
+const listEl = ref<HTMLElement | null>(null);
 const rqOptions = computed(() => toRqOptions({ area: props.area, accountType: props.accountType, id: props.id }));
 const listState = useBattleList(() => rqOptions.value);
 const {
@@ -212,10 +230,31 @@ const selectedQueueId = computed(() => {
   return source?.game_queue_id;
 });
 
-/** 用户手动点选对局：清掉 focusGame 的兜底数据 */
+/** 用户手动点选对局：清掉 focusGame 的兜底数据，并把焦点交给列表（键盘可继续 ↑/↓） */
 function onSelect(gameId: string): void {
   focusedBattle.value = null;
   select(gameId);
+  listEl.value?.focus();
+}
+
+/** 错误原位重试：按当前页码重新请求（首屏失败为第 1 页，翻页失败则重试该页） */
+function retryCurrent(): void {
+  void goToPage(page.value);
+}
+
+/** 键盘 ↑/↓：在当前页对局间移动选中，并滚动到可见区域 */
+async function moveSelection(step: number): Promise<void> {
+  if (!battles.value.length) return;
+  const found = battles.value.findIndex((item) => item.game_id === selectedGameId.value);
+  const index = found < 0 ? 0 : found;
+  const next = Math.min(Math.max(index + step, 0), battles.value.length - 1);
+  focusedBattle.value = null;
+  select(battles.value[next].game_id);
+  await nextTick();
+  // jsdom 里没有 scrollIntoView，做可选调用保护
+  const nodes = listEl.value?.querySelectorAll<HTMLElement>("[data-game-id]") ?? [];
+  const target = Array.from(nodes).find((node) => node.dataset.gameId === selectedGameId.value);
+  target?.scrollIntoView?.({ block: "nearest" });
 }
 
 /** 列表上方提示（定位失败/发生过筛选重置），4 秒后自动清空 */

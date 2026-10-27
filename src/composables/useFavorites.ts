@@ -15,6 +15,10 @@ export interface FavoriteEntry {
   accountType: string;
   id: string;
   level?: number;
+  /** 备注：常看玩家的自定义说明（空字符串按未设置处理，落盘时不出现该字段） */
+  note?: string;
+  /** 分组名：弹层里按首次出现顺序分组展示，未设置的归入「未分组」 */
+  group?: string;
   savedAt: number;
 }
 
@@ -33,6 +37,13 @@ function toAccountType(value: unknown): string {
   return value === undefined || value === null || value === "" ? "2" : String(value);
 }
 
+/** 备注/分组这类可选文本：去掉首尾空白，空串视为未设置 */
+function toOptionalText(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const text = value.trim();
+  return text ? text : undefined;
+}
+
 /** 把任意来源的条目规整成 FavoriteEntry；缺 id 的条目无法定位玩家，直接丢弃 */
 function toFavoriteEntry(raw: unknown): FavoriteEntry | null {
   if (!raw || typeof raw !== "object") return null;
@@ -47,6 +58,11 @@ function toFavoriteEntry(raw: unknown): FavoriteEntry | null {
     savedAt: typeof item.savedAt === "number" && Number.isFinite(item.savedAt) ? item.savedAt : 0
   };
   if (typeof item.level === "number" && Number.isFinite(item.level)) entry.level = item.level;
+  // 旧版本没有 note/group 字段：缺省即不写，兼容读取
+  const note = toOptionalText(item.note);
+  if (note) entry.note = note;
+  const group = toOptionalText(item.group);
+  if (group) entry.group = group;
   return entry;
 }
 
@@ -119,6 +135,8 @@ export function useFavorites(): {
   isFavorite: (target: FavoriteTarget) => boolean;
   toggle: (entry: FavoriteInput) => void;
   remove: (key: string) => void;
+  update: (key: string, patch: { note?: string; group?: string }) => void;
+  move: (fromKey: string, toKey: string) => void;
   clear: () => void;
 } {
   /** 读 computed，保证在组件 computed/模板里调用时保持响应式 */
@@ -141,9 +159,44 @@ export function useFavorites(): {
     favorites.value = favorites.value.filter((item) => favoriteKey(item) !== key);
   }
 
+  /** 更新备注/分组（savedAt 与顺序都不变）；patch 里传空串表示清除该字段 */
+  function update(key: string, patch: { note?: string; group?: string }): void {
+    favorites.value = favorites.value.map((item) => {
+      if (favoriteKey(item) !== key) return item;
+      const next: FavoriteEntry = { ...item };
+      if ("note" in patch) {
+        const note = toOptionalText(patch.note);
+        if (note) next.note = note;
+        else delete next.note;
+      }
+      if ("group" in patch) {
+        const group = toOptionalText(patch.group);
+        if (group) next.group = group;
+        else delete next.group;
+      }
+      return next;
+    });
+  }
+
+  /**
+   * 拖拽排序：把 fromKey 条目移动到 toKey 原本所在的下标位置。
+   * 向下拖动会落在目标之后、向上拖动会落在目标之前；任一 key 找不到时 no-op。
+   */
+  function move(fromKey: string, toKey: string): void {
+    if (!fromKey || !toKey || fromKey === toKey) return;
+    const list = favorites.value.slice();
+    const fromIndex = list.findIndex((item) => favoriteKey(item) === fromKey);
+    const toIndex = list.findIndex((item) => favoriteKey(item) === toKey);
+    if (fromIndex < 0 || toIndex < 0) return;
+    const moved = list.splice(fromIndex, 1)[0];
+    if (!moved) return;
+    list.splice(toIndex, 0, moved);
+    favorites.value = list;
+  }
+
   function clear(): void {
     favorites.value = [];
   }
 
-  return { favorites, isFavorite, toggle, remove, clear };
+  return { favorites, isFavorite, toggle, remove, update, move, clear };
 }

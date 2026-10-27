@@ -275,6 +275,54 @@ button {
   font-size: 12px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
+/* 收藏分组 / 备注 / 拖拽排序 */
+.favorite-group + .favorite-group {
+  margin-top: 4px;
+}
+.favorite-group-title {
+  margin: 6px 8px 2px;
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.favorite-note {
+  overflow: hidden;
+  color: #8f99a6;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.favorite-note-edit {
+  flex: none;
+  padding: 4px 6px;
+  color: #8f99a6;
+  font-size: 12px;
+  border-radius: 4px;
+}
+.favorite-note-edit:hover {
+  color: #e6c37a;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.favorite-note-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 3px 6px;
+  color: #c6cfda;
+  background-color: #1c232d;
+  border: 1px solid #2f3844;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.favorite-row--dragging {
+  opacity: 0.5;
+}
+.landing-chip-star {
+  margin-right: 2px;
+  color: #e6c37a;
+  font-size: 10px;
+}
 
 /* ---------- layout ---------- */
 .lol-tft-main {
@@ -443,26 +491,35 @@ button {
   color: #6c7683;
   font-size: 12px;
 }
-/* 右侧场次统计卡：填住原本空白的中部区域，不再需要展开「更多资料」才能看到 */
+/* 右侧场次统计卡：填满身份区右侧的空白，四类场次横向铺开 */
 .summoner-stats {
+  display: flex;
   flex: 1 1 auto;
-  max-width: 560px;
-  margin-left: auto;
+  flex-direction: column;
+  min-width: 0;
   padding: 12px 16px;
   background-color: rgba(255, 255, 255, 0.02);
   border: 1px solid #202831;
   border-radius: 6px;
 }
 .summoner-stats-title {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   color: #56606c;
   font-size: 12px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
+/* 四类场次：宽窗口一行四块，窄窗口自动折成两行 */
+.summoner-stat-grid {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 6px 24px;
+  align-content: center;
+}
 .summoner-stats .count-row {
   justify-content: flex-start;
-  gap: 12px;
-  margin: 0 0 4px;
+  gap: 8px;
+  margin: 0;
 }
 .summoner-stats .count-label {
   min-width: 64px;
@@ -632,6 +689,60 @@ button {
   padding: 0;
   overflow: auto;
   list-style: none;
+  outline: none;
+}
+.battle-list-items:focus-visible {
+  outline: 1px solid #b59758;
+  outline-offset: -1px;
+}
+/* 加载骨架屏 */
+.battle-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 78px;
+  padding: 10px 24px 10px 6px;
+}
+.skeleton-block,
+.skeleton-line {
+  background: linear-gradient(90deg, #1c232d 25%, #242c37 37%, #1c232d 63%);
+  background-size: 400% 100%;
+  border-radius: 4px;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+.skeleton-block--avatar {
+  flex: none;
+  width: 48px;
+  height: 48px;
+}
+.skeleton-lines {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+}
+.skeleton-line {
+  height: 10px;
+}
+.skeleton-line--short {
+  width: 45%;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+/* 原位重试按钮（首屏失败 / 翻页失败） */
+.list-retry {
+  margin-left: 8px;
+  padding: 2px 10px;
+  color: #e6c37a;
+  border: 1px solid rgba(181, 151, 88, 0.45);
+  border-radius: 10px;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.list-retry:hover {
+  background-color: rgba(181, 151, 88, 0.16);
 }
 .battle-list-detail {
   flex: 1 1 auto;
@@ -1025,6 +1136,15 @@ button {
 .tag--afk {
   background-color: #fe5757;
 }
+/* 详情里相对「当前查看玩家」的阵营徽标 */
+.tag--same {
+  background-color: rgba(76, 212, 160, 0.2);
+  color: #4cd4a0;
+}
+.tag--opp {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #9aa4b2;
+}
 .tag--penta {
   background-color: #f5e124;
 }
@@ -1212,6 +1332,7 @@ button {
   padding: 8px 10px;
   border-radius: 4px;
   text-align: left;
+  cursor: pointer;
 }
 .search-button:hover {
   background-color: rgba(255, 255, 255, 0.08);
@@ -1445,8 +1566,30 @@ button {
 
 /* ---------- 近期表现总览 ---------- */
 .recent-stats {
-  padding: 10px 16px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  padding: 12px 16px 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+/* 左侧：标题/模式切换/胜负走势/常用英雄 */
+.recent-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* 右侧：累计胜率趋势卡（填住右侧空白） */
+.recent-side {
+  flex: 0 0 240px;
+  padding: 10px 14px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid #202831;
+  border-radius: 6px;
+}
+.recent-side-title {
+  margin: 0 0 6px;
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
 .recent-headline {
   display: flex;
@@ -1547,18 +1690,10 @@ button {
 .recent-trend {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 8px 0 4px;
-}
-.recent-trend-label {
-  color: #56606c;
-  font-size: 11px;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  margin: 2px 0 2px;
 }
 .recent-trend-chart {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+  display: block;
 }
 .recent-trend-chart svg {
   display: block;
@@ -1579,6 +1714,8 @@ button {
   fill: #1dbaa9;
 }
 .recent-trend-dates {
+  display: block;
+  margin-top: 4px;
   color: #56606b;
   font-size: 10px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
@@ -1769,6 +1906,14 @@ button {
     width: 100%;
     margin-left: 0;
   }
+  .recent-stats {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .recent-side {
+    width: 100%;
+    flex: 0 0 auto;
+  }
   .recent-headline {
     flex-wrap: wrap;
     row-gap: 6px;
@@ -1853,6 +1998,25 @@ button {
   font-family: Verdana, Geneva, Tahoma, sans-serif;
   font-size: 13px;
   font-weight: 600;
+}
+/* 复制本场战绩文本 */
+.detail-copy {
+  margin-left: auto;
+  padding: 4px 10px;
+  color: #b59758;
+  background-color: #242c37;
+  border: 1px solid #2f3844;
+  border-radius: 12px;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.detail-copy:hover {
+  background-color: rgba(181, 151, 88, 0.16);
+  border-color: #b59758;
+}
+.detail-copy--done {
+  color: #4cd4a0;
+  border-color: #2f6f55;
 }
 .detail-summary-meta {
   color: #8f99a6;

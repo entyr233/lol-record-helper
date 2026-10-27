@@ -29,14 +29,39 @@
     <details ref="favoritesDetails" class="header-favorites">
       <summary>收藏 {{ favorites.length }}</summary>
       <div class="favorites-pop">
-        <p v-if="!favorites.length" class="favorites-empty">还没有收藏玩家</p>
+        <p v-if="!favorites.length" class="favorites-empty">还没有常看玩家</p>
         <template v-else>
-          <div v-for="f in favorites" :key="favoriteKey(f)" class="favorite-row">
-            <button type="button" class="favorite-open" @click="openFavorite(f)">
-              <span class="favorite-name">{{ f.name }}</span>
-              <span class="favorite-area">{{ getAreaName(f.area) }}</span>
-            </button>
-            <button type="button" class="favorite-remove" :title="'取消收藏：' + f.name" @click="removeFavorite(f)">×</button>
+          <div v-for="group in favoriteGroups" :key="group.name" class="favorite-group">
+            <p class="favorite-group-title">{{ group.name }}</p>
+            <div
+              v-for="f in group.entries"
+              :key="favoriteKey(f)"
+              class="favorite-row"
+              :class="{ 'favorite-row--dragging': draggingKey === favoriteKey(f) }"
+              draggable="true"
+              @dragstart="startDrag(f, $event)"
+              @dragend="endDrag"
+              @dragover.prevent
+              @drop="dropOn(f, $event)"
+            >
+              <button type="button" class="favorite-open" @click="openFavorite(f)">
+                <span class="favorite-name">{{ f.name }}</span>
+                <span class="favorite-area">{{ getAreaName(f.area) }}</span>
+                <span v-if="f.note" class="favorite-note">{{ f.note }}</span>
+              </button>
+              <input
+                v-if="noteEditingKey === favoriteKey(f)"
+                class="favorite-note-input"
+                :value="f.note"
+                placeholder="备注（回车保存）"
+                @input="noteDraft = ($event.target as HTMLInputElement).value"
+                @keydown.enter.prevent="saveNote(f)"
+                @keydown.esc="cancelNote"
+                @blur="saveNote(f)"
+              />
+              <button v-else type="button" class="favorite-note-edit" title="编辑备注" @click="startEditNote(f)">✎</button>
+              <button type="button" class="favorite-remove" :title="'取消收藏：' + f.name" @click="removeFavorite(f)">×</button>
+            </div>
           </div>
         </template>
       </div>
@@ -79,7 +104,80 @@ onBeforeUnmount(() => initialWait.abort());
 
 // 常驻收藏入口：与各页面共用同一份 useFavorites 单例数据
 const favoritesDetails = ref<HTMLDetailsElement | null>(null);
-const { favorites, remove: removeFavoriteEntry } = useFavorites();
+const { favorites, remove: removeFavoriteEntry, update: updateFavorite, move: moveFavorite } = useFavorites();
+
+/** 未设置 group 的条目统一落在这个分组里，并排在所有自定义分组之后 */
+const UNGROUPED_LABEL = "未分组";
+
+interface FavoriteGroup {
+  name: string;
+  entries: FavoriteEntry[];
+}
+
+/** 分组展示顺序：自定义分组按首次出现顺序，未分组放最后 */
+const favoriteGroups = computed<FavoriteGroup[]>(() => {
+  const named = new Map<string, FavoriteEntry[]>();
+  const ungrouped: FavoriteEntry[] = [];
+  for (const entry of favorites.value) {
+    const group = (entry.group || "").trim();
+    if (!group) {
+      ungrouped.push(entry);
+      continue;
+    }
+    const list = named.get(group);
+    if (list) list.push(entry);
+    else named.set(group, [entry]);
+  }
+  const groups: FavoriteGroup[] = Array.from(named, ([name, entries]) => ({ name, entries }));
+  if (ungrouped.length) groups.push({ name: UNGROUPED_LABEL, entries: ungrouped });
+  return groups;
+});
+
+// 备注行内编辑：同一时间只展开一行
+const noteEditingKey = ref("");
+const noteDraft = ref("");
+
+function startEditNote(entry: FavoriteEntry): void {
+  noteEditingKey.value = favoriteKey(entry);
+  noteDraft.value = entry.note || "";
+}
+
+function cancelNote(): void {
+  noteEditingKey.value = "";
+  noteDraft.value = "";
+}
+
+function saveNote(entry: FavoriteEntry): void {
+  const key = favoriteKey(entry);
+  // 回车收起后紧跟的 blur 不再重复写入
+  if (noteEditingKey.value !== key) return;
+  noteEditingKey.value = "";
+  updateFavorite(key, { note: noteDraft.value });
+  noteDraft.value = "";
+}
+
+// 拖拽排序：dragstart 记录来源 key，drop 到目标行时调用 move
+const draggingKey = ref("");
+
+function startDrag(entry: FavoriteEntry, event: DragEvent): void {
+  draggingKey.value = favoriteKey(entry);
+  // Firefox 等浏览器只有 setData 后才真正开始拖拽
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", draggingKey.value);
+  }
+}
+
+function endDrag(): void {
+  draggingKey.value = "";
+}
+
+function dropOn(entry: FavoriteEntry, event: DragEvent): void {
+  const fromKey = draggingKey.value || event.dataTransfer?.getData("text/plain") || "";
+  draggingKey.value = "";
+  if (!fromKey) return;
+  moveFavorite(fromKey, favoriteKey(entry));
+}
 
 function closeFavorites(): void {
   if (favoritesDetails.value) favoritesDetails.value.open = false;

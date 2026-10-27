@@ -18,16 +18,17 @@
         <p class="state-text search-hint">找到 {{ players.length }} 位同名玩家，点击其中一位查看战绩</p>
         <ul class="search-results">
           <li v-for="player in players" :key="player.openid" class="search-item">
-            <button type="button" class="search-button" @click="openPlayer(player)">
+            <div class="search-button" role="button" tabindex="0" @click="openPlayer(player)"
+              @keydown.enter.prevent="openPlayer(player)" @keydown.space.prevent="openPlayer(player)">
               <GameIcon class="search-avatar" kind="user" :id="player.icon_id" />
               <span class="search-name">{{ nickname }}</span>
               <span class="search-area">{{ getAreaName(player.area) }}</span>
               <span class="search-level">等级: {{ player.level }}</span>
               <button type="button" class="fav-star" :class="{ 'fav-star--on': isFavorite(player) }"
-                :title="isFavorite(player) ? '取消收藏' : '收藏到首页'"
+                :title="isFavorite(player) ? '取消常看' : '加入常看玩家'"
                 @click.stop="toggleFavorite(player)">{{ isFavorite(player) ? "★" : "☆" }}</button>
               <span class="search-arrow">查看战绩 →</span>
-            </button>
+            </div>
           </li>
         </ul>
       </template>

@@ -8,27 +8,22 @@
       <span v-if="!lastArea" class="landing-hint">先在顶部选择大区</span>
     </div>
 
-    <div v-if="favorites.length" class="landing-section">
-      <p class="landing-label">收藏玩家</p>
+    <div v-if="favorites.length || recentNames.length" class="landing-section">
+      <p class="landing-label">常看玩家</p>
       <div class="landing-chips">
         <button v-for="f in favorites" :key="favoriteKey(f)" type="button" class="landing-chip landing-chip--fav" @click="openFavorite(f)">
+          <span class="landing-chip-star">★</span>
           <span class="landing-chip-name">{{ f.name }}</span>
           <span class="landing-chip-area">{{ getAreaName(f.area) }}</span>
         </button>
-      </div>
-    </div>
-
-    <div v-if="recentSearches.length" class="landing-section">
-      <p class="landing-label">最近搜索</p>
-      <div class="landing-chips">
-        <button v-for="name in recentSearches" :key="name" type="button" class="landing-chip" @click="searchName(name)">{{ name }}</button>
+        <button v-for="name in recentNames" :key="name" type="button" class="landing-chip" @click="searchName(name)">{{ name }}</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { readStorage } from "../utils/storage";
 import { getAreaName } from "../const/areas";
@@ -43,6 +38,12 @@ const recentSearches = ref<string[]>([]);
 try {
   recentSearches.value = JSON.parse(localStorage.getItem("lol-tft-search-history") ?? "[]") as string[];
 } catch { /* ignore */ }
+
+/** 常看玩家 = 收藏（带 ★）+ 不在收藏里的最近搜索名字 */
+const recentNames = computed(() => {
+  const favoriteNames = new Set(favorites.value.map((entry) => entry.name));
+  return recentSearches.value.filter((name) => !favoriteNames.has(name));
+});
 
 
 function hasLogin(): boolean {

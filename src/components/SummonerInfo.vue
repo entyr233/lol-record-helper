@@ -44,20 +44,22 @@
         </div>
         <div class="summoner-stats">
           <p class="summoner-stats-title">场次统计</p>
-          <p v-if="reportLoading" class="summoner-report">统计加载中…</p>
-          <p v-else-if="reportError" class="summoner-report summoner-report--error">
-            统计加载失败：{{ toErrorMessage(reportError) }}
-            <button type="button" class="link-button" @click="retryReport">重试统计</button>
-          </p>
-          <template v-else>
-            <p v-for="row in countRows" :key="row.label" class="count-row count-row--stat">
-              <span class="count-label">{{ row.label }}</span>
-              <span class="count-total">{{ row.total }}</span>
-              <span class="count-win">{{ row.win }}</span>
-              <span class="count-lose">{{ row.lose }}</span>
-              <span class="count-rate">{{ rateOf(row) }}% 胜率</span>
+          <div class="summoner-stat-grid">
+            <p v-if="reportLoading" class="summoner-report">统计加载中…</p>
+            <p v-else-if="reportError" class="summoner-report summoner-report--error">
+              统计加载失败：{{ toErrorMessage(reportError) }}
+              <button type="button" class="link-button" @click="retryReport">重试统计</button>
             </p>
-          </template>
+            <template v-else>
+              <p v-for="row in countRows" :key="row.label" class="count-row count-row--stat">
+                <span class="count-label">{{ row.label }}</span>
+                <span class="count-total">{{ row.total }}</span>
+                <span class="count-win">{{ row.win }}</span>
+                <span class="count-lose">{{ row.lose }}</span>
+                <span class="count-rate">{{ rateOf(row) }}% 胜率</span>
+              </p>
+            </template>
+          </div>
         </div>
       </div>
       <div class="summoner-recent">
