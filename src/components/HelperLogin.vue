@@ -20,6 +20,7 @@
 
       <section class="area-block">
         <label class="block-title" for="lol-tft-helper-area">官方页面大区</label>
+        <p class="account-line">当前账号：<strong>{{ accountName || (uin ? "读取中…" : "未登录") }}</strong></p>
         <div class="area-row">
           <select id="lol-tft-helper-area" v-model.number="areaId">
             <option :value="0">请选择大区</option>
@@ -28,14 +29,14 @@
         </div>
         <div class="open-row">
           <button type="button" class="open-official" :disabled="!areaId" @click="openOfficialCareer">打开官方战绩</button>
-          <button type="button" class="open-tft" :disabled="!areaId" @click="openOfficialTft">打开云顶战绩</button>
+          <button type="button" class="open-history" :disabled="!areaId" @click="openOfficialHistory">打开历史战绩</button>
         </div>
         <p class="hint">
           <template v-if="uin">
-            官方助手页通过地址栏的 uin / area_id / account_type 识别玩家；打开时会带上当前账号与所选大区（LOL 用 /life/overview，云顶用 /tft/overview）。
+            官方助手页依赖登录态与 TGP 大区。脚本会在页面加载时补 TGP 桥；地址里没有参数时官方页面按当前登录用户展示全部模式战绩。
           </template>
           <template v-else>
-            未读取到登录账号：地址里只会带大区，官方页面可能仍提示「未选定大区」。建议先登录，或去官网登录后刷新此页。
+            未读取到登录账号：官方页面可能仍提示「未选定大区」。建议先登录，或去官网登录后刷新此页。
           </template>
         </p>
         <button type="button" class="open-self" @click="openSelfPanel">打开自建战绩面板</button>
@@ -62,16 +63,39 @@ const collapsed = ref(false);
 const savedArea = Number(readStorage<number | string>(AREA_STORAGE_KEY, 0)) || Number(readStorage<string>("last-area", "")) || 0;
 const areaId = ref<number>(Number.isFinite(savedArea) ? savedArea : 0);
 const uin = computed(() => getSelfUinFromCookie());
+/** 官方页面登录用户名片在浏览器里经常不渲染，这里直接读一次召唤师名做兜底展示 */
+const accountName = ref("");
+
+async function loadAccountName(): Promise<void> {
+  if (!areaId.value || !uin.value) {
+    accountName.value = "";
+    return;
+  }
+  try {
+    const res = await fetch("/api/v1/wegame.pallas.game.LolBattle/GetSummonerInfo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "trpc-caller": "wegame.pallas.web.LolBattle" },
+      body: JSON.stringify({ area: areaId.value, account_type: 1, id: uin.value, from_src: "lol_helper" })
+    });
+    const data = (await res.json()) as { summoner?: { name?: string } };
+    if (data?.summoner?.name) accountName.value = data.summoner.name;
+  } catch {
+    /* 读取失败不阻断入口 */
+  }
+}
+
+watch([areaId, uin], () => {
+  void loadAccountName();
+}, { immediate: true });
 
 watch(areaId, (value) => {
   writeStorage(AREA_STORAGE_KEY, value);
 });
 
 onMounted(() => {
-  // frame.html 在普通浏览器里不会初始化登录用户：跳到标准助手页（保留地址里已有的查询参数）
+  // frame.html 在普通浏览器里不会初始化登录用户：跳到标准助手页（官方云顶页已不再提供入口）
   if (!isStandardHelperPage() && !isWeGameClient()) {
-    const hash = location.hash || "";
-    const suffix = hash.includes("?") ? hash : selfCareerHash(currentSection() || "tft");
+    const suffix = currentPage() === "history" ? "#/life/history" : "#/life/overview";
     location.href = HELPER_ORIGIN + "/helper/lol/" + suffix;
     return;
   }
@@ -93,10 +117,13 @@ function login(): Promise<void> {
   });
 }
 
-/** 官方页面启动时会解析 hash 里的 ?uin=&area_id=&account_type=，借此把查询对象切换为当前账号 */
-type OfficialSection = "life" | "tft";
+type OfficialPage = "overview" | "history";
 const HELPER_ORIGIN = "https://www.wegame.com.cn";
 const STANDARD_HELPER_PATHS = ["/helper/lol/", "/helper/lol/index.html"];
+const PAGE_ROUTES: Record<OfficialPage, string> = {
+  overview: "#/life/overview",
+  history: "#/life/history"
+};
 
 function isStandardHelperPage(): boolean {
   return STANDARD_HELPER_PATHS.includes(location.pathname);
@@ -107,68 +134,63 @@ function isWeGameClient(): boolean {
   return /WeGame\//.test(navigator.userAgent || "");
 }
 
-function currentSection(): OfficialSection | null {
-  const match = (location.hash || "").match(/^#\/(life|tft)\/overview/);
-  return match ? (match[1] as OfficialSection) : null;
+function currentPage(): OfficialPage | null {
+  const hash = location.hash || "";
+  if (hash.startsWith("#/life/history")) return "history";
+  if (hash.startsWith("#/life/overview")) return "overview";
+  return null;
 }
 
-function officialCareerHash(section: OfficialSection): string {
+/** 参数兜底：官方页面仍报「未选定大区」时，用 uin/area_id/account_type 指定查询对象 */
+function officialCareerHash(page: OfficialPage): string {
   const query = new URLSearchParams();
   if (uin.value) query.set("uin", uin.value);
   query.set("area_id", String(areaId.value));
   query.set("account_type", "1");
-  return "#/" + section + "/overview?" + query.toString();
+  return PAGE_ROUTES[page] + "?" + query.toString();
 }
 
-/** 标准助手页上「我的战绩」地址：不带 uin/area 参数，让官方按登录用户（TGP 桥）初始化 */
-function selfCareerHash(section: OfficialSection): string {
-  return "#/" + section + "/overview";
+/** 标准助手页的本人模式地址：不带参数，让官方按登录用户（TGP 桥）初始化 */
+function selfCareerUrl(page: OfficialPage): string {
+  return HELPER_ORIGIN + "/helper/lol/" + PAGE_ROUTES[page];
 }
 
-function selfCareerUrl(section: OfficialSection): string {
-  return HELPER_ORIGIN + "/helper/lol/" + selfCareerHash(section);
-}
-
-/** 参数兜底地址：官方页面仍报「未选定大区」时，用 uin/area_id 参数强制指定查询对象 */
-function officialCareerUrl(section: OfficialSection): string {
-  return HELPER_ORIGIN + "/helper/lol/" + officialCareerHash(section);
+function officialCareerUrl(page: OfficialPage): string {
+  return HELPER_ORIGIN + "/helper/lol/" + officialCareerHash(page);
 }
 
 let fallbackApplied = false;
 let errorTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** 官方页面初始化失败时（普通浏览器没有 TGP），用 hash 参数兜底一次 */
 function checkOfficialError(): void {
   if (fallbackApplied) return;
   const text = (document.body && (document.body.innerText || document.body.textContent)) || "";
   if (!/未选定大区|请选定大区后重试/.test(text)) return;
-  const section = currentSection();
-  if (!section || !areaId.value || !uin.value) return;
+  const page = currentPage();
+  if (!page || !areaId.value || !uin.value) return;
   fallbackApplied = true;
-  location.href = officialCareerUrl(section);
+  location.href = officialCareerUrl(page);
 }
 
 /**
- * 打开官方页面时优先走「登录用户自助初始化」：
- * 脚本在 document-start 注入的 TGP 桥会让官方按当前账号加载，这样云顶/生涯都是本人数据；
- * 只有在官方页面仍显示「未选定大区」时，才退回 hash 参数兜底。
+ * 优先本人模式：脚本 document-start 注入的 TGP 桥让官方按当前账号加载；
+ * 只有官方仍显示「未选定大区」时，才退回 hash 参数兜底。
  */
-function openOfficial(section: OfficialSection): void {
+function openOfficial(page: OfficialPage): void {
   if (!areaId.value) return;
   if (isWeGameClient()) {
-    location.hash = selfCareerHash(section);
+    location.hash = PAGE_ROUTES[page];
     return;
   }
-  location.href = selfCareerUrl(section);
+  location.href = selfCareerUrl(page);
 }
 
 function openOfficialCareer(): void {
-  openOfficial("life");
+  openOfficial("overview");
 }
 
-/** 云顶之弈战绩页（/helper/lol/v2/frame.html#/tft/overview）走同一条 hash 参数约定 */
-function openOfficialTft(): void {
-  openOfficial("tft");
+function openOfficialHistory(): void {
+  openOfficial("history");
 }
 
 /** 打开脚本自建的战绩面板；如果当前页没有挂载面板，则回官网页面使用 */

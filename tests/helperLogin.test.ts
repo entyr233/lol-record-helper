@@ -136,16 +136,24 @@ describe("官方助手登录入口", () => {
     expect(sdk.popup).not.toHaveBeenCalled();
   });
 
-  it("在 v2 frame.html（云顶战绩页）同样挂载面板", () => {
-    vi.stubGlobal("location", {
+  it("在 v2 frame.html（旧云顶页）同样挂载面板", () => {    vi.stubGlobal("location", {
       hostname: "www.wegame.com.cn",
       pathname: "/helper/lol/v2/frame.html",
-      hash: "#/tft/overview",
+      hash: "#/life/overview",
       reload
     });
     instance = mountHelperLogin();
     expect(instance).not.toBeNull();
     expect(root().textContent).toContain("LOL 助手增强");
+  });
+
+  it("读取并显示当前召唤师名称", async () => {
+    document.cookie = "uin=o012345; path=/";
+    localStorage.setItem("lol_tft:lol-tft-helper-area", "1");
+    vi.stubGlobal("fetch", vi.fn(async () => ({ json: async () => ({ summoner: { name: "一梦浮生云来去" } }) })));
+    instance = mountHelperLogin();
+    await flushPromises();
+    expect(root().textContent).toContain("一梦浮生云来去");
   });
 
   it("官方页面仍提示未选定大区时，用 hash 参数兜底", async () => {
@@ -154,7 +162,7 @@ describe("官方助手登录入口", () => {
     vi.stubGlobal("location", {
       hostname: "www.wegame.com.cn",
       pathname: "/helper/lol/",
-      hash: "#/tft/overview",
+      hash: "#/life/overview",
       reload
     });
     Object.defineProperty(document.body, "innerText", {
@@ -164,7 +172,7 @@ describe("官方助手登录入口", () => {
     instance = mountHelperLogin();
     await vi.advanceTimersByTimeAsync(2600);
     expect((location as unknown as { href?: string }).href).toBe(
-      "https://www.wegame.com.cn/helper/lol/#/tft/overview?uin=12345&area_id=1&account_type=1"
+      "https://www.wegame.com.cn/helper/lol/#/life/overview?uin=12345&area_id=1&account_type=1"
     );
     delete (document.body as unknown as { innerText?: string }).innerText;
   });
@@ -180,7 +188,7 @@ describe("官方助手登录入口", () => {
     });
     instance = mountHelperLogin();
     await nextTick();
-    expect((location as unknown as { href?: string }).href).toBe("https://www.wegame.com.cn/helper/lol/#/tft/overview");
+    expect((location as unknown as { href?: string }).href).toBe("https://www.wegame.com.cn/helper/lol/#/life/overview");
   });
 
   it("hash 已带 area_id（分享链接/其他玩家）时不覆盖原参数", async () => {
@@ -189,12 +197,12 @@ describe("官方助手登录入口", () => {
     vi.stubGlobal("location", {
       hostname: "www.wegame.com.cn",
       pathname: "/helper/lol/",
-      hash: "#/tft/overview?uin=999&area_id=2&account_type=2",
+      hash: "#/life/history?uin=999&area_id=2&account_type=2",
       reload
     });
     instance = mountHelperLogin();
     await vi.advanceTimersByTimeAsync(2600);
-    expect(location.hash).toBe("#/tft/overview?uin=999&area_id=2&account_type=2");
+    expect(location.hash).toBe("#/life/history?uin=999&area_id=2&account_type=2");
   });
 
   it("选择大区后点打开官方战绩，跳到按登录用户初始化的生涯页", async () => {
@@ -210,15 +218,15 @@ describe("官方助手登录入口", () => {
     expect(localStorage.getItem("lol_tft:lol-tft-helper-area")).toBe("1");
   });
 
-  it("云顶战绩按钮跳到按登录用户初始化的云顶页", async () => {
+  it("打开历史战绩按钮跳到按登录用户初始化的历史战绩页", async () => {
     instance = mountHelperLogin();
     const select = root().querySelector<HTMLSelectElement>("select")!;
     select.value = "3";
     select.dispatchEvent(new Event("change"));
     await nextTick();
 
-    root().querySelector<HTMLButtonElement>(".open-tft")!.click();
-    expect((location as unknown as { href?: string }).href).toBe("https://www.wegame.com.cn/helper/lol/#/tft/overview");
+    root().querySelector<HTMLButtonElement>(".open-history")!.click();
+    expect((location as unknown as { href?: string }).href).toBe("https://www.wegame.com.cn/helper/lol/#/life/history");
   });
 
   it("打开自建战绩时调用页面挂载的 __LOL_TFT__.open", () => {

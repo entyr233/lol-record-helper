@@ -89,6 +89,12 @@ a { color: #d8bd7e; }
   font-size: 11px;
   line-height: 1.5;
 }
+.account-line {
+  margin: 0 0 6px;
+  color: #9aa4b2;
+  font-size: 12px;
+}
+.account-line strong { color: #d8bd7e; }
 [role="alert"] { color: #f5a3a3; }
 button:focus-visible, a:focus-visible, select:focus-visible {
   outline: 2px solid #d8bd7e;
