@@ -15,7 +15,6 @@
 // @connect      www.wegame.com.cn
 // @connect      wegame.com.cn
 // @run-at       document-idle
-// @noframes
 // @downloadURL  https://update.greasyfork.org/scripts/454184/LOL%E6%88%98%E7%BB%A9%E6%9F%A5%E8%AF%A2.user.js
 // @updateURL    https://update.greasyfork.org/scripts/454184/LOL%E6%88%98%E7%BB%A9%E6%9F%A5%E8%AF%A2.meta.js
 // ==/UserScript==
@@ -82,8 +81,13 @@
 
   if (isLolQqBridgeHost()) {
     installBridge();
-    return; // lol.qq.com 上不挂战绩面板
+    return; // lol.qq.com 上不挂战绩面板（任何 frame 都可作桥）
   }
+
+  // wegame 页面的子框架（广告 iframe 等）不挂面板，只在顶层挂
+  try {
+    if (window.top !== window) return;
+  } catch (e) { /* 跨域 top 访问受限说明我们就在子框架里 */ return; }
   var Z = "2147483000";
 
   function log() {
