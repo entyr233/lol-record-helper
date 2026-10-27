@@ -155,10 +155,15 @@ export function createLolBattleApi(): LolBattleApi {
           const retried = await post<T>(method, body, options, acquire);
           return retried;
         } catch (cause) {
-          error = cause instanceof ApiError ? cause : error;
-          if (!(cause instanceof ApiError) || !(String(cause.code) === "8000022" || String(cause.code) === "8000120")) {
-            if (cause instanceof ApiError && String(cause.code) !== "CAPTCHA_CANCELLED" && String(cause.code) !== "CAPTCHA_SDK") throw cause;
+          // 验证环节本身失败（SDK 加载失败/用户取消）：原因附到最终错误里，界面可见
+          if (cause instanceof ApiError && String(cause.code).startsWith("CAPTCHA")) {
+            throw new ApiError(error.code, error.method, error.displayMessage + "；验证环节：" + cause.message);
           }
+          // 验证通过但重试仍是验证门槛：别再循环，抛重试的错误
+          if (cause instanceof ApiError && needsCaptcha(cause.code)) {
+            throw new ApiError(cause.code, cause.method, "人机验证已通过但仍被拒绝（" + cause.code + "）");
+          }
+          throw cause instanceof ApiError ? cause : error;
         }
       }
       if (error instanceof ApiError && (error.isUnauthenticated || error.isHidden || error.needsCaptcha
