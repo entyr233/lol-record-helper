@@ -6,12 +6,14 @@
     </select>
 
     <span class="header-divider"></span>
-    <button v-if="currentArea" type="button" class="header-button" @click="goSelf">我的战绩</button>
+    <button v-if="currentArea" type="button" class="header-button" :disabled="loggingIn" @click="goSelf">我的战绩</button>
     <span class="header-divider"></span>
     <button v-if="loggedIn" type="button" class="header-button" @click="handleLogout">注销</button>
-    <button v-else type="button" class="header-button header-button--login" @click="handleLogin">
+    <button v-else type="button" class="header-button header-button--login" :disabled="loggingIn" @click="handleLogin">
       {{ loggingIn ? "等待登录…" : "登录" }}
     </button>
+    <button v-if="loggingIn" type="button" class="header-button" @click="cancel">取消等待</button>
+    <span v-if="loginError" role="alert">{{ loginError }}</span>
 
     <span class="header-spacer"></span>
 
@@ -30,11 +32,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { areas } from "../const/areas";
 import { readStorage, writeStorage } from "../utils/storage";
-import { isLoggedIn, isSdkAvailable, logout, triggerLogin, waitForLogin } from "../utils/weGameLogin";
+import { getLoginUser, isLoggedIn, logout, triggerLogin, waitForLogin, waitForSdk } from "../utils/weGameLogin";
+import { useLoginAction } from "../composables/useLoginAction";
 
 const DONATE_URL = "https://wsd.pages.interface.work/view?src=https%3A%2F%2Fpic.mscststs.com%2Fdonate.jpg";
 const SCRIPT_HOME = "https://greasyfork.org/zh-CN/scripts/454184";
@@ -45,8 +48,10 @@ const router = useRouter();
 
 const selectedArea = ref<number | "">(0);
 const keyword = ref("");
-const loggedIn = ref(true);
-const loggingIn = ref(false);
+const loggedIn = ref(false);
+const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
+const initialWait = new AbortController();
+onBeforeUnmount(() => initialWait.abort());
 
 const currentArea = computed(() => {
   const fromRoute = route.params.area;
@@ -54,7 +59,10 @@ const currentArea = computed(() => {
 });
 
 onMounted(() => {
-  loggedIn.value = isSdkAvailable() ? isLoggedIn() : false;
+  loggedIn.value = isLoggedIn();
+  void waitForSdk({ signal: initialWait.signal }).then(() => {
+    if (!initialWait.signal.aborted) loggedIn.value = isLoggedIn();
+  }).catch(() => { /* 登录操作会显示具体错误；初始化不阻塞搜索。 */ });
   const fromRoute = route.params.area;
   if (fromRoute) {
     selectedArea.value = Number(fromRoute) || 0;
@@ -72,30 +80,37 @@ watch(selectedArea, (value) => {
   }
 });
 
+watch(() => route.params.area, (value) => {
+  if (value) selectedArea.value = Number(value) || 0;
+  loggedIn.value = isLoggedIn();
+});
+
 function search(): void {
   if (!keyword.value) return;
   void router.push({ name: "search", params: { nickname: keyword.value } });
 }
 
-function goSelf(): void {
-  if (selectedArea.value === "") return;
-  void router.replace({ name: "area", params: { area: String(selectedArea.value) } });
+async function showSelf(user: { uin: string }, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return;
+  loggedIn.value = true;
+  if (selectedArea.value) {
+    await router.replace({ name: "summary", params: { area: String(selectedArea.value), accountType: "1", id: user.uin } });
+  }
 }
 
-async function handleLogin(): Promise<void> {
-  if (!triggerLogin()) {
-    window.alert("当前页面没有可用的 WeGame 登录 SDK，请刷新页面后重试");
-    return;
-  }
-  loggingIn.value = true;
-  const ok = await waitForLogin();
-  loggingIn.value = false;
-  if (!ok) return;
-  loggedIn.value = true;
-  const area = selectedArea.value === "" ? 0 : Number(selectedArea.value);
-  if (area) {
-    void router.replace({ name: "area", params: { area: String(area) } });
-  }
+function goSelf(): Promise<void> {
+  return run(async (signal) => {
+    const user = await getLoginUser({ signal });
+    await showSelf(user, signal);
+  });
+}
+
+function handleLogin(): Promise<void> {
+  return run(async (signal) => {
+    await triggerLogin({ signal });
+    const user = await waitForLogin({ signal });
+    await showSelf(user, signal);
+  });
 }
 
 function handleLogout(): void {

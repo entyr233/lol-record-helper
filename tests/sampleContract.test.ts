@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import gameidSample from "../sample/gameid_result.json";
 import gamelistSample from "../sample/gamelist_result.json";
 
@@ -21,7 +22,7 @@ const BATTLE_FIELDS = [
   "team_made_size", "battle_type", "penta_kills"
 ];
 
-describe("接口字段契约（基于 sample/*.json 真实返回）", () => {
+describe("接口字段契约（基于 sample/*.json 接口样例）", () => {
   const detail = (gameidSample as any).battle_detail;
   const player = detail.player_details[0];
   const team = detail.team_details[0];
@@ -50,5 +51,36 @@ describe("接口字段契约（基于 sample/*.json 真实返回）", () => {
     expect(detail.team_details).toHaveLength(2);
     const teamIds = new Set(detail.player_details.map((p: any) => p.teamId));
     expect(teamIds.size).toBe(2);
+  });
+
+  it("详情玩家使用稳定合成标识和昵称，顶层 OpenID 仍关联到同一玩家", () => {
+    const players = gameidSample.battle_detail.player_details;
+    // Check booleans so a future privacy regression cannot print raw identities on failure.
+    expect(players.every((player, index) => {
+      const suffix = String(index + 1).padStart(2, "0");
+      return player.openid === "sample-openid-" + suffix && player.name === "示例玩家" + suffix;
+    }), "玩家身份字段必须为合成值").toBe(true);
+    expect(players.filter((player) => player.openid === gameidSample.openid).length).toBe(1);
+  });
+
+  it("空账号/IP 字段保持为空，队伍关联和跨样例对局关联保留", () => {
+    const players = gameidSample.battle_detail.player_details;
+    expect(players.every((player) => [player.loginIp, player.lolId, player.lpl, player.puuId, player.uinId]
+      .every((value) => value === "")), "空身份字段不得引入真实数据").toBe(true);
+    const teamIds = new Set(gameidSample.battle_detail.team_details.map((value) => value.teamId));
+    expect(players.every((player) => teamIds.has(player.teamId))).toBe(true);
+    expect(gamelistSample.battles.filter((value) => value.game_id === gameidSample.battle_detail.game_id).length).toBe(1);
+  });
+
+  it("脱敏不改变 schema、字段类型及任何非身份数据", () => {
+    const value = JSON.parse(JSON.stringify(gameidSample)) as typeof gameidSample;
+    value.openid = "<openid:string>";
+    for (const player of value.battle_detail.player_details) {
+      player.openid = "<openid:string>";
+      player.name = "<name:string>";
+    }
+    // Fingerprint captured before redaction with only these identity values elided.
+    const fingerprint = createHash("sha256").update(JSON.stringify(value)).digest("hex");
+    expect(fingerprint).toBe("daecdc78ea379d1baa80bc3cdd4b9a07e6831080a23bf3173aa5bdce9d23b50a");
   });
 });

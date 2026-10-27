@@ -43,7 +43,8 @@ export function mountLolTft(options: MountOptions = {}): MountedInstance {
   root.appendChild(container);
 
   const app = createApp(App);
-  const router = createLolRouter();
+  const loginWait = new AbortController();
+  const router = createLolRouter(loginWait.signal);
   app.use(router);
   app.mount(container);
 
@@ -52,6 +53,7 @@ export function mountLolTft(options: MountOptions = {}): MountedInstance {
     router,
     host,
     unmount: () => {
+      loginWait.abort();
       app.unmount();
       // createWebHashHistory() 会注册 popstate/hashchange 监听；
       // 重复注入或测试中多次挂载时，不销毁会互相抢路由。

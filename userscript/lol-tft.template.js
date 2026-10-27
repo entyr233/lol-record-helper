@@ -52,6 +52,7 @@
   var mounted = null;
   var overlay = null;
   var loading = false;
+  var generation = 0;
 
   function getLib() {
     try {
@@ -119,6 +120,8 @@
   }
 
   function closePanel() {
+    generation += 1;
+    loading = false;
     if (mounted) {
       try { mounted.unmount(); } catch (e) { console.warn("[lol-tft]", e); }
       mounted = null;
@@ -133,6 +136,7 @@
   async function openPanel() {
     if (loading || overlay) return;
     loading = true;
+    var currentGeneration = ++generation;
     var lib = getLib();
     injectStyle();
 
@@ -140,6 +144,7 @@
     if (launcher) launcher.style.display = "none";
 
     overlay = document.createElement("div");
+    var currentOverlay = overlay;
     overlay.id = "lol-tft-overlay";
 
     var head = document.createElement("div");
@@ -169,14 +174,16 @@
     try {
       host.textContent = "正在准备登录态…";
       await ensureLoginSdk();
+      if (currentGeneration !== generation || overlay !== currentOverlay || !host.isConnected) return;
       host.textContent = "";
       mounted = lib.mountLolTft({ host: host });
       log("面板已挂载");
     } catch (error) {
+      if (currentGeneration !== generation || overlay !== currentOverlay || !host.isConnected) return;
       host.textContent = "加载失败：" + (error && error.message ? error.message : String(error));
       console.error("[lol-tft]", error);
     } finally {
-      loading = false;
+      if (currentGeneration === generation) loading = false;
     }
   }
 

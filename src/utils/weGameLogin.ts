@@ -13,26 +13,85 @@ export function isLoggedIn(): boolean {
   return isLogin();
 }
 
-/** 拉起 WeGame 登录弹窗（网站页面本身没有登录按钮，只能由 SDK 弹） */
-export function triggerLogin(): boolean {
-  const api = sdk();
-  if (!api || typeof api.popup !== "function") return false;
-  try {
-    api.popup();
-    return true;
-  } catch {
-    return false;
+export class LoginError extends Error {
+  constructor(public readonly code: string, message: string) {
+    super(message);
+    this.name = "LoginError";
   }
 }
 
-/** 轮询等待登录完成 */
-export async function waitForLogin(timeoutMs = 180000): Promise<boolean> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (isLogin()) return true;
-    await new Promise((resolve) => setTimeout(resolve, 800));
+export interface LoginWaitOptions {
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}
+
+function cancelled(): LoginError {
+  return new LoginError("CANCELLED", "已取消登录操作，可重新尝试。");
+}
+
+/** SDK 调用也可能永不返回；统一限制时间并在取消时清理定时器。 */
+function bounded<T>(value: PromiseLike<T> | T, deadline: number, signal: AbortSignal | undefined, error: LoginError): Promise<T> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(cancelled()); return; }
+    const cleanup = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+    };
+    const abort = () => { cleanup(); reject(cancelled()); };
+    const timer = setTimeout(() => { cleanup(); reject(error); }, Math.max(0, deadline - Date.now()));
+    signal?.addEventListener("abort", abort, { once: true });
+    Promise.resolve(value).then(
+      (result) => { cleanup(); resolve(result); },
+      () => { cleanup(); reject(error); }
+    );
+  });
+}
+
+function pause(deadline: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(cancelled()); return; }
+    const cleanup = () => { clearTimeout(timer); signal?.removeEventListener("abort", abort); };
+    const abort = () => { cleanup(); reject(cancelled()); };
+    const timer = setTimeout(() => { cleanup(); resolve(); }, Math.max(0, Math.min(200, deadline - Date.now())));
+    signal?.addEventListener("abort", abort, { once: true });
+  });
+}
+
+async function readySdk(deadline: number, signal?: AbortSignal): Promise<WeGameLoginSdk> {
+  let api = sdk();
+  while (!api && Date.now() < deadline) {
+    await pause(deadline, signal);
+    api = sdk();
   }
-  return false;
+  if (signal?.aborted) throw cancelled();
+  if (!api) throw new LoginError("SDK_UNAVAILABLE", "未加载到 WeGame 登录 SDK，请刷新页面后重试。");
+  const error = new LoginError("SDK_NOT_READY", "WeGame 登录 SDK 尚未就绪或初始化失败，请重试。");
+  try {
+    if (api.readyPromise) await bounded(api.readyPromise, deadline, signal, error);
+  } catch (cause) {
+    if (cause instanceof LoginError) throw cause;
+    throw error;
+  }
+  return api;
+}
+
+/** 等待初始化失败只影响登录操作，不阻塞浮动面板和搜索。 */
+export function waitForSdk(options: LoginWaitOptions = {}): Promise<WeGameLoginSdk> {
+  return readySdk(Date.now() + (options.timeoutMs ?? 4000), options.signal);
+}
+
+export async function triggerLogin(options: LoginWaitOptions = {}): Promise<void> {
+  const deadline = Date.now() + (options.timeoutMs ?? 4000);
+  const api = await readySdk(deadline, options.signal);
+  if (options.signal?.aborted) throw cancelled();
+  const error = new LoginError("POPUP_FAILED", "无法打开 WeGame 登录窗口，请重试或先在官网完成登录，再点击重新读取账号。");
+  try {
+    if (typeof api.popup !== "function") throw error;
+    await bounded(api.popup(), deadline, options.signal, error);
+  } catch (cause) {
+    if (cause instanceof LoginError) throw cause;
+    throw error;
+  }
 }
 
 export function isLogin(): boolean {
@@ -54,15 +113,50 @@ export function getUserInfo(): WeGameLoginUser | null {
   }
 }
 
-export async function getLoginUser(): Promise<{ uin: number } | null> {
-  const api = sdk();
-  if (!api) return null;
-  try {
-    const user = await api.getLoginUser();
-    return { uin: Number(user.uin) || 0 };
-  } catch {
-    return null;
+function normalizeUin(value: unknown): string | null {
+  if (typeof value === "number") {
+    if (!Number.isSafeInteger(value) || value <= 0) {
+      if (value > 0) throw new LoginError("UNSAFE_UIN", "登录 SDK 返回的账号数字无法精确表示，请重新登录后重试。");
+      return null;
+    }
+    return String(value);
   }
+  return typeof value === "string" && /^\d+$/.test(value) && /[1-9]/.test(value) ? value : null;
+}
+
+async function readAccount(options: LoginWaitOptions, waitForSession: boolean): Promise<{ uin: string }> {
+  const deadline = Date.now() + (options.timeoutMs ?? (waitForSession ? 180000 : 4000));
+  const api = await readySdk(Math.min(deadline, Date.now() + 4000), options.signal);
+  let error = new LoginError("ACCOUNT_UNAVAILABLE", "已登录，但尚未读取到账号，请点击重新读取账号重试。");
+  do {
+    if (options.signal?.aborted) throw cancelled();
+    try {
+      if (!api.isLogin()) {
+        error = new LoginError("NOT_LOGGED_IN", "尚未完成 WeGame 登录，请登录后重试。");
+        if (!waitForSession) throw error;
+      } else {
+        const user = await bounded(api.getLoginUser(), Math.min(deadline, Date.now() + 1000), options.signal,
+          new LoginError("ACCOUNT_READ_FAILED", "读取登录账号失败，请点击重新读取账号重试。"));
+        const uin = normalizeUin(user?.uin);
+        if (uin) return { uin };
+        error = new LoginError("ACCOUNT_UNAVAILABLE", "已登录，但尚未读取到账号，请点击重新读取账号重试。");
+      }
+    } catch (cause) {
+      if (cause instanceof LoginError && ["CANCELLED", "UNSAFE_UIN", "NOT_LOGGED_IN"].includes(cause.code)) throw cause;
+      error = cause instanceof LoginError ? cause : new LoginError("ACCOUNT_READ_FAILED", "读取登录账号失败，请点击重新读取账号重试。");
+    }
+    if (Date.now() < deadline) await pause(deadline, options.signal);
+  } while (Date.now() < deadline);
+  throw error;
+}
+
+export function getLoginUser(options: LoginWaitOptions = {}): Promise<{ uin: string }> {
+  return readAccount(options, false);
+}
+
+/** 登录标志为 true 后仍要等到 UIN 可读；关闭弹窗可用界面的取消按钮结束等待。 */
+export function waitForLogin(options: LoginWaitOptions = {}): Promise<{ uin: string }> {
+  return readAccount(options, true);
 }
 
 /**

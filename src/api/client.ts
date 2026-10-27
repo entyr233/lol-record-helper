@@ -1,4 +1,7 @@
 import { ApiError } from "./errors";
+import { assertResponse, invalidResponse } from "./contracts";
+import { createRequestGate } from "./requestGate";
+import { createDetailCache } from "./detailCache";
 import type {
   BattleDetail,
   BattleCount,
@@ -14,8 +17,9 @@ import type {
 
 export const API_BASE = "/api/v1/wegame.pallas.game.LolBattle";
 const DEFAULT_TIMEOUT = 12000;
+const MAX_RETRY_AFTER_MS = 10000;
 
-interface RequestOptions {
+export interface RequestOptions {
   signal?: AbortSignal;
   timeoutMs?: number;
   retries?: number;
@@ -46,8 +50,7 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
     }, ms);
     const onAbort = () => {
       clearTimeout(timer);
-      const reason = signal && signal.reason;
-      reject(reason instanceof Error ? reason : new DOMException("aborted", "AbortError"));
+      reject(new DOMException("aborted", "AbortError"));
     };
     if (signal) {
       if (signal.aborted) onAbort();
@@ -56,18 +59,35 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-async function post<T>(method: string, body: unknown, options: RequestOptions = {}): Promise<T> {
+// A long server delay must not be shortened into an early retry.
+function retryAfterMs(value: string | null): number {
+  const text = value?.trim() ?? "";
+  if (/^\d+$/.test(text)) return Number(text) * 1000;
+  // HTTP-date permits the standard form and two historical forms. asctime is UTC.
+  const httpDate = /^(?:[A-Za-z]{3}, \d{2} [A-Za-z]{3} \d{4}|[A-Za-z]+, \d{2}-[A-Za-z]{3}-\d{2}) \d{2}:\d{2}:\d{2} GMT$/;
+  const asctime = /^[A-Za-z]{3} [A-Za-z]{3} {1,2}\d{1,2} \d{2}:\d{2}:\d{2} \d{4}$/;
+  const date = httpDate.test(text) ? Date.parse(text) : asctime.test(text) ? Date.parse(text + " GMT") : NaN;
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : 1000;
+}
+
+async function post<T>(method: string, body: unknown, options: RequestOptions, acquire: ReturnType<typeof createRequestGate>): Promise<T> {
   const { signal, timeoutMs = DEFAULT_TIMEOUT, retries = 1 } = options;
   if (signal && signal.aborted) {
     throw new DOMException("aborted", "AbortError");
   }
   let attempt = 0;
+  let rateLimitWaitMs = 0;
 
   for (;;) {
     const box = withTimeout(signal, timeoutMs);
-    let response: Response;
+    let release: (() => void) | undefined;
+    let retryDelay = 300 * (attempt + 1);
+    // Fetch failures, HTTP 5xx and bounded 429 delays are retryable; JSON/business errors are not.
+    let retryable = true;
     try {
-      response = await fetch(API_BASE + "/" + method, {
+      release = await acquire(box.signal);
+      if (box.signal.aborted) throw box.signal.reason;
+      const response = await fetch(API_BASE + "/" + method, {
         method: "POST",
         body: JSON.stringify(body ?? {}),
         credentials: "same-origin",
@@ -77,34 +97,38 @@ async function post<T>(method: string, body: unknown, options: RequestOptions = 
         },
         signal: box.signal
       });
+      retryable = response.status >= 500;
+      if (!response.ok) {
+        if (response.status === 429) {
+          retryDelay = retryAfterMs(response.headers.get("Retry-After"));
+          retryable = retryDelay <= MAX_RETRY_AFTER_MS - rateLimitWaitMs;
+        }
+        // We will not read an HTTP error body; release its stream before retrying.
+        void response.body?.cancel().catch(() => {});
+        if (response.status === 429) {
+          throw new ApiError("429", method, "请求过于频繁，请稍后重试");
+        }
+        throw new ApiError(String(response.status), method, "HTTP " + response.status);
+      }
+
+      retryable = false;
+      const payload: unknown = await response.json();
+      assertResponse(method, payload);
+      return payload as T;
     } catch (error) {
-      box.dispose();
-      const retryable = attempt < retries && !(signal && signal.aborted);
-      if (retryable) {
-        attempt += 1;
-        await delay(300 * attempt, signal);
-        continue;
-      }
       if (signal && signal.aborted) throw new DOMException("aborted", "AbortError");
-      throw error;
-    }
-    box.dispose();
-
-    if (!response.ok) {
-      if (response.status >= 500 && attempt < retries) {
-        attempt += 1;
-        await delay(300 * attempt, signal);
-        continue;
+      if (attempt >= retries || !(retryable || box.signal.aborted)) {
+        throw box.signal.aborted ? box.signal.reason : error instanceof SyntaxError ? invalidResponse(method) : error;
       }
-      throw new ApiError(String(response.status), method, "HTTP " + response.status);
+      if (error instanceof ApiError && error.code === "429") rateLimitWaitMs += retryDelay;
+    } finally {
+      // Keep both the deadline and the external abort listener until the body is read.
+      box.dispose();
+      release?.();
     }
 
-    const payload = (await response.json()) as T & { result?: { error_code?: number | string; error_message?: string } };
-    const result = payload.result;
-    if (result && result.error_code && String(result.error_code) !== "0") {
-      throw new ApiError(result.error_code, method, result.error_message);
-    }
-    return payload;
+    attempt += 1;
+    await delay(retryDelay, signal);
   }
 }
 
@@ -116,26 +140,41 @@ export interface LolBattleApi {
   getBattleDetail(rq: RqOptions, gameId: string, options?: RequestOptions): Promise<GetBattleDetailResponse>;
 }
 
-export const lolBattleApi: LolBattleApi = {
-  async searchPlayer(nickname, options) {
-    const res = await post<SearchPlayerResponse>("SearchPlayer", { nickname, from_src: "lol_helper" }, options);
-    return res.players ?? [];
-  },
-  async getSummonerInfo(rq, options) {
-    const res = await post<GetSummonerInfoResponse>("GetSummonerInfo", rq, options);
-    return res.summoner;
-  },
-  async getBattleReport(rq, options) {
-    const res = await post<GetBattleReportResponse>("GetBattleReport", rq, options);
-    return res.battle_count;
-  },
-  async getBattleList(rq, params, options) {
-    const res = await post<GetBattleListResponse>("GetBattleList", { ...rq, ...params }, options);
-    return res.battles ?? [];
-  },
-  async getBattleDetail(rq, gameId, options) {
-    return post<GetBattleDetailResponse>("GetBattleDetail", { ...rq, game_id: gameId }, options);
-  }
-};
+export function createLolBattleApi(): LolBattleApi {
+  const acquire = createRequestGate(4);
+  const request = async <T>(method: string, body: unknown, options: RequestOptions = {}): Promise<T> => {
+    try {
+      return await post<T>(method, body, options, acquire);
+    } catch (error) {
+      if (error instanceof ApiError && (error.isUnauthenticated || error.isHidden || error.needsCaptcha
+        || ["401", "403", "8000009", "8000021"].includes(String(error.code)))) details.clear();
+      throw error;
+    }
+  };
+  const details = createDetailCache((body, options) => request<GetBattleDetailResponse>("GetBattleDetail", body, options));
+  return {
+    async searchPlayer(nickname, options) {
+      const res = await request<SearchPlayerResponse>("SearchPlayer", { nickname, from_src: "lol_helper" }, options);
+      return res.players;
+    },
+    async getSummonerInfo(rq, options) {
+      const res = await request<GetSummonerInfoResponse>("GetSummonerInfo", rq, options);
+      return res.summoner;
+    },
+    async getBattleReport(rq, options) {
+      const res = await request<GetBattleReportResponse>("GetBattleReport", rq, options);
+      return res.battle_count;
+    },
+    async getBattleList(rq, params, options) {
+      const res = await request<GetBattleListResponse>("GetBattleList", { ...rq, ...params }, options);
+      return res.battles;
+    },
+    async getBattleDetail(rq, gameId, options) {
+      return details.get(rq, gameId, options);
+    }
+  };
+}
+
+export const lolBattleApi = createLolBattleApi();
 
 export type { BattleDetail, BattleCount, Summoner, PlayerSearchResult };

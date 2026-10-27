@@ -4,7 +4,7 @@
       <p v-if="hidden" class="hidden-tip">战绩已隐藏</p>
       <p v-else-if="authExpired" class="state-text state-text--error">
         登录状态已失效，请重新登录
-        <button type="button" class="link-button" @click="relogin">重新登录</button>
+        <button type="button" class="link-button" :disabled="loggingIn" @click="relogin">重新登录</button>
       </p>
       <p v-else-if="loading" class="state-text">加载中…</p>
       <p v-else-if="error" class="state-text state-text--error">
@@ -24,14 +24,23 @@
           <p class="summoner-line">赞: {{ summoner.praise }} | 黑: {{ summoner.discredit }}</p>
         </div>
         <div class="summoner-counts">
-          <p v-for="row in countRows" :key="row.label" class="count-row">
-            <span class="count-label">{{ row.label }}：</span>
-            <span class="count-total">{{ row.total }}</span>
-            <span class="count-win">{{ row.win }}</span>
-            <span class="count-lose">{{ row.lose }}</span>
+          <p v-if="reportLoading" class="state-text">统计加载中…</p>
+          <p v-else-if="reportError" class="state-text state-text--error">
+            统计加载失败：{{ toErrorMessage(reportError) }}
+            <button type="button" class="link-button" @click="retryReport">重试统计</button>
           </p>
+          <template v-else>
+            <p v-for="row in countRows" :key="row.label" class="count-row">
+              <span class="count-label">{{ row.label }}：</span>
+              <span class="count-total">{{ row.total }}</span>
+              <span class="count-win">{{ row.win }}</span>
+              <span class="count-lose">{{ row.lose }}</span>
+            </p>
+          </template>
         </div>
       </div>
+      <p v-if="loginError" class="state-text state-text--error" role="alert">{{ loginError }}</p>
+      <button v-if="loggingIn" type="button" class="link-button" @click="cancel">取消等待</button>
     </Panel>
   </div>
 </template>
@@ -44,9 +53,11 @@ import { lolBattleApi } from "../api/client";
 import { ApiError, toErrorMessage } from "../api/errors";
 import { useAsyncData } from "../composables/useAsyncData";
 import { toRqOptions } from "../composables/useUserInfo";
-import { logout, triggerLogin, waitForLogin } from "../utils/weGameLogin";
+import { triggerLogin, waitForLogin } from "../utils/weGameLogin";
+import { useLoginAction } from "../composables/useLoginAction";
 
 const props = defineProps<{ area: string; accountType: string; id: string }>();
+const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
 
 const rqOptions = computed(() => toRqOptions({ area: props.area, accountType: props.accountType, id: props.id }));
 
@@ -55,8 +66,10 @@ const reportTask = useAsyncData((signal) => lolBattleApi.getBattleReport(rqOptio
 
 const summoner = computed(() => summonerTask.data.value);
 const counts = computed(() => reportTask.data.value);
-const loading = computed(() => summonerTask.loading.value || reportTask.loading.value);
+const loading = computed(() => summonerTask.loading.value);
 const error = computed(() => summonerTask.error.value);
+const reportLoading = computed(() => reportTask.loading.value);
+const reportError = computed(() => reportTask.error.value);
 const hidden = computed(() => {
   const err = summonerTask.error.value;
   return err instanceof ApiError && err.isHidden;
@@ -87,20 +100,20 @@ function reload(): void {
   void reportTask.run();
 }
 
+function retryReport(): void {
+  void reportTask.run();
+}
+
 function openHelper(): void {
   window.open("https://www.wegame.com.cn/helper/lol/", "_blank", "noopener");
 }
 
-async function relogin(): Promise<void> {
-  if (triggerLogin()) {
-    const ok = await waitForLogin();
-    if (ok) {
-      window.location.reload();
-      return;
-    }
-  }
-  logout();
-  window.setTimeout(() => window.location.reload(), 300);
+function relogin(): Promise<void> {
+  return run(async (signal) => {
+    await triggerLogin({ signal });
+    await waitForLogin({ signal });
+    if (!signal.aborted) reload();
+  });
 }
 
 onMounted(() => {

@@ -3,15 +3,15 @@ export interface WeGameLoginUser {
   faceurl?: string;
   nick?: string;
   channel?: string;
-  uin?: number;
+  uin?: string | number;
 }
 
 export interface WeGameLoginSdk {
   isLogin(): boolean;
   logout(): void;
   getUserInfo(): WeGameLoginUser;
-  getLoginUser(): Promise<{ uin: number } & Record<string, unknown>>;
-  popup?: () => void;
+  getLoginUser(): Promise<{ uin?: string | number } & Record<string, unknown>>;
+  popup?: () => void | Promise<unknown>;
   onLogin?: (cb: () => void) => void;
   readyPromise?: Promise<void>;
 }

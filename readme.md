@@ -37,20 +37,27 @@ npm run typecheck    # vue-tsc 类型检查
 npm test             # Vitest
 ~~~
 
+GitHub Actions 验证流程固定使用 Node.js 24.22.1，通过 `npm ci` 按 `package-lock.json`
+安装锁定依赖，依次运行 Vitest、类型检查和一次用户脚本构建，再复用产物测试检查
+metadata、版本一致性和构建占位符。CI 不配置登录 Cookie、不调用真实 WeGame API，也不执行发布。
+
 本地开发时接口请求走 `/api/v1/wegame.pallas.game.LolBattle`，需要一个把请求转发到
 `https://www.wegame.com.cn` 并附带登录 cookie 的开发代理（见下）。
 
 ## 构建与发布
 
 ~~~bash
-npm run build        # 产出 dist/lol/lol.umd.js —— 用户脚本加载的单文件包
+npm run build        # 产出 dist/lol/lol.umd.js —— 构建用户脚本的中间包
+npm run build:userscript # 产出 dist/userscript/lol-tft.user.js —— 可安装的单文件脚本
 npm run build:app    # 产出 dist/site/index.html —— 可直接打开的演示/调试页
 ~~~
 
-发布流程（与旧版一致，产物路径不变）：
+普通用户从 [Greasy Fork 脚本页](https://greasyfork.org/zh-CN/scripts/454184) 点击安装，
+由 Tampermonkey 等用户脚本管理器接管。模板 `userscript/lol-tft.template.js` 不能直接安装。
 
-1. 把 `dist/lol/lol.umd.js` 上传到 `https://lol-tft.pages.dev/lol/lol.umd.js` 所在位置
-2. 需要更新脚本本体时，把 `userscript/lol-tft.user.js` 提交到 greasyfork（脚本 id 454184）
+本地验收或发布时，运行 `npm run build:userscript`，再将生成的
+`dist/userscript/lol-tft.user.js` 导入脚本管理器，或把该文件完整内容提交到上述 Greasy Fork 脚本页。
+`dist` 是 Git 忽略的生成目录；当前脚本已内联 UI bundle，发布时不再依赖上传远端 UI 包。
 
 > 注意：IIFE 包已内置 Vue 与 vue-router，不再依赖宿主页面的全局 Vue，也不再有独立 CSS 文件。
 
@@ -81,6 +88,13 @@ node scripts/sync-static-data.mjs
 
 粘贴后会立刻用一次真实请求校验：有效则自动重载切到真实数据；仍返回 8000102 会提示
 "cookie 未被识别为登录态"（常见原因：没登录、复制不全、抓的是第三方上报域）。
+
+开发服务器只绑定 `127.0.0.1`，包括传入 `--host` 时。开发工具可先同源 GET
+`/__lol-tft/status` 获取当前进程的 `devToken`；写入会话仅接受 POST
+`/__lol-tft/cookie`，JSON 为 `{ "cookie": "..." }`，清除会话用无请求体的 DELETE。
+两种方法都需 `Content-Type: application/json` 和 `x-lol-tft-dev-token` 请求头，
+请求体上限为 16 KiB。浏览器会自动携带同源 Origin；本地命令行工具需显式传入
+与访问地址一致的 Origin（如 `http://127.0.0.1:5173`）。重启后需重新获取 token。
 
 > 2026 年变更：WeGame 的 ⟦/ioi⟧ 战绩页已下线（404）。用户脚本从「接管整个页面」改为
 > 「任意 WeGame 页面右下角浮动入口 + 全屏面板」，不再依赖宿主 DOM 结构。

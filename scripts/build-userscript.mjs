@@ -24,16 +24,28 @@ if (found.length > 0) {
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const template = readFileSync(TEMPLATE, "utf8");
-const bundle = readFileSync(BUNDLE, "utf8");
 
-if (!template.includes("/*__BUNDLE__*/")) {
-  console.error("模板缺少 /*__BUNDLE__*/ 占位符");
+if (typeof pkg.version !== "string" || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?(?:\+[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/.test(pkg.version)) {
+  console.error("package.json version 必须是安全的版本号");
+  process.exit(1);
+}
+
+if (template.split("__VERSION__").length - 1 !== 2 ||
+    (template.match(/^\/\/ @version[ \t]+__VERSION__\r?$/gm) || []).length !== 1 ||
+    (template.match(/^[ \t]*var VERSION = "__VERSION__";\r?$/gm) || []).length !== 1 ||
+    template.split("/*__BUNDLE__*/").length - 1 !== 1) {
+  console.error("模板必须恰含一个元信息版本、一个运行时版本和一个 bundle 占位符");
   process.exit(1);
 }
 
 const output = template
-  .replace("__VERSION__", pkg.version)
-  .replace("/*__BUNDLE__*/", function () { return bundle; });
+  .replaceAll("__VERSION__", () => pkg.version)
+  .replace("/*__BUNDLE__*/", () => rawBundle);
+
+if (!output.startsWith("// ==UserScript==") || output.includes("__VERSION__") || output.includes("__BUNDLE__")) {
+  console.error("用户脚本起始头无效或仍包含未替换占位符");
+  process.exit(1);
+}
 
 mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(OUT, output, "utf8");

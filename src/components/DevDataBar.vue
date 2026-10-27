@@ -34,16 +34,25 @@ const mode = ref<Mode>("unknown");
 const panelOpen = ref(false);
 const cookieText = ref("");
 const error = ref("");
+let devToken = "";
 
 async function refresh(): Promise<void> {
   try {
     const res = await fetch("/__lol-tft/status");
     if (!res.ok) return;
-    const data = (await res.json()) as { mode?: Mode };
+    const data = (await res.json()) as { mode?: Mode; devToken?: string };
+    if (typeof data.devToken !== "string" || !data.devToken) return;
+    devToken = data.devToken;
     mode.value = data.mode === "real" ? "real" : "mock";
   } catch {
     /* 线上构建没有这个接口，保持隐藏 */
   }
+}
+
+async function sessionHeaders(): Promise<Record<string, string>> {
+  if (!devToken) await refresh();
+  if (!devToken) throw new Error("开发会话不可用，请刷新页面");
+  return { "content-type": "application/json", "x-lol-tft-dev-token": devToken };
 }
 
 async function apply(): Promise<void> {
@@ -51,19 +60,19 @@ async function apply(): Promise<void> {
   try {
     const res = await fetch("/__lol-tft/cookie", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: await sessionHeaders(),
       body: JSON.stringify({ cookie: cookieText.value.trim() })
     });
-    const data = (await res.json()) as { mode?: Mode; check?: { ok: boolean; code?: number | string; reason?: string } };
-    if (data.mode === "real" && data.check && data.check.ok) {
-      window.location.reload();
+    const data = (await res.json()) as { mode?: Mode; error?: string; check?: { ok: boolean; code?: number | string; reason?: string } };
+    if (!res.ok) throw new Error(data.error || "开发会话请求失败");
+    if (data.check && !data.check.ok) {
+      error.value = (data.check.reason || "Cookie 校验失败，未切换数据源") +
+        "（错误码 " + String(data.check.code ?? "-") + "）";
       return;
     }
-    if (data.mode === "real" && data.check) {
-      error.value =
-        "cookie 未被识别为登录态（错误码 " +
-        String(data.check.code ?? "-") +
-        "）。请从 www.wegame.com.cn 的「文档(document)请求」里复制完整 Cookie。";
+    if (data.mode === "real" && data.check && data.check.ok) {
+      cookieText.value = "";
+      window.location.reload();
       return;
     }
     error.value = "cookie 为空，未切换";
@@ -74,7 +83,8 @@ async function apply(): Promise<void> {
 
 async function reset(): Promise<void> {
   try {
-    await fetch("/__lol-tft/cookie", { method: "DELETE" });
+    const res = await fetch("/__lol-tft/cookie", { method: "DELETE", headers: await sessionHeaders() });
+    if (!res.ok) throw new Error("开发会话请求失败（HTTP " + res.status + "），请刷新页面重试");
     window.location.reload();
   } catch (e) {
     error.value = "切换失败：" + (e instanceof Error ? e.message : String(e));
