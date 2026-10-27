@@ -25,6 +25,14 @@
           <span class="strip-bar" :class="'strip-bar--' + classifyBattle(g)"></span>
         </button>
       </div>
+      <div v-if="trend.length" class="recent-trend" :title="trendTitle">
+        <span v-for="day in trend" :key="day.key" class="trend-day" :title="trendDayTitle(day)">
+          <span class="trend-track">
+            <span class="trend-bar" :class="{ 'trend-bar--low': day.winRate < 50 }" :style="{ height: day.winRate + '%' }"></span>
+          </span>
+          <span class="trend-day-label">{{ day.dayLabel }}</span>
+        </span>
+      </div>
       <div class="recent-champs">
         <span class="recent-champs-label">常用英雄（点击筛选）</span>
         <button v-for="c in topChampions" :key="c.id" type="button" class="recent-champ"
@@ -52,6 +60,7 @@ import { championName, ensureChampionNames } from "../api/staticData";
 import type { BattleSummary } from "../api/types";
 import { battleResultLabel, classifyBattle } from "../const/wins";
 import { MODE_FILTER_OPTIONS, type ModeFilter } from "../const/modes";
+import type { DaysFilter } from "../composables/useBattleList";
 
 const props = defineProps<{
   area: string;
@@ -61,6 +70,8 @@ const props = defineProps<{
   activeGameId?: string | null;
   /** 与对局列表共享的模式筛选（受控；不传时组件内部自管） */
   mode?: ModeFilter;
+  /** 与对局列表共享的时间范围：0 / 7 / 30 天 */
+  days?: DaysFilter;
 }>();
 const emit = defineEmits<{
   focusGame: [game: BattleSummary];
@@ -77,10 +88,12 @@ const ALL_MODE_PAGES = 2;
 const MODE_PAGES_MAX = 6;
 /** 指定模式的目标样本量 */
 const MODE_SAMPLE_TARGET = 10;
+const DAY_MS = 86400000;
 
 /** 受控 prop 优先；父组件没接管时用内部状态，便于单独使用/测试 */
 const internalMode = ref<ModeFilter>(props.mode ?? "all");
 const selectedMode = computed<ModeFilter>(() => props.mode ?? internalMode.value);
+const selectedDays = computed<DaysFilter>(() => props.days ?? 0);
 /** 原始页缓存：切换模式时只补拉缺少的页，不重复请求 */
 const pageCache = new Map<number, BattleSummary[]>();
 
@@ -90,10 +103,25 @@ function matchesMode(b: BattleSummary, mode: ModeFilter): boolean {
   return Number(b.game_queue_id) === Number(mode);
 }
 
+function withinDays(b: BattleSummary, days: DaysFilter): boolean {
+  if (!days) return true;
+  const start = Number(b.game_start_time);
+  if (!Number.isFinite(start) || start <= 0) return true;
+  return start >= Date.now() - days * DAY_MS;
+}
+
+function matchesSample(b: BattleSummary, mode: ModeFilter, days: DaysFilter): boolean {
+  return matchesMode(b, mode) && withinDays(b, days);
+}
+
 const task = useAsyncData(async (signal) => {
   const rq = toRqOptions({ area: props.area, accountType: props.accountType, id: props.id });
   const mode = selectedMode.value;
-  const maxPages = mode === "all" ? ALL_MODE_PAGES : MODE_PAGES_MAX;
+  const days = selectedDays.value;
+  // 全部模式且不限时间：只取最近 20 场；否则扩大回看范围以凑够样本
+  const windowed = mode === "all" && !days;
+  const maxPages = windowed ? ALL_MODE_PAGES : MODE_PAGES_MAX;
+  const target = windowed ? RECENT_WINDOW : MODE_SAMPLE_TARGET;
   const collected: BattleSummary[] = [];
   for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
     if (signal.aborted) break;
@@ -104,11 +132,7 @@ const task = useAsyncData(async (signal) => {
     }
     collected.push(...items);
     if (items.length < 10) break;
-    if (mode === "all") {
-      if (collected.length >= RECENT_WINDOW) break;
-    } else if (collected.filter((item) => matchesMode(item, mode)).length >= MODE_SAMPLE_TARGET) {
-      break;
-    }
+    if (collected.filter((item) => matchesSample(item, mode, days)).length >= target) break;
   }
   return collected;
 });
@@ -118,7 +142,7 @@ onMounted(() => {
   void task.run();
 });
 
-// 父组件（与列表联动）改模式时同步刷新统计
+// 父组件（与列表联动）改模式/时间范围时同步刷新统计
 watch(
   () => props.mode,
   (value) => {
@@ -127,21 +151,32 @@ watch(
     void task.run();
   }
 );
+watch(
+  () => props.days,
+  () => { void task.run(); }
+);
 
 const games = computed(() => task.data.value ?? []);
-/** 当前模式下的样本（最近 RECENT_WINDOW 场以内的匹配对局） */
+/** 当前模式 + 时间范围下的样本（最近 RECENT_WINDOW 场以内的匹配对局） */
 const sample = computed(() => {
-  const list = selectedMode.value === "all"
-    ? games.value
-    : games.value.filter((item) => matchesMode(item, selectedMode.value));
+  const mode = selectedMode.value;
+  const days = selectedDays.value;
+  const list = mode === "all" && !days ? games.value : games.value.filter((item) => matchesSample(item, mode, days));
   return list.slice(0, RECENT_WINDOW);
 });
 const modeLabel = computed(() => MODE_OPTIONS.find((option) => option.key === selectedMode.value)?.label ?? "全部");
+const daysLabel = computed(() => (selectedDays.value ? "近 " + selectedDays.value + " 天" : ""));
 const titleText = computed(() => {
-  if (selectedMode.value === "all") return "全部模式 · 最近 " + sample.value.length + " 场";
-  return modeLabel.value + " · 最近 " + games.value.length + " 场中 " + sample.value.length + " 场";
+  const scope = selectedMode.value === "all" ? "全部模式" : modeLabel.value;
+  const range = daysLabel.value ? " · " + daysLabel.value : "";
+  if (scope === "全部模式" && !range) return "全部模式 · 最近 " + sample.value.length + " 场";
+  return scope + range + " · 最近 " + games.value.length + " 场中 " + sample.value.length + " 场";
 });
-const emptyText = computed(() => modeLabel.value + "：最近 " + games.value.length + " 场里没有该模式的对局");
+const emptyText = computed(() => {
+  const scope = selectedMode.value === "all" ? "全部模式" : modeLabel.value;
+  const range = daysLabel.value ? " · " + daysLabel.value : "";
+  return scope + range + "：最近 " + games.value.length + " 场里没有符合条件的对局";
+});
 
 /** 切换模式：通知外部（若受控），并优先复用已缓存的原始页、只补拉缺少的部分 */
 function selectMode(mode: ModeFilter): void {
@@ -223,6 +258,52 @@ const topChampions = computed(() => {
   }
   return [...byId.values()].sort((a, b) => b.count - a.count).slice(0, 3);
 });
+
+function pad2(n: number): string {
+  return n < 10 ? "0" + n : String(n);
+}
+
+interface TrendDay {
+  key: string;
+  dayLabel: string;
+  wins: number;
+  losses: number;
+  winRate: number;
+}
+
+/** 按天聚合的胜率（最近 7 个有对局的日子），用迷你柱状条展示 */
+const trend = computed<TrendDay[]>(() => {
+  const buckets = new Map<string, { wins: number; losses: number }>();
+  for (const g of sample.value) {
+    const ts = Number(g.game_start_time);
+    if (!Number.isFinite(ts) || ts <= 0) continue;
+    const date = new Date(ts > 1e12 ? ts : ts * 1000);
+    const key = date.getFullYear() + "-" + pad2(date.getMonth() + 1) + "-" + pad2(date.getDate());
+    const entry = buckets.get(key) ?? { wins: 0, losses: 0 };
+    const result = classifyBattle(g);
+    if (result === "win") entry.wins += 1;
+    else if (result === "lose") entry.losses += 1;
+    buckets.set(key, entry);
+  }
+  return [...buckets.entries()]
+    .filter(([, value]) => value.wins + value.losses > 0)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-7)
+    .map(([key, value]) => {
+      const decided = value.wins + value.losses;
+      return {
+        key,
+        dayLabel: key.slice(5),
+        wins: value.wins,
+        losses: value.losses,
+        winRate: Math.round((value.wins / decided) * 100)
+      };
+    });
+});
+const trendTitle = computed(() => "按天聚合的胜率（最近 " + trend.value.length + " 个有对局的日子）");
+function trendDayTitle(day: TrendDay): string {
+  return day.key + "：" + day.wins + "胜" + day.losses + "负 · " + day.winRate + "% 胜率";
+}
 
 /** 主动刷新（“刷新战绩”按钮联动）：清掉页缓存后按当前模式重新统计 */
 function reload(): Promise<void> {

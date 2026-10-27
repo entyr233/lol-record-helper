@@ -1,5 +1,5 @@
 <template>
-  <div class="detail-player" :class="{ 'detail-player--self': isSelf, 'detail-player--tall': mode === '伤害' || mode === '海克斯', 'detail-player--mid': mode === '技能' }">
+  <div class="detail-player" :class="{ 'detail-player--self': isSelf, 'detail-player--tall': mode === '伤害', 'detail-player--mid': mode === '技能' }">
     <span class="dp-champion">
       <GameIcon kind="champion" :id="player.championId" />
       <span v-if="isTopDamage" class="dp-crown" title="全场输出最高">👑</span>
@@ -36,6 +36,8 @@
         <span v-if="tierLabel" class="tag tag--tier" :title="tierLabel">{{ tierLabel }}</span>
         <span v-if="teamLabel" class="tag tag--team">{{ teamLabel }}</span>
       </span>
+      <!-- 排序名次内联在昵称下方：不再单独占一列，避免窄窗口横向溢出 -->
+      <span v-if="rankInfo" class="dp-rank-inline">No.{{ rankInfo.rank }} · {{ rankInfo.label }}</span>
     </span>
 
     <template v-if="mode === '概要'">
@@ -114,23 +116,6 @@
       </span>
     </template>
 
-    <template v-else>
-      <span class="dp-hex">
-        <template v-if="hexAram">
-          <span v-if="augmentSlots.length === 0" class="dp-hex-empty">本场无强化记录</span>
-          <span v-for="slot in augmentSlots" :key="slot.id" class="dp-hex-item" :data-level="slot.level">
-            <GameIcon kind="url" :id="String(slot.id)" :src="slot.icon" :title="slot.name" />
-            <span class="dp-hex-name" :data-level="slot.level">{{ slot.name }}</span>
-          </span>
-        </template>
-        <span v-else class="dp-hex-empty">海克斯强化仅在海克斯大乱斗中存在</span>
-      </span>
-    </template>
-
-    <span v-if="rankInfo" class="dp-rank">
-      <span class="dp-rank-no">No.{{ rankInfo.rank }}</span>
-      <span class="dp-rank-label">{{ rankInfo.label }}</span>
-    </span>
     <span class="dp-score">{{ gameScore }}</span>
   </div>
 </template>
@@ -155,7 +140,7 @@ type DamageKey =
 const props = defineProps<{
   player: PlayerDetail;
   players: PlayerDetail[];
-  mode: "概要" | "技能" | "伤害" | "海克斯";
+  mode: "概要" | "技能" | "伤害";
   isSelf?: boolean;
   /** 海克斯大乱斗（2400）：无符文，改显海克斯强化 */
   hexAram?: boolean;

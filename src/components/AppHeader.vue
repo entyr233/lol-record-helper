@@ -48,6 +48,7 @@
 
     <span class="header-spacer"></span>
 
+    <a class="header-link" :href="GITHUB_URL" target="_blank" rel="noopener noreferrer" title="项目 GitHub 主页">GitHub ↗</a>
     <span class="header-version" title="脚本版本">v{{ version }}</span>
   </header>
 </template>
@@ -63,6 +64,7 @@ import { getLoginUser, getSelfUinFromCookie, hasLoginState, logout, triggerLogin
 import { useLoginAction } from "../composables/useLoginAction";
 
 const LOGIN_PAGE_URL = "https://www.wegame.com.cn/home/";
+const GITHUB_URL = "https://github.com/mscststs/lol-tft";
 const version = __APP_VERSION__;
 
 const route = useRoute();

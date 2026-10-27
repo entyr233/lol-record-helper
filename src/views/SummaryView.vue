@@ -14,6 +14,7 @@
       :active-champion="activeChampion"
       :active-game-id="selectedGameId"
       :active-mode="activeMode"
+      :active-days="activeDays"
       @focus-game="focusGame"
       @filter-champion="setChampionFilter"
       @mode-change="onModeChange"
@@ -29,6 +30,7 @@
       @open-summoner="openSummoner"
       @champion-change="onChampionChange"
       @mode-change="onModeChange"
+      @days-change="onDaysChange"
       @selection-change="onSelectionChange"
       @updated="onUpdated"
     />
@@ -43,14 +45,16 @@ import BattleList from "../components/BattleList.vue";
 import type { BattleSummary } from "../api/types";
 import type { PlayerDetail } from "../api/types";
 import type { ModeFilter } from "../const/modes";
+import type { DaysFilter } from "../composables/useBattleList";
 
 const props = defineProps<{ area: string; accountType: string; id: string }>();
 const router = useRouter();
 const listRef = ref<InstanceType<typeof BattleList> | null>(null);
 const summonerRef = ref<InstanceType<typeof SummonerInfo> | null>(null);
 
-/** 上下共享状态：模式筛选、英雄筛选、当前选中对局（总览与列表必须一致） */
+/** 上下共享状态：模式/时间范围筛选、英雄筛选、当前选中对局（总览与列表必须一致） */
 const activeMode = ref<ModeFilter>("all");
+const activeDays = ref<DaysFilter>(0);
 const activeChampion = ref<number | null>(null);
 const selectedGameId = ref<string | null>(null);
 
@@ -101,6 +105,11 @@ function onChampionChange(id: number | null): void {
 /** 模式改变：总览与列表共用一份状态（任一侧切换都会同步另一侧） */
 function onModeChange(mode: ModeFilter): void {
   if (activeMode.value !== mode) activeMode.value = mode;
+}
+
+/** 时间范围改变（列表的下拉）：总览统计同步 */
+function onDaysChange(days: DaysFilter): void {
+  if (activeDays.value !== days) activeDays.value = days;
 }
 
 function onSelectionChange(gameId: string | null): void {

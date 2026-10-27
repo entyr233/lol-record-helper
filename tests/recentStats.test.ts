@@ -222,6 +222,48 @@ describe("RecentStats 模式切换", () => {
     } finally { wrapper.unmount(); }
   });
 
+  it("按时间范围过滤样本，标题显示「近 7 天」", async () => {
+    const now = Date.now();
+    const recent = [
+      battle(1, { game_start_time: String(now - 2 * 86400000), win: "Win" }),
+      battle(2, { game_start_time: String(now - 3 * 86400000), win: "Fail" }),
+      battle(3, { game_start_time: String(now - 40 * 86400000), win: "Win" })
+    ];
+    mockPages(recent);
+    const wrapper = mount(RecentStats, {
+      props: { area: "1", accountType: "2", id: "test", days: 7 }
+    });
+    try {
+      await flushPromises();
+      expect(wrapper.get(".recent-title").text()).toContain("近 7 天");
+      expect(wrapper.get(".recent-title").text()).toContain("3 场中 2 场");
+      expect(wrapper.findAll(".strip-block--btn")).toHaveLength(2);
+      expect(wrapper.get(".recent-wl").text()).toBe("1胜1负");
+    } finally { wrapper.unmount(); }
+  });
+
+  it("按天聚合渲染胜率迷你趋势", async () => {
+    const now = Date.now();
+    const at = (daysAgo: number) => String(now - daysAgo * 86400000);
+    mockPages([
+      battle(1, { game_start_time: at(1), win: "Win" }),
+      battle(2, { game_start_time: at(1), win: "Fail" }),
+      battle(5, { game_start_time: at(1), win: "Fail" }),
+      battle(3, { game_start_time: at(2), win: "Win" }),
+      battle(4, { game_start_time: at(2), win: "Win" })
+    ]);
+    const wrapper = render();
+    try {
+      await flushPromises();
+      const days = wrapper.findAll(".recent-trend .trend-day");
+      expect(days).toHaveLength(2);
+      // 左侧是更早的一天：2 胜 0 负 → 100%；右侧是昨天：1 胜 2 负 → 33%
+      expect(days[0]!.attributes("title")).toContain("100% 胜率");
+      expect(days[1]!.attributes("title")).toContain("33% 胜率");
+      expect(wrapper.findAll(".trend-bar--low")).toHaveLength(1);
+    } finally { wrapper.unmount(); }
+  });
+
   it("所选模式没有对局时给出空态提示，切回全部可恢复", async () => {
     const recent = Array.from({ length: 10 }, (_, i) => battle(i + 1, { game_queue_id: 420 }));
     mockPages(recent);

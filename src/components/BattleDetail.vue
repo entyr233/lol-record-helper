@@ -15,7 +15,7 @@
       </div>
       <div class="detail-toolbar">
         <div class="mode-switch">
-          <button v-for="m in visibleModes" :key="m" type="button" class="mode-button" :class="{ active: currentMode === m }" @click="currentMode = m">{{ m }}</button>
+          <button v-for="m in MODES" :key="m" type="button" class="mode-button" :class="{ active: currentMode === m }" @click="currentMode = m">{{ m }}</button>
         </div>
         <select class="sort-select" :value="sortBy" @change="onSortChange">
           <option value="default">默认排序</option>
@@ -72,25 +72,19 @@ const props = defineProps<{
   id: string;
   gameId: string | null;
   startTime?: number | string;
-  /** 选中对局的队列 id（2400 = 海克斯大乱斗：无符文，有海克斯强化） */
+  /** 选中对局的队列 id（2400 = 海克斯大乱斗：无符文，行内直接显示海克斯强化） */
   queueId?: number | string;
-  mode?: "概要" | "技能" | "伤害" | "海克斯";
+  mode?: "概要" | "技能" | "伤害";
 }>();
 
 const isHexAram = computed(() => Number(props.queueId) === 2400);
 
 /** 模式页签内化到详情头部（左侧列表负责选比赛，右侧负责看详情） */
-const MODES = ["概要", "伤害", "技能", "海克斯"] as const;
+const MODES = ["概要", "伤害", "技能"] as const;
 const currentMode = ref<(typeof MODES)[number]>(props.mode ?? "概要");
-
-const visibleModes = computed(() => MODES.filter((m) => m !== "海克斯" || isHexAram.value));
 watch(() => props.mode, (m) => {
-  if (m && visibleModes.value.includes(m)) currentMode.value = m;
+  if (m) currentMode.value = m;
 });
-// 切换比赛（海克斯 → 普通）后当前页签可能已被隐藏：回到有效的「概要」，避免看不见的选中态继续生效
-watch(visibleModes, (modes) => {
-  if (!modes.includes(currentMode.value)) currentMode.value = "概要";
-}, { immediate: true });
 const summaryMeta = computed(() => {
   const d = detail.value;
   if (!d) return "";

@@ -154,6 +154,72 @@ describe("整页冒烟（mock 数据）", () => {
     }
   });
 
+  it("切换排序后名次内联展示，不再出现独立名次列", async () => {
+    const instance = mountLolTft({ host });
+    await instance.router.isReady();
+    await instance.router.push({ name: "summary", params: { area: "1", accountType: "2", id: "10001" } });
+    for (let i = 0; i < 10; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    const shadow = host.shadowRoot as ShadowRoot;
+    const sortSelect = shadow.querySelector(".sort-select") as HTMLSelectElement | null;
+    expect(sortSelect).not.toBeNull();
+    sortSelect!.value = "damage";
+    sortSelect!.dispatchEvent(new Event("change"));
+    for (let i = 0; i < 10; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    // 名次 + 对应数值内联在昵称下方，避免多占一列把内容挤出面板
+    expect(shadow.querySelectorAll(".dp-rank-inline").length).toBe(10);
+    expect(shadow.querySelector(".dp-rank")).toBeNull();
+    instance.unmount();
+  });
+
+  it("顶栏提供 GitHub 主页入口", async () => {
+    const instance = mountLolTft({ host });
+    await instance.router.isReady();
+    await flushPromises();
+
+    const shadow = host.shadowRoot as ShadowRoot;
+    const link = shadow.querySelector(".header-link") as HTMLAnchorElement | null;
+    expect(link).not.toBeNull();
+    expect(link!.getAttribute("href")).toBe("https://github.com/mscststs/lol-tft");
+    expect(link!.getAttribute("target")).toBe("_blank");
+    expect(link!.getAttribute("rel")).toContain("noopener");
+    instance.unmount();
+  });
+
+  it("列表时间范围筛选会同步总览统计（近 7 天）", async () => {
+    const instance = mountLolTft({ host });
+    await instance.router.isReady();
+    await instance.router.push({ name: "summary", params: { area: "1", accountType: "2", id: "10001" } });
+    for (let i = 0; i < 10; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    const shadow = host.shadowRoot as ShadowRoot;
+    const selects = Array.from(shadow.querySelectorAll<HTMLSelectElement>(".mode-filter-select"));
+    const daysSelect = selects.find((select) =>
+      Array.from(select.options).some((option) => option.textContent?.includes("最近 7 天"))
+    );
+    expect(daysSelect).toBeTruthy();
+    daysSelect!.value = "7";
+    daysSelect!.dispatchEvent(new Event("change"));
+    for (let i = 0; i < 20; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    expect(shadow.querySelector(".recent-title")?.textContent).toContain("近 7 天");
+    expect(shadow.querySelector(".sample-note")?.textContent).toContain("符合条件");
+    instance.unmount();
+  });
+
   it("总览与列表的模式筛选双向联动", async () => {
     const instance = mountLolTft({ host });
     await instance.router.isReady();

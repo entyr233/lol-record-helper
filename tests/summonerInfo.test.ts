@@ -36,8 +36,10 @@ describe("SummonerInfo independent statistics state", () => {
       const stats = wrapper.get(".summoner-stats");
       expect(stats.findAll(".count-row")).toHaveLength(4);
       expect(stats.get(".count-rate").text()).toContain("胜率");
-      // 更多资料只保留等级/赞踩等次要信息
-      expect(wrapper.get(".summoner-more").findAll(".count-row")).toHaveLength(0);
+      // 等级/赞黑等资料直接展示，不再折叠进「更多资料」
+      expect(wrapper.text()).toContain("等级:");
+      expect(wrapper.text()).toContain("赞:");
+      expect(wrapper.find(".summoner-more").exists()).toBe(false);
     } finally { wrapper.unmount(); }
   });
 

@@ -35,14 +35,11 @@
               <span class="count-label">段位：</span>
               <span class="count-tier">{{ tierText }}</span>
             </p>
-            <details class="summoner-more">
-              <summary>更多资料</summary>
-              <p class="summoner-line">
-                等级: {{ summoner.level }}
-                <span class="summoner-sub">({{ summoner.experience }})</span>
-              </p>
-              <p class="summoner-line">赞: {{ summoner.praise }} | 黑: {{ summoner.discredit }}</p>
-            </details>
+            <p class="summoner-line">
+              等级: {{ summoner.level }}
+              <span class="summoner-sub">({{ summoner.experience }})</span>
+            </p>
+            <p class="summoner-line">赞: {{ summoner.praise }} | 黑: {{ summoner.discredit }}</p>
           </div>
         </div>
         <div class="summoner-stats">
@@ -65,7 +62,7 @@
       </div>
       <div class="summoner-recent">
         <RecentStats ref="recentRef" :area="area" :account-type="accountType" :id="id" :active-champion="activeChampion"
-          :active-game-id="activeGameId" :mode="activeMode"
+          :active-game-id="activeGameId" :mode="activeMode" :days="activeDays"
           @focus-game="(g: BattleSummary) => emit('focusGame', g)" @filter-champion="(id: number | null) => emit('filterChampion', id)"
           @mode-change="(mode: ModeFilter) => emit('modeChange', mode)" />
       </div>
@@ -90,6 +87,7 @@ import { useLoginAction } from "../composables/useLoginAction";
 import { useFavorites } from "../composables/useFavorites";
 import { tierLabel, tierOrder } from "../const/tiers";
 import type { ModeFilter } from "../const/modes";
+import type { DaysFilter } from "../composables/useBattleList";
 
 const props = defineProps<{
   area: string;
@@ -99,6 +97,8 @@ const props = defineProps<{
   activeGameId?: string | null;
   /** 与列表共享的模式筛选（透传给近期表现） */
   activeMode?: ModeFilter;
+  /** 与列表共享的时间范围（透传给近期表现） */
+  activeDays?: DaysFilter;
 }>();
 
 const emit = defineEmits<{

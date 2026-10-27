@@ -157,6 +157,20 @@ button {
   font-size: 11px;
   font-family: Consolas, Monaco, monospace;
 }
+/* 顶栏常驻的项目主页入口（原来只能去脚本编辑页里找链接） */
+.header-link {
+  padding: 6px 10px;
+  color: #8f99a6;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  border-radius: 4px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.header-link:hover {
+  color: #e6c37a;
+  background-color: rgba(255, 255, 255, 0.06);
+}
 .header-spacer {
   flex: 1 1 auto;
 }
@@ -840,9 +854,10 @@ button {
 .detail-player {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  min-width: 0;
   min-height: 80px;
-  padding: 8px 16px;
+  padding: 8px 12px;
 }
 .dp-spells {
   display: flex;
@@ -867,10 +882,10 @@ button {
   align-items: center;
   justify-content: center;
   gap: 3px;
-  min-width: 116px;
+  min-width: 108px;
 }
 .dp-stat--kda {
-  min-width: 130px;
+  min-width: 122px;
 }
 .stat-value {
   color: #e8edf2;
@@ -905,8 +920,8 @@ button {
   z-index: 1;
 }
 .dp-summoner {
-  flex: 0 1 210px;
-  min-width: 170px;
+  flex: 0 1 190px;
+  min-width: 140px;
 }
 
 /* 伤害四行柱状 / 技能三行数据需要更高行距，否则相邻行重叠 */
@@ -947,13 +962,6 @@ button {
   border: 1px solid #3a4450;
   border-radius: 3px;
   background-color: #1c232d;
-}
-/* 海克斯强化横排：6 个图标一行放不下时换行，不再纵向撑高行 */
-.dp-runes--hex {
-  flex-direction: row;
-  flex-wrap: wrap;
-  max-width: 150px;
-  gap: 3px;
 }
 .dp-runes {
   display: flex;
@@ -1089,11 +1097,11 @@ button {
 .dp-items {
   display: flex;
   flex: none;
-  gap: 4px;
+  gap: 3px;
 }
 .dp-items .game-icon {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 4px;
   overflow: hidden;
 }
@@ -1133,7 +1141,7 @@ button {
 }
 .dp-score {
   flex: none;
-  width: 60px;
+  width: 52px;
   color: #b59758;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
   font-size: 18px;
@@ -1297,40 +1305,11 @@ button {
   color: #e07070;
 }
 
-.dp-hex {
-  display: flex;
-  flex: none;
-  width: 100%;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 8px;
-}
-.dp-hex-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.dp-hex-item .game-icon {
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
-  overflow: hidden;
-}
-.dp-hex-item[data-level="kPrismatic"] .dp-hex-name,
-.dp-hex-item[data-level="kPrismatic"] .game-icon {
-  outline: 1px solid #e6c37a;
-}
-.dp-hex-name {
-  color: #c6cfda;
-  font-size: 11px;
+.dp-rank-inline {
+  color: #e6c37a;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
-}
-.dp-hex-item[data-level="kPrismatic"] .dp-hex-name { color: #e6c37a; }
-.dp-hex-item[data-level="kGold"] .dp-hex-name { color: #d8b56a; }
-.dp-hex-empty {
-  color: #56606c;
   font-size: 11px;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  white-space: nowrap;
 }
 
 .search-history {
@@ -1562,6 +1541,43 @@ button {
   margin: 4px 0 0;
   color: #8f99a6;
   font-size: 13px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+/* 按天胜率迷你柱状趋势 */
+.recent-trend {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+.trend-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.trend-track {
+  display: flex;
+  align-items: flex-end;
+  width: 14px;
+  height: 26px;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+}
+.trend-bar {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  background-color: #1dbaa9;
+  border-radius: 2px;
+}
+.trend-bar--low {
+  background-color: #c15b5b;
+}
+.trend-day-label {
+  color: #56606c;
+  font-size: 10px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
 .recent-champs {
@@ -1802,25 +1818,6 @@ button {
   }
 }
 
-.dp-rank {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 1px;
-  min-width: 72px;
-}
-.dp-rank-no {
-  color: #e6c37a;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-}
-.dp-rank-label {
-  color: #8f99a6;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-  font-size: 11px;
-}
 .detail-summary {
   display: flex;
   align-items: center;

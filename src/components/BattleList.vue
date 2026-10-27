@@ -78,7 +78,7 @@ import BattleListItem from "./BattleListItem.vue";
 import BattleDetail from "./BattleDetail.vue";
 import type { BattleSummary, PlayerDetail } from "../api/types";
 import { toRqOptions } from "../composables/useUserInfo";
-import { useBattleList, DEFAULT_FILTER, type FocusGameResult, type ModeFilter, type ListFilter } from "../composables/useBattleList";
+import { useBattleList, DEFAULT_FILTER, type FocusGameResult, type ModeFilter, type DaysFilter, type ListFilter } from "../composables/useBattleList";
 import { MODE_FILTER_OPTIONS } from "../const/modes";
 import { toErrorMessage } from "../api/errors";
 import { championName, ensureChampionNames } from "../api/staticData";
@@ -90,11 +90,14 @@ const props = defineProps<{
   activeChampion?: number | null;
   /** 与总览共享的模式筛选（受控） */
   activeMode?: ModeFilter;
+  /** 与总览共享的时间范围（受控） */
+  activeDays?: DaysFilter;
 }>();
 const emit = defineEmits<{
   openSummoner: [player: PlayerDetail];
   championChange: [id: number | null];
   modeChange: [mode: ModeFilter];
+  daysChange: [days: DaysFilter];
   selectionChange: [gameId: string | null];
   /** 列表数据完成一次「初始加载 / 主动刷新」，用于展示“更新于 HH:MM” */
   updated: [at: Date];
@@ -174,12 +177,23 @@ watch(
   },
   { immediate: true }
 );
+watch(
+  () => props.activeDays ?? 0,
+  (value) => {
+    if (filter.value.days === value) return;
+    void setFilter({ days: value });
+  },
+  { immediate: true }
+);
 // 内部筛选/选中变化 → 通知外部
 watch(() => filter.value.champion, (value) => {
   emit("championChange", value);
 });
 watch(() => filter.value.mode, (value) => {
   emit("modeChange", value);
+});
+watch(() => filter.value.days, (value) => {
+  emit("daysChange", value);
 });
 watch(selectedGameId, (value) => {
   emit("selectionChange", value);

@@ -109,9 +109,11 @@ export function battlesFor(player: MockPlayer): SampleBattle[] {
 
   const total = 28;
   const offset = player.seed % total;
+  const now = Date.now();
   const list = Array.from({ length: total }, (_, index) => {
     const sourceIndex = (index + offset) % total;
-    const startedAt = 1761400000000 - index * 47 * 60 * 1000;
+    // 以「当前时间」为起点：让近 7/30 天筛选、按天趋势在本地 mock 里也有意义
+    const startedAt = now - index * 47 * 60 * 1000;
     const lose = (sourceIndex + player.seed) % 3 === 2;
     return {
       ...TEMPLATE,

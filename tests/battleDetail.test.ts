@@ -254,21 +254,12 @@ describe("BattleDetail 摘要身份一致", () => {
     expect(wrapper.find(".detail-summary-name").text()).toBe("蓝方玩家");
   });
 
-  it("从海克斯比赛切到普通比赛后，隐藏的「海克斯」页签自动回到「概要」", async () => {
+  it("海克斯比赛不再单独占一个页签（强化名走行内图标悬浮）", async () => {
     getBattleDetailMock.mockResolvedValue(makeResponse("openid-blue"));
     const wrapper = await mountDetail({ queueId: 2400 });
 
-    const hexTab = wrapper.findAll(".mode-button").find((tab) => tab.text() === "海克斯");
-    expect(hexTab).toBeTruthy();
-    await hexTab!.trigger("click");
-    expect(wrapper.find(".mode-button.active").text()).toBe("海克斯");
-
-    // 切到普通比赛（非 2400）：海克斯页签消失，选中态必须回到有效页签
-    await wrapper.setProps({ queueId: 420 });
-    await flushPromises();
-
-    const visibleLabels = wrapper.findAll(".mode-button").map((tab) => tab.text());
-    expect(visibleLabels).not.toContain("海克斯");
+    const labels = wrapper.findAll(".mode-button").map((tab) => tab.text());
+    expect(labels).toEqual(["概要", "伤害", "技能"]);
     expect(wrapper.find(".mode-button.active").text()).toBe("概要");
     expect(wrapper.text()).not.toContain("本场无强化记录");
   });
