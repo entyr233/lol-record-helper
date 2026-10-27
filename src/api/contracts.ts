@@ -16,7 +16,11 @@ function identified(value: unknown, key: string): value is RecordValue {
   return object(value) && typeof value[key] === "string" && value[key].length > 0;
 }
 
+/** 最近一次被校验拒绝的响应（诊断用，__LOL_TFT_DUMP__ 一键导出） */
+export const lastRejected: { method: string; payload: unknown } = { method: "", payload: null };
+
 export function invalidResponse(method: string, payload?: unknown): ApiError {
+  if (payload !== undefined) lastRejected.method = method, lastRejected.payload = payload;
   let digest = "";
   if (payload !== undefined) {
     try {
@@ -79,11 +83,12 @@ export function assertResponse(method: string, payload: unknown): void {
       break;
     case "GetBattleDetail": {
       const detail = payload.battle_detail;
-      valid = identified(payload, "openid") && identified(detail, "game_id")
+      // 2026 响应顶层可能不再带 openid（自己的 id 从路由已可知），故不做硬性要求
+      valid = identified(detail, "game_id")
         && fields(detail, ["game_start_time"], ["game_time_played", "game_queue_id"])
         && Array.isArray(detail.team_details) && detail.team_details.length > 0
         && detail.team_details.every((team) => identified(team, "teamId")
-          && fields(team, ["win"], ["teamElo", "totalKills", "totalDeaths", "totalAssists"]))
+          && fields(team, ["win"], ["totalKills", "totalDeaths", "totalAssists"]))
         && Array.isArray(detail.player_details) && detail.player_details.length > 0
         && detail.player_details.every((player) => identified(player, "openid") && identified(player, "teamId")
           && fields(player, ["name"], [

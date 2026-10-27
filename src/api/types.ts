@@ -112,7 +112,8 @@ export interface PlayerDetail {
 export interface TeamDetail {
   teamId: string;
   win: string;
-  teamElo: number;
+  /** 2026 响应已不再返回该字段 */
+  teamElo?: number;
   totalKills: number;
   totalDeaths: number;
   totalAssists: number;
