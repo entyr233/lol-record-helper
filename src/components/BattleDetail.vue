@@ -56,15 +56,30 @@ const request = useAsyncData(async (signal) => {
     // 首选：wegame 同源详情
     return await lolBattleApi.getBattleDetail(rq, String(props.gameId), { signal });
   } catch (error) {
-    // 官方已限制老详情接口（8000120 等）：回退到掌盟公开详情（GM 传输带 qt.qq.com 登录 cookie）
-    if (error instanceof ApiError && !signal.aborted) {
-      const mlol = await fetchMlolBattleDetail({
-        gameId: String(props.gameId),
-        areaId: props.area,
-        startTime: props.startTime
-      });
-      if (mlol.player_details.length > 0) return mlol as unknown as GetBattleDetailLike;
+    if (!(error instanceof ApiError) || signal.aborted) throw error;
+    // 回退一：详情接口对 account_type=2+openid 的口径可能仍开放——
+    // 用召唤师名字搜索自己的 openid，换口径重试（仅 self 场景）
+    if (String(rq.account_type) === "1") {
+      try {
+        const summoner = await lolBattleApi.getSummonerInfo(rq, { signal });
+        const players = await lolBattleApi.searchPlayer(summoner.name, { signal });
+        const match = players.find((p) => Number(p.area) === Number(props.area));
+        if (match) {
+          return await lolBattleApi.getBattleDetail(
+            { ...rq, account_type: 2, id: match.openid },
+            String(props.gameId),
+            { signal }
+          );
+        }
+      } catch { /* 搜索也被限制时走下一层回退 */ }
     }
+    // 回退二：掌盟公开详情（GM 传输带 qt.qq.com 登录 cookie）
+    const mlol = await fetchMlolBattleDetail({
+      gameId: String(props.gameId),
+      areaId: props.area,
+      startTime: props.startTime
+    });
+    if (mlol.player_details.length > 0) return mlol as unknown as GetBattleDetailLike;
     throw error;
   }
 });
