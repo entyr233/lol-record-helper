@@ -1,5 +1,6 @@
 import { ApiError } from "./errors";
 import { postJson } from "./transport";
+import { captchaAllowed, needsCaptcha, runCaptchaVerification } from "./captcha";
 import { assertResponse, invalidResponse } from "./contracts";
 import { createRequestGate } from "./requestGate";
 import { createDetailCache } from "./detailCache";
@@ -147,6 +148,19 @@ export function createLolBattleApi(): LolBattleApi {
     try {
       return await post<T>(method, body, options, acquire);
     } catch (error) {
+      // 人机验证门槛（8000022 现任确认 / 8000120 搜索与详情实测）：验证后重试一次
+      if (error instanceof ApiError && needsCaptcha(error.code) && captchaAllowed() && !(options.signal?.aborted)) {
+        try {
+          await runCaptchaVerification();
+          const retried = await post<T>(method, body, options, acquire);
+          return retried;
+        } catch (cause) {
+          error = cause instanceof ApiError ? cause : error;
+          if (!(cause instanceof ApiError) || !(String(cause.code) === "8000022" || String(cause.code) === "8000120")) {
+            if (cause instanceof ApiError && String(cause.code) !== "CAPTCHA_CANCELLED" && String(cause.code) !== "CAPTCHA_SDK") throw cause;
+          }
+        }
+      }
       if (error instanceof ApiError && (error.isUnauthenticated || error.isHidden || error.needsCaptcha
         || ["401", "403", "8000009", "8000021"].includes(String(error.code)))) details.clear();
       throw error;
