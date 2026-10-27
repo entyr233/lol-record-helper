@@ -1,10 +1,13 @@
 <template>
   <div class="page">
     <Panel title="搜索结果">
-      <div v-if="historyNames.length > 1" class="search-history">
+      <div v-if="historyNames.length" class="search-history">
         <span class="search-history-label">最近搜索：</span>
-        <button v-for="name in historyNames" :key="name" type="button" class="search-history-chip"
-          :class="{ 'search-history-chip--cur': name === props.nickname }" @click="searchHistory(name)">{{ name }}</button>
+        <span v-for="name in historyNames" :key="name" class="search-history-chip" :class="{ 'search-history-chip--cur': name === props.nickname }">
+          <button type="button" class="chip-main" @click="searchHistory(name)">{{ name }}</button>
+          <button type="button" class="chip-del" title="删除这条记录" @click="removeHistory(name)">×</button>
+        </span>
+        <button type="button" class="history-clear" @click="clearHistory">清空记录</button>
       </div>
       <p v-if="loading" class="state-text">搜索中…</p>
       <p v-else-if="error" class="state-text state-text--error">{{ toErrorMessage(error) }}</p>
@@ -57,6 +60,17 @@ function rememberName(name: string): void {
 
 function searchHistory(name: string): void {
   void router.push({ name: "search", params: { nickname: name } });
+}
+
+function removeHistory(name: string): void {
+  const next = historyNames.value.filter((n) => n !== name);
+  historyNames.value = next;
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+}
+
+function clearHistory(): void {
+  historyNames.value = [];
+  try { localStorage.removeItem(HISTORY_KEY); } catch { /* ignore */ }
 }
 
 const task = useAsyncData((signal) => lolBattleApi.searchPlayer(props.nickname, { signal }));
