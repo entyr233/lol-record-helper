@@ -1601,39 +1601,42 @@ button {
   min-width: 0;
 }
 .recent-metrics {
-  flex: 0 0 240px;
+  flex: 0 0 360px;
+  min-height: 104px;
   padding: 10px 14px;
   background-color: rgba(255, 255, 255, 0.02);
   border: 1px solid #202831;
   border-radius: 6px;
 }
 .recent-metrics-title {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   color: #56606c;
   font-size: 11px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
+/* 六项指标排成 3×2，比 2×3 更矮，和右侧卡片齐平 */
 .recent-metrics-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px 12px;
 }
 .recent-metric {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   color: #8f99a6;
   font-size: 11px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
 .recent-metric b {
   color: #e8edf2;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
 }
 /* 模式分布卡：各队列场次占比条 */
 .recent-queues {
-  flex: 0 0 220px;
+  flex: 0 0 240px;
+  min-height: 104px;
   padding: 10px 14px;
   background-color: rgba(255, 255, 255, 0.02);
   border: 1px solid #202831;
@@ -2013,7 +2016,7 @@ button {
     flex-wrap: wrap;
   }
   .recent-metrics {
-    flex: 1 1 240px;
+    flex: 1 1 300px;
   }
   .recent-queues {
     flex: 1 1 200px;
