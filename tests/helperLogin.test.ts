@@ -148,6 +148,34 @@ describe("官方助手登录入口", () => {
     expect(root().textContent).toContain("LOL 助手增强");
   });
 
+  it("打开页面时若 hash 缺少参数，自动补上当前账号/大区（登录刷新后无需再点按钮）", async () => {
+    document.cookie = "uin=o012345; path=/";
+    localStorage.setItem("lol_tft:lol-tft-helper-area", "1");
+    vi.stubGlobal("location", {
+      hostname: "www.wegame.com.cn",
+      pathname: "/helper/lol/v2/frame.html",
+      hash: "#/tft/overview",
+      reload
+    });
+    instance = mountHelperLogin();
+    await nextTick();
+    expect(location.hash).toBe("#/tft/overview?uin=12345&area_id=1&account_type=1");
+  });
+
+  it("hash 已带 area_id（分享链接/其他玩家）时不覆盖原参数", async () => {
+    document.cookie = "uin=o012345; path=/";
+    localStorage.setItem("lol_tft:lol-tft-helper-area", "1");
+    vi.stubGlobal("location", {
+      hostname: "www.wegame.com.cn",
+      pathname: "/helper/lol/v2/frame.html",
+      hash: "#/tft/overview?uin=999&area_id=2&account_type=2",
+      reload
+    });
+    instance = mountHelperLogin();
+    await nextTick();
+    expect(location.hash).toBe("#/tft/overview?uin=999&area_id=2&account_type=2");
+  });
+
   it("选择大区后把 uin / area_id / account_type 写进 hash 再打开官方战绩", async () => {
     document.cookie = "uin=o012345; path=/";
     instance = mountHelperLogin();

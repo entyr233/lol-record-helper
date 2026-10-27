@@ -45,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { areas } from "../const/areas";
 import { readStorage, writeStorage } from "../utils/storage";
 import { getSelfUinFromCookie, triggerLogin, waitForLogin } from "../utils/weGameLogin";
@@ -65,6 +65,11 @@ const uin = computed(() => getSelfUinFromCookie());
 
 watch(areaId, (value) => {
   writeStorage(AREA_STORAGE_KEY, value);
+  if (value) autoApplyOfficialQuery();
+});
+
+onMounted(() => {
+  autoApplyOfficialQuery();
 });
 
 function login(): Promise<void> {
@@ -84,6 +89,23 @@ function officialCareerHash(section: OfficialSection): string {
   query.set("area_id", String(areaId.value));
   query.set("account_type", "1");
   return "#/" + section + "/overview?" + query.toString();
+}
+
+/**
+ * 官方页面在普通浏览器里拿不到 TGP 客户端的大区，只能靠地址参数初始化查询对象。
+ * 登录后刷新、或首次打开页面时，如果当前 hash 没有 area_id，就自动补一次参数，
+ * 避免用户还要手动点按钮、或刷新后参数丢失又回到「未选定大区」。
+ * 已有 area_id 的地址（例如分享链接）保持不动。
+ */
+function autoApplyOfficialQuery(): void {
+  const hash = location.hash || "";
+  const match = hash.match(/^#\/(life|tft)\/overview/);
+  if (!match) return;
+  const queryIndex = hash.indexOf("?");
+  const query = new URLSearchParams(queryIndex >= 0 ? hash.slice(queryIndex + 1) : "");
+  if (query.get("area_id")) return;
+  if (!areaId.value || !uin.value) return;
+  location.hash = officialCareerHash(match[1] as OfficialSection);
 }
 
 function openOfficial(section: OfficialSection): void {
