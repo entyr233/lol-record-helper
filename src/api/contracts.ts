@@ -16,15 +16,23 @@ function identified(value: unknown, key: string): value is RecordValue {
   return object(value) && typeof value[key] === "string" && value[key].length > 0;
 }
 
-export function invalidResponse(method: string): ApiError {
-  return new ApiError("INVALID_RESPONSE", method, "接口响应格式异常（" + method + "），请重试");
+export function invalidResponse(method: string, payload?: unknown): ApiError {
+  let digest = "";
+  if (payload !== undefined) {
+    try {
+      const raw = JSON.stringify(payload);
+      try { console.debug("[lol-tft] " + method + " 响应结构（完整）:", raw); } catch { /* ignore */ }
+      digest = " | 响应原文: " + raw.slice(0, 600) + (raw.length > 600 ? "…" : "");
+    } catch { /* ignore */ }
+  }
+  return new ApiError("INVALID_RESPONSE", method, "接口响应格式异常（" + method + "），请重试" + digest);
 }
 
 /** Check containers, identities and displayed core values, allowing extra/optional fields.
  * Some WeGame successes omit result; an explicit empty array is still required for no results.
  */
 export function assertResponse(method: string, payload: unknown): void {
-  if (!object(payload)) throw invalidResponse(method);
+  if (!object(payload)) throw invalidResponse(method, payload);
   if (payload.result !== undefined) {
     const result = payload.result;
     if (!object(result)
@@ -32,7 +40,7 @@ export function assertResponse(method: string, payload: unknown): void {
       || (typeof result.error_code === "number" && !Number.isFinite(result.error_code))
       || String(result.error_code).trim() === ""
       || (result.error_message !== undefined && typeof result.error_message !== "string")) {
-      throw invalidResponse(method);
+      throw invalidResponse(method, payload);
     }
     if (String(result.error_code) !== "0") {
       throw new ApiError(result.error_code as number | string, method, result.error_message as string | undefined);
@@ -85,5 +93,5 @@ export function assertResponse(method: string, payload: unknown): void {
       break;
     }
   }
-  if (!valid) throw invalidResponse(method);
+  if (!valid) throw invalidResponse(method, payload);
 }
