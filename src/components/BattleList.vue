@@ -33,9 +33,7 @@
               @click="select(battle.game_id)"
             />
           </ul>
-          <button v-if="hasMore" type="button" class="load-more" :disabled="loading" @click="loadMore">
-            {{ loading ? "加载中…" : "点击加载更多" }}
-          </button>
+          <p v-if="battles.length" class="battle-count-hint">共 {{ battles.length }} 场（最近对局总览）</p>
         </div>
 
         <div class="battle-list-detail">
@@ -72,10 +70,10 @@ const MODES = ["概要", "技能", "伤害"] as const;
 const currentMode = ref<(typeof MODES)[number]>("概要");
 
 const rqOptions = computed(() => toRqOptions({ area: props.area, accountType: props.accountType, id: props.id }));
-const { battles, loading, error, hasMore, selectedGameId, loadMore, select } = useBattleList(() => rqOptions.value);
+const { battles, loading, error, selectedGameId, load, select } = useBattleList(() => rqOptions.value);
 
 onMounted(() => {
-  void loadMore();
+  void load();
 });
 
 function handleOpenSummoner(player: PlayerDetail): void {

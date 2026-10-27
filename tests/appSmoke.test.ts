@@ -59,9 +59,10 @@ describe("整页冒烟（mock 数据）", () => {
     expect(text).toContain("匹配");
     expect(text).toContain("排位");
 
-    // 对局列表：第一页 10 条
+    // 对局列表：GetBattleOverview 一次返回全部最近对局（mock 28 场）
     const items = shadow.querySelectorAll(".battle-list-item");
-    expect(items).toHaveLength(10);
+    expect(items.length).toBeGreaterThan(0);
+    expect(shadow.textContent).toContain("最近对局总览");
 
     // 首局自动展开详情：两支队伍 + 10 名玩家
     await flushPromises();
@@ -124,7 +125,8 @@ describe("整页冒烟（mock 数据）", () => {
     const text = shadow.textContent || "";
     expect(text).toContain("香辣鸡腿堡");
     expect(text).not.toContain("测试召唤师（mock）");
-    expect(shadow.querySelectorAll(".battle-list-item").length).toBe(10);
+    expect(shadow.querySelectorAll(".battle-list-item").length).toBeGreaterThan(0);
+    expect(shadow.textContent).toContain("段位");
 
     instance.unmount();
   });

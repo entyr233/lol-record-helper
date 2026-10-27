@@ -5,6 +5,7 @@ import { createDetailCache } from "./detailCache";
 import type {
   BattleDetail,
   BattleCount,
+  BattleOverview,
   GetBattleDetailResponse,
   GetBattleListResponse,
   GetBattleReportResponse,
@@ -136,6 +137,8 @@ export interface LolBattleApi {
   searchPlayer(nickname: string, options?: RequestOptions): Promise<PlayerSearchResult[]>;
   getSummonerInfo(rq: RqOptions, options?: RequestOptions): Promise<Summoner>;
   getBattleReport(rq: RqOptions, options?: RequestOptions): Promise<BattleCount>;
+  /** 现任格式：战绩总览（列表 + 赛季段位 + 维度百分位） */
+  getBattleOverview(rq: RqOptions, options?: RequestOptions): Promise<BattleOverview>;
   getBattleList(rq: RqOptions, params: { count: number; offset: number }, options?: RequestOptions): Promise<GetBattleListResponse["battles"]>;
   getBattleDetail(rq: RqOptions, gameId: string, options?: RequestOptions): Promise<GetBattleDetailResponse>;
 }
@@ -162,8 +165,13 @@ export function createLolBattleApi(): LolBattleApi {
       return res.summoner;
     },
     async getBattleReport(rq, options) {
-      const res = await request<GetBattleReportResponse>("GetBattleReport", rq, options);
+      // 现行格式要求 sids（255 = 全部赛季），否则拿不到 season_list 段位信息
+      const res = await request<GetBattleReportResponse>("GetBattleReport", { ...rq, sids: [255] }, options);
       return res.battle_count;
+    },
+    async getBattleOverview(rq, options) {
+      // 现任前端的调用格式（gameids 传空数组 = 最近对局总览；source: "lcu"）
+      return request<BattleOverview>("GetBattleOverview", { ...rq, gameids: [], source: "lcu" }, { timeoutMs: 15000, ...options });
     },
     async getBattleList(rq, params, options) {
       const res = await request<GetBattleListResponse>("GetBattleList", { ...rq, ...params }, options);
@@ -177,4 +185,4 @@ export function createLolBattleApi(): LolBattleApi {
 
 export const lolBattleApi = createLolBattleApi();
 
-export type { BattleDetail, BattleCount, Summoner, PlayerSearchResult };
+export type { BattleDetail, BattleCount, BattleOverview, Summoner, PlayerSearchResult };

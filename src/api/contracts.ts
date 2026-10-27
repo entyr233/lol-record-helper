@@ -54,6 +54,15 @@ export function assertResponse(method: string, payload: unknown): void {
         "total_match_games", "total_match_wins", "total_match_losts", "total_rank_games", "total_rank_wins", "total_rank_losts"
       ]);
       break;
+    case "GetBattleOverview":
+      // 现任格式：{ battles: [...], season?, dimensionals?, ... }
+      valid = Array.isArray(payload.battles) && payload.battles.every((battle) =>
+        identified(battle, "game_id")
+        && (typeof battle.game_start_time === "string"
+          || (typeof battle.game_start_time === "number" && Number.isFinite(battle.game_start_time)))
+        && typeof battle.win === "string"
+        && fields(battle, [], ["game_time_played", "champion_id"]));
+      break;
     case "GetBattleList":
       valid = Array.isArray(payload.battles) && payload.battles.every((battle) =>
         identified(battle, "game_id") && fields(battle, ["game_start_time", "win"], [

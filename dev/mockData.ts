@@ -163,6 +163,8 @@ export function summonerFor(player: MockPlayer) {
   };
 }
 
+export const TIER_FOR_MOCK = 15; // 翡翠
+
 export function battleCountFor(player: MockPlayer) {
   const total = 300 + (player.seed % 2400);
   const wins = Math.round(total * (0.42 + ((player.seed % 17) / 100)));
@@ -181,7 +183,36 @@ export function battleCountFor(player: MockPlayer) {
     total_match_losts: match - Math.round(match * 0.51),
     total_rank_games: rank,
     total_rank_wins: Math.round(rank * 0.52),
-    total_rank_losts: rank - Math.round(rank * 0.52)
+    total_rank_losts: rank - Math.round(rank * 0.52),
+    season_list: [
+      { sid: 100, tier: TIER_FOR_MOCK, win_point: 59, total: 120, wins: 62, losses: 58 },
+      { sid: 99, tier: 6, win_point: 12, total: 60, wins: 31, losses: 29 }
+    ]
+  };
+}
+
+/** GetBattleOverview 的 mock（现任格式：battles + season + dimensionals） */
+export function overviewFor(player: MockPlayer) {
+  const battles = battlesFor(player).map((b) => ({
+    ...b,
+    mvp: b.was_mvp,
+    svp: b.was_svp,
+    queue_id: b.game_queue_id
+  }));
+  const wins = battles.filter((b) => b.win === "Win").length;
+  return {
+    nick: player.name,
+    win_rate: battles.length ? Number((wins / battles.length).toFixed(2)) : 0,
+    total: battles.length,
+    season: { sid: 100, tier: TIER_FOR_MOCK, win_point: 59, total: 120, wins: 62, losses: 58, queue: 420 },
+    battles,
+    dimensionals: {
+      damage: { value: 23000, percent: 0.72 },
+      gold: { value: 14000, percent: 0.68 },
+      kda: { value: 3.4, percent: 0.75 },
+      kills: { value: 9, percent: 0.7 },
+      team_fight_rate: { value: 0.68, percent: 0.66 }
+    }
   };
 }
 
@@ -203,6 +234,8 @@ export function route(method: string, body: Record<string, unknown>): unknown {
     }
     case "GetBattleDetail":
       return mockDetail(String(body.game_id ?? ""));
+    case "GetBattleOverview":
+      return { result: { error_code: 0, error_message: "" }, ...overviewFor(getPlayer(String(body.id ?? ""), Number(body.area) || 1)) };
     case "GetSummonerInfo": {
       const player = getPlayer(String(body.id ?? ""), Number(body.area) || 1);
       return { result: { error_code: 0, error_message: "" }, summoner: summonerFor(player) };

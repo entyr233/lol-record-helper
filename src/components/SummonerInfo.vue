@@ -30,6 +30,10 @@
             <button type="button" class="link-button" @click="retryReport">重试统计</button>
           </p>
           <template v-else>
+            <p v-if="tierText" class="count-row">
+              <span class="count-label">段位：</span>
+              <span class="count-tier">{{ tierText }}</span>
+            </p>
             <p v-for="row in countRows" :key="row.label" class="count-row">
               <span class="count-label">{{ row.label }}：</span>
               <span class="count-total">{{ row.total }}</span>
@@ -55,6 +59,7 @@ import { useAsyncData } from "../composables/useAsyncData";
 import { toRqOptions } from "../composables/useUserInfo";
 import { triggerLogin, waitForLogin } from "../utils/weGameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
+import { tierName, tierOrder } from "../const/tiers";
 
 const props = defineProps<{ area: string; accountType: string; id: string }>();
 const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
@@ -81,6 +86,18 @@ const needsCaptcha = computed(() => {
 const authExpired = computed(() => {
   const err = summonerTask.error.value;
   return err instanceof ApiError && err.isUnauthenticated;
+});
+
+/** 段位：取 season_list 里段位最高的那条（数字越小段位越高） */
+const tierText = computed(() => {
+  const list = counts.value?.season_list;
+  if (!list || list.length === 0) return "";
+  const best = list.slice().sort((a, b) => tierOrder(a.tier) - tierOrder(b.tier))[0];
+  if (best === undefined) return "";
+  const name = tierName(best.tier);
+  const lp = best.win_point !== undefined && best.win_point !== "" ? " · " + best.win_point + " LP" : "";
+  const label = name === "未定级" ? "未定级" : name + lp;
+  return label;
 });
 
 /** 修正旧版「匹配/排位」标签取反的问题：match = 匹配, rank = 排位 */

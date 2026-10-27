@@ -46,6 +46,7 @@ export interface BattleSummary {
   team_made_size?: number;
   battle_type?: number;
   win_with_less_teammate?: number;
+  [key: string]: unknown;
 }
 
 /** 对局详情里的玩家（camelCase） */
@@ -144,6 +145,8 @@ export interface Summoner {
 
 export interface BattleCount {
   total_games: number;
+  /** 赛季段位信息（现行接口带 sids:[255] 请求时返回） */
+  season_list?: Array<{ sid?: number; tier?: number; win_point?: number | string; [key: string]: unknown }>;
   total_wins: number;
   total_losts: number;
   total_arm_games: number;
@@ -201,4 +204,61 @@ export interface ChampionSpell {
   name: string;
   description: string;
   abilityIconPath: string;
+}
+
+/** GetBattleOverview（现任 LOL 助手使用的战绩总览接口，2026 格式） */
+export interface OverviewBattle {
+  game_id: string;
+  game_start_time: number | string;
+  game_time_played: number;
+  champion_id: number;
+  game_score?: number;
+  win: string;
+  /** 现任格式用 mvp/svp，旧格式是 was_mvp/was_svp，两者都兜住 */
+  mvp?: number;
+  svp?: number;
+  was_mvp?: number;
+  was_svp?: number;
+  was_afk?: number;
+  was_early_surrender?: number;
+  tier?: number;
+  queue?: number;
+  queue_id?: number;
+  game_queue_id?: number;
+  champion?: { name?: string; cname?: string; icon?: string };
+  [key: string]: unknown;
+}
+
+export interface OverviewSeason {
+  sid?: number;
+  total?: number;
+  wins?: number;
+  losses?: number;
+  /** 段位数字：0王者 5宗师 6大师 10钻石 15翡翠 20铂金 30黄金 40白银 50黄铜 80黑铁 255未定级 */
+  tier?: number;
+  win_point?: number | string;
+  queue?: number;
+  team_tier?: number;
+  team_win_point?: number;
+  [key: string]: unknown;
+}
+
+export interface OverviewDimensional {
+  value?: number;
+  percent?: number;
+}
+
+export interface BattleOverview {
+  nick?: string;
+  win_rate?: number;
+  game_score?: number;
+  kills?: number;
+  deaths?: number;
+  assists?: number;
+  damage?: number;
+  total?: number;
+  label?: string;
+  season?: OverviewSeason;
+  battles?: OverviewBattle[];
+  dimensionals?: Record<string, OverviewDimensional>;
 }
