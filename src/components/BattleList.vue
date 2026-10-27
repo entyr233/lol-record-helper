@@ -88,6 +88,7 @@ const listState = useBattleList(() => rqOptions.value);
 const { battles, page, hasPrev, hasNext, loading, error, selectedGameId, filter, goToPage, select } = listState;
 const modeOptions: Array<{ key: ModeFilter; label: string }> = [
   { key: "all", label: "全部" },
+  { key: "mvp", label: "MVP/SVP" },
   { key: 430, label: "匹配" },
   { key: 450, label: "大乱斗" },
   { key: 420, label: "单双排" },

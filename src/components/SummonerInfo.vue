@@ -16,7 +16,10 @@
       <div v-else-if="summoner" class="summoner">
         <GameIcon class="summoner-avatar" kind="user" :id="summoner.icon_id" />
         <div class="summoner-base">
-          <p class="summoner-name">{{ summoner.name }}</p>
+          <p class="summoner-name">
+            {{ summoner.name }}
+            <button type="button" class="copy-name" @click="copyName">{{ copied ? "已复制" : "复制昵称" }}</button>
+          </p>
           <p class="summoner-line">
             等级: {{ summoner.level }}
             <span class="summoner-sub">({{ summoner.experience }})</span>
@@ -50,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import Panel from "./Panel.vue";
 import GameIcon from "./GameIcon.vue";
 import { lolBattleApi } from "../api/client";
@@ -83,6 +86,19 @@ const needsCaptcha = computed(() => {
   const err = summonerTask.error.value;
   return err instanceof ApiError && err.needsCaptcha;
 });
+const copied = ref(false);
+let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+async function copyName(): Promise<void> {
+  const name = summoner.value?.name;
+  if (!name) return;
+  try {
+    await navigator.clipboard.writeText(name);
+    copied.value = true;
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(() => { copied.value = false; }, 1500);
+  } catch { /* 剪贴板不可用时静默 */ }
+}
+
 const authExpired = computed(() => {
   const err = summonerTask.error.value;
   return err instanceof ApiError && err.isUnauthenticated;

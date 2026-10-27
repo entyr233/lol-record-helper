@@ -1,5 +1,5 @@
 <template>
-  <div class="detail-player" :class="{ 'detail-player--self': isSelf }">
+  <div class="detail-player" :class="{ 'detail-player--self': isSelf, 'detail-player--tall': mode === '伤害' || mode === '海克斯', 'detail-player--mid': mode === '技能' }">
     <span class="dp-champion">
       <GameIcon kind="champion" :id="player.championId" />
       <span class="dp-level" title="英雄等级">{{ player.level }}</span>

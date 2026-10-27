@@ -640,8 +640,15 @@ button {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 44px;
+  min-height: 44px;
   padding: 4px 8px;
+}
+/* 伤害四行柱状 / 技能三行数据需要更高行距，否则相邻行重叠 */
+.detail-player--tall {
+  min-height: 86px;
+}
+.detail-player--mid {
+  min-height: 60px;
 }
 .detail-player:hover {
   background-color: rgba(255, 255, 255, 0.06);
@@ -1050,4 +1057,44 @@ button {
   color: #56606c;
   font-size: 11px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+.search-history {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.search-history-label {
+  color: #56606c;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.search-history-chip {
+  padding: 3px 10px;
+  background-color: #242c37;
+  border: 1px solid #2f3844;
+  border-radius: 12px;
+  color: #9aa4b2;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.search-history-chip--cur {
+  border-color: #b59758;
+  color: #e6c37a;
+}
+.copy-name {
+  margin-left: 8px;
+  padding: 1px 8px;
+  background-color: transparent;
+  border: 1px solid #2f3844;
+  border-radius: 3px;
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.copy-name:hover {
+  border-color: #b59758;
+  color: #e6c37a;
 }

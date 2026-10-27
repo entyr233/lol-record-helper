@@ -6,7 +6,7 @@ export const PAGE_SIZE = 10;
 /** 筛选模式下最多向后拉取的原始页数（防刷爆） */
 export const MAX_RAW_PAGES = 20;
 
-export type ModeFilter = number | "all";
+export type ModeFilter = number | "all" | "mvp";
 
 export interface BattleListState {
   /** 当前页可见的对局（已按筛选切片） */
@@ -40,7 +40,11 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   let fetchedPages = 0;
   let inflight = false;
 
-  const matches = (b: BattleSummary): boolean => filter.value === "all" || Number(b.game_queue_id) === Number(filter.value);
+  const matches = (b: BattleSummary): boolean => {
+    if (filter.value === "all") return true;
+    if (filter.value === "mvp") return Number(b.was_mvp) === 1 || Number(b.was_svp) === 1;
+    return Number(b.game_queue_id) === Number(filter.value);
+  };
   const filteredAll = computed(() => rawBattles.value.filter(matches));
 
   const hasPrev = computed(() => page.value > 1);

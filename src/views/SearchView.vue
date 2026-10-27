@@ -1,6 +1,11 @@
 <template>
   <div class="page">
     <Panel title="搜索结果">
+      <div v-if="historyNames.length > 1" class="search-history">
+        <span class="search-history-label">最近搜索：</span>
+        <button v-for="name in historyNames" :key="name" type="button" class="search-history-chip"
+          :class="{ 'search-history-chip--cur': name === props.nickname }" @click="searchHistory(name)">{{ name }}</button>
+      </div>
       <p v-if="loading" class="state-text">搜索中…</p>
       <p v-else-if="error" class="state-text state-text--error">{{ toErrorMessage(error) }}</p>
       <template v-else-if="players.length">
@@ -23,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import Panel from "../components/Panel.vue";
 import GameIcon from "../components/GameIcon.vue";
@@ -36,12 +41,31 @@ import type { PlayerSearchResult } from "../api/types";
 const props = defineProps<{ nickname: string }>();
 const router = useRouter();
 
+// 搜索历史：localStorage 记录最近 10 位，点芯片直接查
+const HISTORY_KEY = "lol-tft-search-history";
+const historyNames = ref<string[]>([]);
+try {
+  const saved = localStorage.getItem(HISTORY_KEY);
+  if (saved) historyNames.value = JSON.parse(saved) as string[];
+} catch { historyNames.value = []; }
+
+function rememberName(name: string): void {
+  const next = [name, ...historyNames.value.filter((n) => n !== name)].slice(0, 10);
+  historyNames.value = next;
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch { /* 隐私模式等场景忽略 */ }
+}
+
+function searchHistory(name: string): void {
+  void router.push({ name: "search", params: { nickname: name } });
+}
+
 const task = useAsyncData((signal) => lolBattleApi.searchPlayer(props.nickname, { signal }));
 const players = computed(() => (task.data.value || []).slice().sort((a, b) => (b.level || 0) - (a.level || 0)));
 const loading = task.loading;
 const error = task.error;
 
 onMounted(() => {
+  rememberName(props.nickname);
   void task.run();
 });
 
