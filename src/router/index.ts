@@ -1,5 +1,5 @@
 import { createMemoryHistory, createRouter, type Router } from "vue-router";
-import { getLoginUser } from "../utils/weGameLogin";
+import { getLoginUser, getSelfUinFromCookie } from "../utils/weGameLogin";
 
 /** 每次挂载都新建 router：避免宿主页面重复注入时复用状态 */
 export function createLolRouter(signal?: AbortSignal): Router {
@@ -29,6 +29,14 @@ export function createLolRouter(signal?: AbortSignal): Router {
                   params: { area: String(to.params.area ?? ""), accountType: "1", id: user.uin }
                 };
               } catch {
+                // SDK 不可靠（刷新后经常误报未登录）：登录 cookie 才是接口真正吃的东西。
+                const cookieUin = getSelfUinFromCookie();
+                if (cookieUin && !signal?.aborted) {
+                  return {
+                    name: "summary",
+                    params: { area: String(to.params.area ?? ""), accountType: "1", id: cookieUin }
+                  };
+                }
                 // 兜底页提供显式重试；错误不携带 SDK 原始对象或账号值。
                 return signal?.aborted ? false : true;
               }

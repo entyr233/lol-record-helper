@@ -186,3 +186,31 @@ export function logout(): void {
     /* ignore */
   }
 }
+
+/**
+ * 从 cookie 直接读登录 uin（wegame 登录态的落地形式：uin=o0123456789 / p_uin=...）。
+ * 现任助手前端就是这么取的（Ge()：优先 uin，其次 p_uin）。
+ */
+export function getSelfUinFromCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const read = (name: string): string | null => {
+    const match = document.cookie.match(new RegExp("(?:^|;\\s*)" + name + "=([^;]*)"));
+    return match ? decodeURIComponent(match[1]) : null;
+  };
+  for (const name of ["uin", "p_uin"]) {
+    const raw = read(name);
+    if (!raw) continue;
+    const digits = raw.replace(/^o/, "").replace(/\D/g, "");
+    if (digits) return digits;
+  }
+  return null;
+}
+
+/**
+ * 统一的登录态判断：以 cookie 为准，SDK 的 isLogin() 只作辅助。
+ * 原因：SDK 状态在页面刷新后经常不可靠，而接口鉴权真正吃的是 cookie。
+ */
+export function hasLoginState(): boolean {
+  if (getSelfUinFromCookie()) return true;
+  return isSdkAvailable() && isLoggedIn();
+}
