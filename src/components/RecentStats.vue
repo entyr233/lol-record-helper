@@ -44,6 +44,16 @@
         </div>
         <span class="recent-trend-dates">{{ trendFirstLabel }} → {{ trendLastLabel }}</span>
       </div>
+      <div v-if="queueStats.length" class="recent-queues">
+        <p class="recent-queues-title">模式分布</p>
+        <div v-for="q in queueStats" :key="q.id" class="recent-queue-row">
+          <span class="recent-queue-name">{{ q.label }}</span>
+          <span class="recent-queue-track">
+            <span class="recent-queue-fill" :style="{ width: q.percent + '%' }"></span>
+          </span>
+          <span class="recent-queue-count">{{ q.count }} 场</span>
+        </div>
+      </div>
     </div>
     <!-- 下半区：常用英雄（自适应）+ 场均摘要 -->
     <div v-if="sample.length" class="recent-bottom">
@@ -68,16 +78,6 @@
           <span class="recent-metric"><b>{{ honorCount }}</b>MVP/SVP</span>
           <span class="recent-metric"><b>{{ avgDuration }}</b>平均时长</span>
           <span class="recent-metric"><b>{{ pentaCount }}</b>五杀</span>
-        </div>
-      </div>
-      <div v-if="queueStats.length" class="recent-queues">
-        <p class="recent-queues-title">模式分布</p>
-        <div v-for="q in queueStats" :key="q.id" class="recent-queue-row">
-          <span class="recent-queue-name">{{ q.label }}</span>
-          <span class="recent-queue-track">
-            <span class="recent-queue-fill" :style="{ width: q.percent + '%' }"></span>
-          </span>
-          <span class="recent-queue-count">{{ q.count }} 场</span>
         </div>
       </div>
     </div>

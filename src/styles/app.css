@@ -1566,18 +1566,21 @@ button {
   padding: 12px 16px 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
-/* 上半区：标题/模式/走势 + 右侧趋势卡；下半区：常用英雄 + 场均摘要 */
+/* 上半区：标题/模式/走势 + 右侧趋势卡与模式分布；下半区：常用英雄 + 场均摘要 */
 .recent-top {
   display: flex;
-  align-items: flex-start;
-  gap: 24px;
+  align-items: stretch;
+  gap: 20px;
 }
 .recent-top-main {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
 }
 .recent-side {
+  display: flex;
   flex: 0 0 240px;
+  flex-direction: column;
+  justify-content: space-between;
   padding: 10px 14px;
   background-color: rgba(255, 255, 255, 0.02);
   border: 1px solid #202831;
@@ -1635,7 +1638,9 @@ button {
 }
 /* 模式分布卡：各队列场次占比条 */
 .recent-queues {
+  display: flex;
   flex: 0 0 240px;
+  flex-direction: column;
   min-height: 104px;
   padding: 10px 14px;
   background-color: rgba(255, 255, 255, 0.02);
@@ -2014,6 +2019,9 @@ button {
   }
   .recent-top {
     flex-wrap: wrap;
+  }
+  .recent-top-main {
+    flex-basis: 100%;
   }
   .recent-metrics {
     flex: 1 1 300px;
