@@ -22,7 +22,7 @@
 // @connect      game.gtimg.cn
 // @connect      www.wegame.com.cn
 // @connect      wegame.com.cn
-// @run-at       document-idle
+// @run-at       document-start
 // @updateURL    none
 // ==/UserScript==
 
@@ -76,6 +76,35 @@
   }
 
   registerMenuCommands();
+
+  // ---------- 官方助手页：补一个最小 TGP 桥 ----------
+  // 官方助手页在普通浏览器里读不到 WeGame 客户端注入的 top.TGP：
+  // 大区会变成 0（提示「未选定大区」），登录用户也不会自动初始化。
+  // 脚本在 document-start 尽早写入 top.TGP.status（大区 + uin），让官方页面按当前账号启动。
+  function installHelperTgpBridge() {
+    try {
+      if (!/^(www\.)?wegame\.com\.cn$/.test(location.hostname)) return;
+      if (!/^\/helper\/lol(?:\/|$)/.test(location.pathname)) return;
+      var uinMatch = document.cookie.match(/(?:^|;\s*)(?:p_)?uin=(o?[0-9]+)/);
+      var uin = uinMatch ? String(Number(uinMatch[1].replace(/^o/, ""))) : "";
+      if (uin) {
+        // 官方页面的兜底逻辑会读 p_uin 推断大区；这里补一份，减少首次初始化失败
+        try { document.cookie = "p_uin=o" + uin + "; path=/"; } catch (e) { /* ignore */ }
+      }
+      var area = 0;
+      try {
+        area = Number(localStorage.getItem("lol_tft:lol-tft-helper-area") || 0) ||
+          Number(localStorage.getItem("lol_tft:last-area") || 0) || 0;
+      } catch (e) { /* ignore */ }
+      var topWin = window.top;
+      topWin.TGP = topWin.TGP || {};
+      topWin.TGP.status = topWin.TGP.status || {};
+      if (area) topWin.TGP.status.aid = area;
+      if (uin) topWin.TGP.status.uin = uin;
+    } catch (e) { /* 跨域/权限问题忽略，不影响主流程 */ }
+  }
+
+  installHelperTgpBridge();
 
   // ---------- lol.qq.com 桥接侧：替 wegame 面板做同源 mlol 请求 ----------
   // （掌盟接口 CORS 只放行 lol.qq.com；wegame 面板通过隐藏 iframe + postMessage 调用）

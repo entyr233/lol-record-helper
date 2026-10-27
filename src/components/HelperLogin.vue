@@ -83,6 +83,23 @@ function login(): Promise<void> {
 
 /** 官方页面启动时会解析 hash 里的 ?uin=&area_id=&account_type=，借此把查询对象切换为当前账号 */
 type OfficialSection = "life" | "tft";
+const HELPER_ORIGIN = "https://www.wegame.com.cn";
+const STANDARD_HELPER_PATHS = ["/helper/lol/", "/helper/lol/index.html"];
+
+function isStandardHelperPage(): boolean {
+  return STANDARD_HELPER_PATHS.includes(location.pathname);
+}
+
+/** WeGame 客户端内嵌页（UA 带 WeGame/）才走 frame.html；普通浏览器统一用标准助手页 */
+function isWeGameClient(): boolean {
+  return /WeGame\//.test(navigator.userAgent || "");
+}
+
+function currentSection(): OfficialSection | null {
+  const match = (location.hash || "").match(/^#\/(life|tft)\/overview/);
+  return match ? (match[1] as OfficialSection) : null;
+}
+
 function officialCareerHash(section: OfficialSection): string {
   const query = new URLSearchParams();
   if (uin.value) query.set("uin", uin.value);
@@ -91,26 +108,41 @@ function officialCareerHash(section: OfficialSection): string {
   return "#/" + section + "/overview?" + query.toString();
 }
 
+/** 标准助手页的完整地址（frame.html 在浏览器里缺登录用户初始化，统一跳到这里） */
+function officialCareerUrl(section: OfficialSection): string {
+  return HELPER_ORIGIN + "/helper/lol/" + officialCareerHash(section);
+}
+
 /**
  * 官方页面在普通浏览器里拿不到 TGP 客户端的大区，只能靠地址参数初始化查询对象。
- * 登录后刷新、或首次打开页面时，如果当前 hash 没有 area_id，就自动补一次参数，
- * 避免用户还要手动点按钮、或刷新后参数丢失又回到「未选定大区」。
- * 已有 area_id 的地址（例如分享链接）保持不动。
+ * - 标准助手页：给 hash 补 uin/area_id/account_type；
+ * - frame.html（/helper/lol/v2/frame.html）：浏览器里不会初始化登录用户，直接跳到标准助手页；
+ * - 客户端内（UA WeGame/）保持原页面，只补 hash。
+ * 已有 area_id 的分享/他人链接不覆盖。
  */
 function autoApplyOfficialQuery(): void {
+  const section = currentSection();
+  if (!section) return;
+  if (!areaId.value || !uin.value) return;
   const hash = location.hash || "";
-  const match = hash.match(/^#\/(life|tft)\/overview/);
-  if (!match) return;
   const queryIndex = hash.indexOf("?");
   const query = new URLSearchParams(queryIndex >= 0 ? hash.slice(queryIndex + 1) : "");
+  if (!isStandardHelperPage() && !isWeGameClient()) {
+    // frame.html 在普通浏览器里不会初始化登录用户：统一跳到标准助手页（保留已有参数）
+    location.href = query.get("area_id") ? HELPER_ORIGIN + "/helper/lol/" + hash : officialCareerUrl(section);
+    return;
+  }
   if (query.get("area_id")) return;
-  if (!areaId.value || !uin.value) return;
-  location.hash = officialCareerHash(match[1] as OfficialSection);
+  location.hash = officialCareerHash(section);
 }
 
 function openOfficial(section: OfficialSection): void {
   if (!areaId.value) return;
-  location.hash = officialCareerHash(section);
+  if (isStandardHelperPage() || isWeGameClient()) {
+    location.hash = officialCareerHash(section);
+  } else {
+    location.href = officialCareerUrl(section);
+  }
 }
 
 function openOfficialCareer(): void {
