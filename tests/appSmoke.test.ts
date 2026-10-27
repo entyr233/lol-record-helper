@@ -154,6 +154,41 @@ describe("整页冒烟（mock 数据）", () => {
     }
   });
 
+  it("总览与列表的模式筛选双向联动", async () => {
+    const instance = mountLolTft({ host });
+    await instance.router.isReady();
+    await instance.router.push({ name: "summary", params: { area: "1", accountType: "2", id: "10001" } });
+    for (let i = 0; i < 10; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    const shadow = host.shadowRoot as ShadowRoot;
+    const overviewChips = () => Array.from(shadow.querySelectorAll<HTMLElement>(".recent-modes .mode-filter-tab"));
+    const listTabs = () => Array.from(shadow.querySelectorAll<HTMLElement>(".battle-list-side .mode-filter-tab"));
+    const activeText = (items: HTMLElement[]) => items.find((item) => item.classList.contains("mode-filter-tab--cur"))?.textContent?.trim();
+
+    // 总览点「大乱斗」→ 列表模式切到同一项
+    overviewChips().find((chip) => chip.textContent?.trim() === "大乱斗")!.click();
+    for (let i = 0; i < 15; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(activeText(listTabs())).toBe("大乱斗");
+    expect(shadow.querySelector(".sample-note")?.textContent).toContain("符合条件");
+
+    // 列表点「单双排」→ 总览模式与统计标题跟随
+    listTabs().find((tab) => tab.textContent?.trim() === "单双排")!.click();
+    for (let i = 0; i < 15; i++) {
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(activeText(overviewChips())).toBe("单双排");
+    expect(shadow.querySelector(".recent-title")?.textContent).toContain("单双排");
+
+    instance.unmount();
+  });
+
   it("正常状态下「刷新战绩」可点击，显示更新时间并保留当前查看的比赛", async () => {
     const instance = mountLolTft({ host });
     await instance.router.isReady();

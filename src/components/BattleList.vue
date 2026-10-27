@@ -79,13 +79,22 @@ import BattleDetail from "./BattleDetail.vue";
 import type { BattleSummary, PlayerDetail } from "../api/types";
 import { toRqOptions } from "../composables/useUserInfo";
 import { useBattleList, DEFAULT_FILTER, type FocusGameResult, type ModeFilter, type ListFilter } from "../composables/useBattleList";
+import { MODE_FILTER_OPTIONS } from "../const/modes";
 import { toErrorMessage } from "../api/errors";
 import { championName, ensureChampionNames } from "../api/staticData";
 
-const props = defineProps<{ area: string; accountType: string; id: string; activeChampion?: number | null }>();
+const props = defineProps<{
+  area: string;
+  accountType: string;
+  id: string;
+  activeChampion?: number | null;
+  /** 与总览共享的模式筛选（受控） */
+  activeMode?: ModeFilter;
+}>();
 const emit = defineEmits<{
   openSummoner: [player: PlayerDetail];
   championChange: [id: number | null];
+  modeChange: [mode: ModeFilter];
   selectionChange: [gameId: string | null];
   /** 列表数据完成一次「初始加载 / 主动刷新」，用于展示“更新于 HH:MM” */
   updated: [at: Date];
@@ -100,15 +109,7 @@ const {
   refresh: refreshList, dispose: disposeList
 } = listState;
 
-const modeOptions: Array<{ key: ModeFilter; label: string }> = [
-  { key: "all", label: "全部" },
-  { key: "mvp", label: "MVP/SVP" },
-  { key: 430, label: "匹配" },
-  { key: 450, label: "大乱斗" },
-  { key: 420, label: "单双排" },
-  { key: 440, label: "灵活组排" },
-  { key: 2400, label: "海克斯大乱斗" }
-];
+const modeOptions = MODE_FILTER_OPTIONS;
 const defaultPatch: Partial<ListFilter> = { ...DEFAULT_FILTER };
 
 const nameTick = ref(0);
@@ -165,9 +166,20 @@ watch(
   },
   { immediate: true }
 );
+watch(
+  () => props.activeMode ?? "all",
+  (value) => {
+    if (filter.value.mode === value) return;
+    void setFilter({ mode: value });
+  },
+  { immediate: true }
+);
 // 内部筛选/选中变化 → 通知外部
 watch(() => filter.value.champion, (value) => {
   emit("championChange", value);
+});
+watch(() => filter.value.mode, (value) => {
+  emit("modeChange", value);
 });
 watch(selectedGameId, (value) => {
   emit("selectionChange", value);

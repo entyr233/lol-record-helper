@@ -13,8 +13,10 @@
       :id="id"
       :active-champion="activeChampion"
       :active-game-id="selectedGameId"
+      :active-mode="activeMode"
       @focus-game="focusGame"
       @filter-champion="setChampionFilter"
+      @mode-change="onModeChange"
     />
     <BattleList
       ref="listRef"
@@ -23,8 +25,10 @@
       :account-type="accountType"
       :id="id"
       :active-champion="activeChampion"
+      :active-mode="activeMode"
       @open-summoner="openSummoner"
       @champion-change="onChampionChange"
+      @mode-change="onModeChange"
       @selection-change="onSelectionChange"
       @updated="onUpdated"
     />
@@ -38,13 +42,15 @@ import SummonerInfo from "../components/SummonerInfo.vue";
 import BattleList from "../components/BattleList.vue";
 import type { BattleSummary } from "../api/types";
 import type { PlayerDetail } from "../api/types";
+import type { ModeFilter } from "../const/modes";
 
 const props = defineProps<{ area: string; accountType: string; id: string }>();
 const router = useRouter();
 const listRef = ref<InstanceType<typeof BattleList> | null>(null);
 const summonerRef = ref<InstanceType<typeof SummonerInfo> | null>(null);
 
-/** 上下共享状态：英雄筛选与当前选中对局（总览高亮 / 列表选中必须一致） */
+/** 上下共享状态：模式筛选、英雄筛选、当前选中对局（总览与列表必须一致） */
+const activeMode = ref<ModeFilter>("all");
 const activeChampion = ref<number | null>(null);
 const selectedGameId = ref<string | null>(null);
 
@@ -90,6 +96,11 @@ function setChampionFilter(id: number | null): void {
 
 function onChampionChange(id: number | null): void {
   if (activeChampion.value !== id) activeChampion.value = id;
+}
+
+/** 模式改变：总览与列表共用一份状态（任一侧切换都会同步另一侧） */
+function onModeChange(mode: ModeFilter): void {
+  if (activeMode.value !== mode) activeMode.value = mode;
 }
 
 function onSelectionChange(gameId: string | null): void {

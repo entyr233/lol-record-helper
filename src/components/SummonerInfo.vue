@@ -14,51 +14,60 @@
         <button v-if="authExpired" type="button" class="link-button" @click="relogin">立即登录</button>
       </p>
       <div v-else-if="summoner" class="summoner">
-        <GameIcon class="summoner-avatar" kind="user" :id="summoner.icon_id" />
-        <div class="summoner-base">
-          <p class="summoner-name">
-            {{ summoner.name }}
-            <button type="button" class="copy-name" @click="copyName">{{ copied ? "已复制" : "复制昵称" }}</button>
-            <button
-              type="button"
-              class="fav-star"
-              :class="{ 'fav-star--on': isFavorite }"
-              :title="isFavorite ? '取消收藏' : '收藏到首页'"
-              :aria-label="isFavorite ? '取消收藏' : '收藏到首页'"
-              @click="toggleFavorite"
-            >
-              {{ isFavorite ? "★" : "☆" }}
-            </button>
-          </p>
-          <p v-if="tierText" class="count-row count-row--tier">
-            <span class="count-label">段位：</span>
-            <span class="count-tier">{{ tierText }}</span>
-          </p>
+        <div class="summoner-identity">
+          <GameIcon class="summoner-avatar" kind="user" :id="summoner.icon_id" />
+          <div class="summoner-base">
+            <p class="summoner-name">
+              {{ summoner.name }}
+              <button type="button" class="copy-name" @click="copyName">{{ copied ? "已复制" : "复制昵称" }}</button>
+              <button
+                type="button"
+                class="fav-star"
+                :class="{ 'fav-star--on': isFavorite }"
+                :title="isFavorite ? '取消收藏' : '收藏到首页'"
+                :aria-label="isFavorite ? '取消收藏' : '收藏到首页'"
+                @click="toggleFavorite"
+              >
+                {{ isFavorite ? "★" : "☆" }}
+              </button>
+            </p>
+            <p v-if="tierText" class="count-row count-row--tier">
+              <span class="count-label">段位：</span>
+              <span class="count-tier">{{ tierText }}</span>
+            </p>
+            <details class="summoner-more">
+              <summary>更多资料</summary>
+              <p class="summoner-line">
+                等级: {{ summoner.level }}
+                <span class="summoner-sub">({{ summoner.experience }})</span>
+              </p>
+              <p class="summoner-line">赞: {{ summoner.praise }} | 黑: {{ summoner.discredit }}</p>
+            </details>
+          </div>
+        </div>
+        <div class="summoner-stats">
+          <p class="summoner-stats-title">场次统计</p>
           <p v-if="reportLoading" class="summoner-report">统计加载中…</p>
           <p v-else-if="reportError" class="summoner-report summoner-report--error">
             统计加载失败：{{ toErrorMessage(reportError) }}
             <button type="button" class="link-button" @click="retryReport">重试统计</button>
           </p>
+          <template v-else>
+            <p v-for="row in countRows" :key="row.label" class="count-row count-row--stat">
+              <span class="count-label">{{ row.label }}</span>
+              <span class="count-total">{{ row.total }}</span>
+              <span class="count-win">{{ row.win }}</span>
+              <span class="count-lose">{{ row.lose }}</span>
+              <span class="count-rate">{{ rateOf(row) }}% 胜率</span>
+            </p>
+          </template>
         </div>
-        <details class="summoner-more">
-          <summary>更多资料</summary>
-          <p class="summoner-line">
-            等级: {{ summoner.level }}
-            <span class="summoner-sub">({{ summoner.experience }})</span>
-          </p>
-          <p class="summoner-line">赞: {{ summoner.praise }} | 黑: {{ summoner.discredit }}</p>
-          <p v-for="row in countRows" :key="row.label" class="count-row">
-            <span class="count-label">{{ row.label }}：</span>
-            <span class="count-total">{{ row.total }}</span>
-            <span class="count-win">{{ row.win }}</span>
-            <span class="count-lose">{{ row.lose }}</span>
-          </p>
-        </details>
       </div>
       <div class="summoner-recent">
         <RecentStats ref="recentRef" :area="area" :account-type="accountType" :id="id" :active-champion="activeChampion"
-          :active-game-id="activeGameId"
-          @focus-game="(g: BattleSummary) => emit('focusGame', g)" @filter-champion="(id: number | null) => emit('filterChampion', id)" />
+          :active-game-id="activeGameId" :mode="activeMode"
+          @focus-game="(g: BattleSummary) => emit('focusGame', g)" @filter-champion="(id: number | null) => emit('filterChampion', id)"
+          @mode-change="(mode: ModeFilter) => emit('modeChange', mode)" />
       </div>
       <p v-if="loginError" class="state-text state-text--error" role="alert">{{ loginError }}</p>
       <button v-if="loggingIn" type="button" class="link-button" @click="cancel">取消等待</button>
@@ -80,6 +89,7 @@ import { triggerLogin, waitForLogin } from "../utils/weGameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
 import { useFavorites } from "../composables/useFavorites";
 import { tierLabel, tierOrder } from "../const/tiers";
+import type { ModeFilter } from "../const/modes";
 
 const props = defineProps<{
   area: string;
@@ -87,9 +97,15 @@ const props = defineProps<{
   id: string;
   activeChampion?: number | null;
   activeGameId?: string | null;
+  /** 与列表共享的模式筛选（透传给近期表现） */
+  activeMode?: ModeFilter;
 }>();
 
-const emit = defineEmits<{ focusGame: [game: BattleSummary]; filterChampion: [id: number | null] }>();
+const emit = defineEmits<{
+  focusGame: [game: BattleSummary];
+  filterChampion: [id: number | null];
+  modeChange: [mode: ModeFilter];
+}>();
 
 const { isFavorite: isFavoriteEntry, toggle: toggleFavoriteEntry } = useFavorites();
 const favoriteTarget = computed(() => ({ area: props.area, accountType: props.accountType, id: props.id }));
@@ -169,6 +185,12 @@ const countRows = computed(() => {
     { label: "排位", total: value.total_rank_games, win: value.total_rank_wins, lose: value.total_rank_losts }
   ];
 });
+
+/** 各分类胜率：分母用「胜+负」，与近期表现的口径一致 */
+function rateOf(row: { win: number; lose: number }): number {
+  const decided = row.win + row.lose;
+  return decided ? Math.round((row.win / decided) * 100) : 0;
+}
 
 function reload(): void {
   void summonerTask.run();

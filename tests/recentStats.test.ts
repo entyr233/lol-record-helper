@@ -202,6 +202,26 @@ describe("RecentStats 模式切换", () => {
     } finally { wrapper.unmount(); }
   });
 
+  it("受控模式下按传入 mode 统计，并对外 emit modeChange", async () => {
+    const recent = [
+      battle(1, { game_queue_id: 450, win: "Win" }),
+      battle(2, { game_queue_id: 450, win: "Fail" }),
+      battle(3, { game_queue_id: 420, win: "Win" })
+    ];
+    mockPages(recent);
+    const wrapper = mount(RecentStats, {
+      props: { area: "1", accountType: "2", id: "test", mode: 450 }
+    });
+    try {
+      await flushPromises();
+      expect(wrapper.get(".recent-title").text()).toContain("大乱斗");
+      expect(wrapper.findAll(".strip-block--btn")).toHaveLength(2);
+
+      await wrapper.findAll(".recent-modes .mode-filter-tab").find((tab) => tab.text() === "单双排")!.trigger("click");
+      expect(wrapper.emitted("modeChange")).toEqual([[420]]);
+    } finally { wrapper.unmount(); }
+  });
+
   it("所选模式没有对局时给出空态提示，切回全部可恢复", async () => {
     const recent = Array.from({ length: 10 }, (_, i) => battle(i + 1, { game_queue_id: 420 }));
     mockPages(recent);

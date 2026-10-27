@@ -2,13 +2,14 @@ import { computed, ref, type Ref } from "vue";
 import { lolBattleApi } from "../api/client";
 import { isAbortError } from "../api/errors";
 import { classifyBattle } from "../const/wins";
+import type { ModeFilter } from "../const/modes";
 import type { BattleSummary, RqOptions } from "../api/types";
 
 export const PAGE_SIZE = 10;
 /** 筛选/定位时最多回溯的原始页数（防刷爆） */
 export const MAX_RAW_PAGES = 20;
 
-export type ModeFilter = number | "all" | "mvp";
+export type { ModeFilter } from "../const/modes";
 export type ResultFilter = "all" | "win" | "fail";
 export type DaysFilter = 0 | 7 | 30;
 

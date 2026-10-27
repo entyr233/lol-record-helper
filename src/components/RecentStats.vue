@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import GameIcon from "./GameIcon.vue";
 import { useAsyncData } from "../composables/useAsyncData";
 import { toRqOptions } from "../composables/useUserInfo";
@@ -51,6 +51,7 @@ import { lolBattleApi } from "../api/client";
 import { championName, ensureChampionNames } from "../api/staticData";
 import type { BattleSummary } from "../api/types";
 import { battleResultLabel, classifyBattle } from "../const/wins";
+import { MODE_FILTER_OPTIONS, type ModeFilter } from "../const/modes";
 
 const props = defineProps<{
   area: string;
@@ -58,19 +59,16 @@ const props = defineProps<{
   id: string;
   activeChampion?: number | null;
   activeGameId?: string | null;
+  /** 与对局列表共享的模式筛选（受控；不传时组件内部自管） */
+  mode?: ModeFilter;
 }>();
-defineEmits<{ focusGame: [game: BattleSummary]; filterChampion: [id: number | null] }>();
+const emit = defineEmits<{
+  focusGame: [game: BattleSummary];
+  filterChampion: [id: number | null];
+  modeChange: [mode: ModeFilter];
+}>();
 
-/** 统计模式：全部 或某个队列（420 单双排 / 440 灵活组排 / 450 大乱斗 / 430 匹配 / 2400 海克斯大乱斗） */
-type OverviewMode = "all" | number;
-const MODE_OPTIONS: Array<{ key: OverviewMode; label: string }> = [
-  { key: "all", label: "全部" },
-  { key: 420, label: "单双排" },
-  { key: 440, label: "灵活组排" },
-  { key: 450, label: "大乱斗" },
-  { key: 430, label: "匹配" },
-  { key: 2400, label: "海克斯大乱斗" }
-];
+const MODE_OPTIONS = MODE_FILTER_OPTIONS;
 /** 展示/统计窗口：最近多少场（指定模式同样截断到这么多场） */
 const RECENT_WINDOW = 20;
 /** 全部模式只取最近 20 场（1 页 10 场） */
@@ -80,12 +78,16 @@ const MODE_PAGES_MAX = 6;
 /** 指定模式的目标样本量 */
 const MODE_SAMPLE_TARGET = 10;
 
-const selectedMode = ref<OverviewMode>("all");
+/** 受控 prop 优先；父组件没接管时用内部状态，便于单独使用/测试 */
+const internalMode = ref<ModeFilter>(props.mode ?? "all");
+const selectedMode = computed<ModeFilter>(() => props.mode ?? internalMode.value);
 /** 原始页缓存：切换模式时只补拉缺少的页，不重复请求 */
 const pageCache = new Map<number, BattleSummary[]>();
 
-function matchesMode(b: BattleSummary, mode: OverviewMode): boolean {
-  return mode === "all" || Number(b.game_queue_id) === Number(mode);
+function matchesMode(b: BattleSummary, mode: ModeFilter): boolean {
+  if (mode === "all") return true;
+  if (mode === "mvp") return Number(b.was_mvp) === 1 || Number(b.was_svp) === 1;
+  return Number(b.game_queue_id) === Number(mode);
 }
 
 const task = useAsyncData(async (signal) => {
@@ -116,6 +118,16 @@ onMounted(() => {
   void task.run();
 });
 
+// 父组件（与列表联动）改模式时同步刷新统计
+watch(
+  () => props.mode,
+  (value) => {
+    if (value === undefined || value === internalMode.value) return;
+    internalMode.value = value;
+    void task.run();
+  }
+);
+
 const games = computed(() => task.data.value ?? []);
 /** 当前模式下的样本（最近 RECENT_WINDOW 场以内的匹配对局） */
 const sample = computed(() => {
@@ -131,10 +143,11 @@ const titleText = computed(() => {
 });
 const emptyText = computed(() => modeLabel.value + "：最近 " + games.value.length + " 场里没有该模式的对局");
 
-/** 切换模式：优先复用已缓存的原始页，只补拉缺少的部分 */
-function selectMode(mode: OverviewMode): void {
+/** 切换模式：通知外部（若受控），并优先复用已缓存的原始页、只补拉缺少的部分 */
+function selectMode(mode: ModeFilter): void {
   if (selectedMode.value === mode) return;
-  selectedMode.value = mode;
+  internalMode.value = mode;
+  emit("modeChange", mode);
   void task.run();
 }
 

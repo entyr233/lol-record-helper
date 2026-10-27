@@ -29,6 +29,18 @@ beforeEach(() => {
 afterEach(() => { delete window.WegameLogin; vi.useRealTimers(); });
 
 describe("SummonerInfo independent statistics state", () => {
+  it("场次统计默认可见（无需展开更多资料），并带分类胜率", async () => {
+    const wrapper = render();
+    try {
+      await flushPromises();
+      const stats = wrapper.get(".summoner-stats");
+      expect(stats.findAll(".count-row")).toHaveLength(4);
+      expect(stats.get(".count-rate").text()).toContain("胜率");
+      // 更多资料只保留等级/赞踩等次要信息
+      expect(wrapper.get(".summoner-more").findAll(".count-row")).toHaveLength(0);
+    } finally { wrapper.unmount(); }
+  });
+
   it.each([new Error("统计网络错误"), new ApiError(8000102, "GetBattleReport")])(
     "统计失败可见，只重试统计并恢复数据（%s）", async (error) => {
       api.getBattleReport.mockRejectedValueOnce(error);
