@@ -1,4 +1,5 @@
 import { ApiError } from "./errors";
+import { postJson } from "./transport";
 import { assertResponse, invalidResponse } from "./contracts";
 import { createRequestGate } from "./requestGate";
 import { createDetailCache } from "./detailCache";
@@ -88,15 +89,11 @@ async function post<T>(method: string, body: unknown, options: RequestOptions, a
     try {
       release = await acquire(box.signal);
       if (box.signal.aborted) throw box.signal.reason;
-      const response = await fetch(API_BASE + "/" + method, {
-        method: "POST",
-        body: JSON.stringify(body ?? {}),
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "trpc-caller": "wegame.pallas.web.LolBattle"
-        },
-        signal: box.signal
+      // 用户脚本环境走 GM 传输（自动带 wegame cookie），普通页面走 fetch
+      const response = await postJson(API_BASE + "/" + method, body ?? {}, {
+        signal: box.signal,
+        timeoutMs: timeoutMs,
+        headers: { "trpc-caller": "wegame.pallas.web.LolBattle" }
       });
       retryable = response.status >= 500;
       if (!response.ok) {
@@ -105,7 +102,8 @@ async function post<T>(method: string, body: unknown, options: RequestOptions, a
           retryable = retryDelay <= MAX_RETRY_AFTER_MS - rateLimitWaitMs;
         }
         // We will not read an HTTP error body; release its stream before retrying.
-        void response.body?.cancel().catch(() => {});
+        const stream = (response as { body?: { cancel?: () => void } }).body;
+        try { stream?.cancel?.(); } catch { /* 释放失败不影响主流程 */ }
         if (response.status === 429) {
           throw new ApiError("429", method, "请求过于频繁，请稍后重试");
         }

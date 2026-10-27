@@ -11,12 +11,14 @@
     </span>
 
     <span class="dp-runes">
-      <GameIcon kind="rune" :id="player.keystoneId" />
+      <GameIcon v-if="player.perkStyleUrl" kind="url" id="keystone" :src="player.perkStyleUrl" />
+      <GameIcon v-else kind="rune" :id="player.keystoneId" />
       <GameIcon kind="rune" :id="player.perkSubStyle" />
     </span>
 
     <span class="dp-summoner">
       <button type="button" class="dp-name" @click="$emit('openSummoner', player)">{{ decodedName }}</button>
+      <span v-if="tierLabel" class="tag tag--tier" :title="tierLabel">{{ tierLabel }}</span>
       <span class="dp-tags">
         <span v-if="teamLabel" class="tag tag--team">{{ teamLabel }}</span>
         <span v-if="player.battleHonour?.isSvp" class="tag tag--svp">SVP</span>
@@ -126,6 +128,7 @@ import GameIcon from "./GameIcon.vue";
 import Histogram from "./Histogram.vue";
 import type { PlayerDetail } from "../api/types";
 import { getTeamMadeName } from "../const/queues";
+import { tierName } from "../const/tiers";
 import { formatGameScore, formatThousands, kdaRatio } from "../utils/format";
 
 type DamageKey =
@@ -178,6 +181,12 @@ const decodedName = computed(() => {
 });
 
 const teamLabel = computed(() => getTeamMadeName(props.player.teamMadeSize) ?? "");
+const tierLabel = computed(() => {
+  const gl = props.player.gameLevel;
+  if (!gl || !gl.tier || tierName(gl.tier) === "未定级") return "";
+  const lp = gl.leaguePoints ? " " + gl.leaguePoints + "LP" : "";
+  return tierName(gl.tier) + lp;
+});
 const itemSlots = computed(() => [
   props.player.item0,
   props.player.item1,

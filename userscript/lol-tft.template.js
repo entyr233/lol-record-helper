@@ -8,7 +8,10 @@
 // @match        https://wegame.com.cn/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wegame.com.cn
 // @license      ISC
-// @grant        none
+// @grant        GM_xmlhttpRequest
+// @connect      mlol.qt.qq.com
+// @connect      www.wegame.com.cn
+// @connect      wegame.com.cn
 // @run-at       document-idle
 // @noframes
 // @downloadURL  https://update.greasyfork.org/scripts/454184/LOL%E6%88%98%E7%BB%A9%E6%9F%A5%E8%AF%A2.user.js

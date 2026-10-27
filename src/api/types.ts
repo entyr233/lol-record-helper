@@ -104,6 +104,9 @@ export interface PlayerDetail {
   position?: string;
   puuId?: string;
   lolId?: string;
+  /** 掌盟详情数据源额外提供：该玩家的段位与 LP */
+  gameLevel?: { tier: number; leaguePoints: string };
+  perkStyleUrl?: string;
 }
 
 export interface TeamDetail {

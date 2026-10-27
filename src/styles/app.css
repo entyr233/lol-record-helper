@@ -574,6 +574,10 @@ button {
   font-weight: 700;
   border-radius: 2px;
 }
+.tag--tier {
+  background-color: #b59758;
+  color: #ffffff;
+}
 .tag--team {
   background-color: #00b3ff;
 }

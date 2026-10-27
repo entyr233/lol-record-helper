@@ -46,6 +46,7 @@
           <BattleDetail
             v-if="selectedGameId"
             :area="area"
+            :start-time="selectedStartTime"
             :account-type="accountType"
             :id="id"
             :game-id="selectedGameId"
@@ -80,6 +81,11 @@ const { battles, loading, error, hasMore, noMore, selectedGameId, loadMore, sele
 
 onMounted(() => {
   void loadMore();
+});
+
+const selectedStartTime = computed(() => {
+  const found = battles.value.find((item) => item.game_id === selectedGameId.value);
+  return found ? found.game_start_time : undefined;
 });
 
 function handleOpenSummoner(player: PlayerDetail): void {

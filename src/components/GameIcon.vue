@@ -24,12 +24,14 @@ import {
   userIconUrl
 } from "../api/staticData";
 
-export type IconKind = "champion" | "user" | "item" | "rune" | "summon-spell" | "champion-spell";
+export type IconKind = "champion" | "user" | "item" | "rune" | "summon-spell" | "champion-spell" | "url";
 
 const props = defineProps<{
   kind: IconKind;
   id: number | string;
   championId?: number;
+  /** kind="url" 时直接作为图标地址 */
+  src?: string;
 }>();
 
 const FALLBACK_ICON =
@@ -42,6 +44,8 @@ const spellTitle = ref<string | null>(null);
 
 const baseSrc = computed(() => {
   switch (props.kind) {
+    case "url":
+      return props.src || FALLBACK_ICON;
     case "champion":
       return championIconUrl(props.id);
     case "user":
@@ -61,6 +65,7 @@ const src = computed(() => (failed.value ? FALLBACK_ICON : spellIcon.value || ba
 
 const title = computed(() => {
   if (spellTitle.value) return spellTitle.value;
+  if (props.kind === "url") return "";
   if (props.kind === "rune") return getRuneInfo(props.id)?.name ?? "";
   if (props.kind === "item") return getItemName(props.id) ?? "";
   return "";
