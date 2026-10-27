@@ -64,7 +64,7 @@
             :queue-id="selectedQueueId"
             @open-summoner="handleOpenSummoner"
           />
-          <p v-else class="state-text">选择左侧对局查看详情</p>
+          <p v-else class="state-text">{{ loading ? "加载中…" : battles.length ? "选择左侧对局查看详情" : "当前筛选下没有对局" }}</p>
         </div>
       </div>
     </Panel>

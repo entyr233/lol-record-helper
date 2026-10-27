@@ -129,35 +129,57 @@ interface BridgeRequest {
 let bridgeReadyPromise: Promise<Window> | null = null;
 const bridgePending = new Map<string, { resolve: (text: string) => void; reject: (error: unknown) => void }>();
 
+/**
+ * 桥接页（userscript/lol-tft.template.js 的 installBridge）回传的响应类型。
+ * 历史上存在两套命名（detail-response / mlol-response），两端必须保持同步；
+ * 这里两种都接受，避免「远端已返回、面板却一直等到超时」。
+ */
+export const BRIDGE_RESPONSE_TYPES = ["lol-tft-detail-response", "lol-tft-mlol-response"] as const;
+
+function isBridgeResponse(type: string | undefined): boolean {
+  return type !== undefined && (BRIDGE_RESPONSE_TYPES as readonly string[]).includes(type);
+}
+
 function ensureBridge(): Promise<Window> {
   if (bridgeReadyPromise) return bridgeReadyPromise;
-  bridgeReadyPromise = new Promise((resolve, reject) => {
+  const pending = new Promise<Window>((resolve, reject) => {
     const iframe = document.createElement("iframe");
     iframe.style.display = "none";
     iframe.src = BRIDGE_URL;
 
     const timer = setTimeout(() => {
+      globalThis.removeEventListener("message", onMessage);
       iframe.remove();
       reject(new ApiError("BRIDGE_TIMEOUT", "GetBattleDetail(mlol)", "掌盟桥接超时"));
     }, 15000);
 
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== BRIDGE_ORIGIN) return;
-      const data = event.data as { type?: string; id?: string; text?: string } | null;
+      const data = event.data as { type?: string; id?: string; text?: string; error?: string } | null;
       if (!data) return;
       if (data.type === "lol-tft-bridge-ready") {
         clearTimeout(timer);
         resolve(iframe.contentWindow as Window);
-      } else if (data.type === "lol-tft-detail-response" && data.id) {
-        const entry = bridgePending.get(data.id);
-        if (entry) {
-          bridgePending.delete(data.id);
-          entry.resolve(String(data.text ?? ""));
-        }
+        return;
       }
+      if (!isBridgeResponse(data.type) || !data.id) return;
+      const entry = bridgePending.get(data.id);
+      if (!entry) return;
+      bridgePending.delete(data.id);
+      // 失败响应也要结束等待，不能只处理成功
+      if (data.error) {
+        entry.reject(new ApiError("BRIDGE_ERROR", "GetBattleDetail(mlol)", String(data.error)));
+        return;
+      }
+      entry.resolve(String(data.text ?? ""));
     };
     globalThis.addEventListener("message", onMessage);
     document.body.appendChild(iframe);
+  });
+  bridgeReadyPromise = pending;
+  // 桥接初始化失败后允许下一次重试（否则一次超时会永久复用失败的 Promise）
+  pending.catch(() => {
+    if (bridgeReadyPromise === pending) bridgeReadyPromise = null;
   });
   return bridgeReadyPromise;
 }

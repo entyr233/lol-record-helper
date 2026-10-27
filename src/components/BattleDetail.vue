@@ -82,9 +82,15 @@ const isHexAram = computed(() => Number(props.queueId) === 2400);
 /** 模式页签内化到详情头部（左侧列表负责选比赛，右侧负责看详情） */
 const MODES = ["概要", "伤害", "技能", "海克斯"] as const;
 const currentMode = ref<(typeof MODES)[number]>(props.mode ?? "概要");
-watch(() => props.mode, (m) => { if (m) currentMode.value = m; });
 
 const visibleModes = computed(() => MODES.filter((m) => m !== "海克斯" || isHexAram.value));
+watch(() => props.mode, (m) => {
+  if (m && visibleModes.value.includes(m)) currentMode.value = m;
+});
+// 切换比赛（海克斯 → 普通）后当前页签可能已被隐藏：回到有效的「概要」，避免看不见的选中态继续生效
+watch(visibleModes, (modes) => {
+  if (!modes.includes(currentMode.value)) currentMode.value = "概要";
+}, { immediate: true });
 const summaryMeta = computed(() => {
   const d = detail.value;
   if (!d) return "";
@@ -216,20 +222,12 @@ const viewedOpenid = computed<string | null>(() => {
   if (String(props.accountType) === "2" && props.id) return String(props.id);
   return null;
 });
-/** 当前查看的玩家：先按 openid 严格匹配；掌盟类数据源没有顶层 openid 时回退为 team_details[0] 队伍的第一名玩家 */
+/** 当前查看的玩家：只认可靠的身份对应关系（openid 严格匹配）。匹配不到就不显示个人摘要，绝不猜队友 */
 const viewedPlayer = computed<PlayerDetail | null>(() => {
   const current = detail.value;
-  if (!current) return null;
-  const viewed = viewedOpenid.value
-    ? current.player_details.find((player) => player.openid === viewedOpenid.value) ?? null
-    : null;
-  if (viewed) return viewed;
-  // 详情带顶层 openid 却匹配不到：身份不可信，不猜
-  if (selfOpenid.value !== null) return null;
-  // 掌盟源玩家 openid 是 puuid/uuid，与 wegame openid 对不上，按 my_team（team_details[0]）兜底
-  const firstTeam = current.team_details[0];
-  if (!firstTeam) return null;
-  return current.player_details.find((player) => player.teamId === firstTeam.teamId) ?? null;
+  const openid = viewedOpenid.value;
+  if (!current || !openid) return null;
+  return current.player_details.find((player) => player.openid === openid) ?? null;
 });
 const viewedChampionId = computed(() => viewedPlayer.value?.championId ?? 0);
 const loading = request.loading;

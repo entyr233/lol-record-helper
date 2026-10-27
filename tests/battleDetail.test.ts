@@ -127,6 +127,7 @@ interface MountProps {
   accountType?: string;
   id?: string;
   gameId?: string | null;
+  queueId?: number | string;
 }
 
 async function mountDetail(overrides: MountProps = {}) {
@@ -193,32 +194,46 @@ describe("BattleDetail 摘要身份一致", () => {
     expect(selfFlags(wrapper)).toEqual({ "openid-blue": "1", "openid-red": "0" });
   });
 
-  it("掌盟回退源没有 openid 时取 team_details[0] 队伍的第一名玩家，不报错", async () => {
+  it("掌盟回退源没有 openid 时保留整场详情，但不显示个人摘要（不猜队友）", async () => {
     getBattleDetailMock.mockRejectedValue(new ApiError("8000102", "GetBattleDetail", "登录状态已失效"));
     fetchMlolMock.mockResolvedValue(makeMlolDetail());
 
     const wrapper = await mountDetail({ accountType: "1" });
 
     expect(wrapper.find(".state-text--error").exists()).toBe(false);
-    expect(wrapper.find(".detail-summary-name").text()).toBe("掌盟我方一");
-    expect(wrapper.find(".icon-stub").attributes("data-id")).toBe("22");
-    expect(wrapper.find(".detail-summary-result").text()).toBe("胜利");
+    // 十人详情仍然完整渲染
+    expect(wrapper.findAll(".player-stub")).toHaveLength(3);
+    // 没有可靠身份对应关系 → 不显示昵称/英雄/胜负，只保留场次信息
+    expect(wrapper.find(".detail-summary-name").exists()).toBe(false);
+    expect(wrapper.find(".detail-summary-result").exists()).toBe(false);
+    expect(wrapper.find(".detail-summary .icon-stub").exists()).toBe(false);
+    expect(wrapper.find(".detail-summary-meta").text()).toContain("单双排");
     // 掌盟源没有 wegame openid：不可高亮/跳转
     expect(selfFlags(wrapper)).toEqual({ "mlol-my-1": "0", "mlol-my-2": "0", "mlol-opp-1": "0" });
   });
 
-  it("掌盟源从搜索页进入（accountType=2、id 为 wegame openid）仍回退 my_team 第一位玩家", async () => {
+  it("掌盟源从搜索页进入（accountType=2、id 为 wegame openid）同样不猜个人摘要", async () => {
     getBattleDetailMock.mockRejectedValue(new ApiError("8000102", "GetBattleDetail", "登录状态已失效"));
     fetchMlolMock.mockResolvedValue(makeMlolDetail());
 
     const wrapper = await mountDetail({ accountType: "2", id: "wegame-openid-viewer" });
 
     expect(wrapper.find(".state-text--error").exists()).toBe(false);
-    expect(wrapper.find(".detail-summary-name").text()).toBe("掌盟我方一");
-    expect(wrapper.findAll(".detail-summary-name")).toHaveLength(1);
-    expect(wrapper.find(".detail-summary-meta").text()).not.toContain("掌盟我方一");
-    expect(wrapper.find(".icon-stub").attributes("data-id")).toBe("22");
-    expect(wrapper.find(".detail-summary-result").text()).toBe("胜利");
+    expect(wrapper.findAll(".player-stub")).toHaveLength(3);
+    expect(wrapper.find(".detail-summary-name").exists()).toBe(false);
+    expect(wrapper.find(".detail-summary-result").exists()).toBe(false);
+    expect(wrapper.find(".detail-summary-meta").text()).toContain("单双排");
+  });
+
+  it("详情带顶层 openid 但匹配不到任何玩家时，只保留场次信息", async () => {
+    getBattleDetailMock.mockResolvedValue(makeResponse("openid-unknown"));
+
+    const wrapper = await mountDetail();
+
+    expect(wrapper.findAll(".player-stub")).toHaveLength(2);
+    expect(wrapper.find(".detail-summary-name").exists()).toBe(false);
+    expect(wrapper.find(".detail-summary-result").exists()).toBe(false);
+    expect(wrapper.find(".detail-summary-meta").text()).toContain("单双排");
   });
 
   it("详情加载失败时显示错误文案与重试按钮，重试成功后恢复摘要", async () => {
@@ -237,5 +252,24 @@ describe("BattleDetail 摘要身份一致", () => {
 
     expect(wrapper.find(".state-text--error").exists()).toBe(false);
     expect(wrapper.find(".detail-summary-name").text()).toBe("蓝方玩家");
+  });
+
+  it("从海克斯比赛切到普通比赛后，隐藏的「海克斯」页签自动回到「概要」", async () => {
+    getBattleDetailMock.mockResolvedValue(makeResponse("openid-blue"));
+    const wrapper = await mountDetail({ queueId: 2400 });
+
+    const hexTab = wrapper.findAll(".mode-button").find((tab) => tab.text() === "海克斯");
+    expect(hexTab).toBeTruthy();
+    await hexTab!.trigger("click");
+    expect(wrapper.find(".mode-button.active").text()).toBe("海克斯");
+
+    // 切到普通比赛（非 2400）：海克斯页签消失，选中态必须回到有效页签
+    await wrapper.setProps({ queueId: 420 });
+    await flushPromises();
+
+    const visibleLabels = wrapper.findAll(".mode-button").map((tab) => tab.text());
+    expect(visibleLabels).not.toContain("海克斯");
+    expect(wrapper.find(".mode-button.active").text()).toBe("概要");
+    expect(wrapper.text()).not.toContain("本场无强化记录");
   });
 });
