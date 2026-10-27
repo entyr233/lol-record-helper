@@ -1080,6 +1080,13 @@ button {
   border-radius: 3px;
   background-color: #1c232d;
 }
+/* 掌盟源缺失字段：显示「未提供」，与真实 0 值区分 */
+.dp-missing {
+  color: #6c7683;
+  font-size: 11px;
+  font-style: italic;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
 .dp-runes {
   display: flex;
   flex: none;

@@ -49,6 +49,7 @@
           :player="player"
           :players="detail.player_details"
           :mode="currentMode"
+          :partial="detailSource === 'mlol'"
           :hex-aram="isHexAram"
           :ranked="rankedQueue"
           :rank-info="rankOf(team.players, player, sortBy)"
@@ -64,22 +65,12 @@
 import { computed, ref, watch } from "vue";
 import GameIcon from "./GameIcon.vue";
 import BattleDetailPlayer from "./BattleDetailPlayer.vue";
-import { lolBattleApi } from "../api/client";
-import { ApiError, toErrorMessage } from "../api/errors";
-import { fetchMlolBattleDetail } from "../api/mlolDetail";
-import { needsCaptcha, lastCaptchaAttempt } from "../api/captcha";
-import type { BattleDetail, PlayerDetail } from "../api/types";
-import { toRqOptions } from "../composables/useUserInfo";
-import { useAsyncData } from "../composables/useAsyncData";
-import { useLoginAction } from "../composables/useLoginAction";
-import { triggerLogin, waitForLogin } from "../utils/weGameLogin";
+import { toErrorMessage } from "../api/errors";
+import type { PlayerDetail } from "../api/types";
+import { useBattleDetail } from "../composables/useBattleDetail";
 import { getResultClass, getResultLabel } from "../const/wins";
 import { formatDateTime, formatDuration } from "../utils/format";
 import { getQueueName, isRankedQueue } from "../const/queues";
-
-const diag = lastCaptchaAttempt;
-/** 详情数据来源：wegame = 官方接口（含搜索定位后的重试），mlol = 掌盟公开数据 */
-type DetailSource = "wegame" | "mlol";
 
 const props = defineProps<{
   area: string;
@@ -91,6 +82,25 @@ const props = defineProps<{
   queueId?: number | string;
   mode?: "概要" | "技能" | "伤害";
 }>();
+
+// 取数/多来源回退/来源与错误分类都在 composable 里，组件只保留展示与排序
+const {
+  detail,
+  loading,
+  error,
+  run,
+  detailSource,
+  sourceText,
+  sourceTitle,
+  errorKind,
+  errorHint,
+  debugText,
+  loggingIn,
+  retryLogin,
+  openHelper,
+  canOpenPlayer,
+  selfOpenid
+} = useBattleDetail({ props });
 
 const isHexAram = computed(() => Number(props.queueId) === 2400);
 /** 排位类队列：组队标签用「单排/双排」，其他模式用「单人/双人开黑」 */
@@ -167,71 +177,6 @@ function teamPlayers(players: PlayerDetail[]): PlayerDetail[] {
 
 defineEmits<{ openSummoner: [player: PlayerDetail] }>();
 
-const request = useAsyncData(async (signal) => {
-  const rq = toRqOptions({ area: props.area, accountType: props.accountType, id: props.id });
-  const trail: string[] = [];
-  const codeOf = (error: unknown): string => {
-    if (error instanceof ApiError) return String(error.code) + (error.serverMessage ? " " + error.serverMessage : "");
-    return error instanceof Error ? error.message.slice(0, 40) : String(error);
-  };
-
-  try {
-    // 首选：wegame 同源详情
-    const result = await lolBattleApi.getBattleDetail(rq, String(props.gameId), { signal });
-    return { ...result, source: "wegame" as DetailSource };
-  } catch (error) {
-    trail.push("wegame详情:" + codeOf(error));
-    if (!(error instanceof ApiError) || signal.aborted) throw error;
-    // 回退一：详情接口对 account_type=2+openid 的口径可能仍开放——
-    // 用召唤师名字搜索自己的 openid，换口径重试（仅 self 场景）
-    if (String(rq.account_type) === "1") {
-      try {
-        const summoner = await lolBattleApi.getSummonerInfo(rq, { signal });
-        const players = await lolBattleApi.searchPlayer(summoner.name, { signal });
-        const match = players.find((p) => Number(p.area) === Number(props.area));
-        trail.push("搜索:" + (match ? "ok" : "无匹配"));
-        if (match) {
-          const found = await lolBattleApi.getBattleDetail(
-            { ...rq, account_type: 2, id: match.openid },
-            String(props.gameId),
-            { signal }
-          );
-          return { ...found, source: "wegame" as DetailSource };
-        }
-      } catch (error) {
-        trail.push("搜索:" + codeOf(error));
-      }
-    }
-    // 回退二：掌盟公开详情（桥）
-    try {
-      const mlol = await fetchMlolBattleDetail({
-        gameId: String(props.gameId),
-        areaId: props.area,
-        startTime: props.startTime
-      }, signal);
-      trail.push("掌盟:ok");
-      if (mlol.player_details.length > 0) {
-        const wrapped: GetBattleDetailLike = { battle_detail: mlol, openid: null, source: "mlol" };
-        return wrapped;
-      }
-      trail.push("掌盟:空数据");
-    } catch (error) {
-      trail.push("掌盟:" + codeOf(error));
-    }
-    throw new ApiError("DETAIL_ALL_FAILED", "GetBattleDetail", "全部详情来源失败 [" + trail.join(" | ") + "]");
-  }
-});
-
-interface GetBattleDetailLike {
-  battle_detail: BattleDetail;
-  openid: string | null;
-  source: DetailSource;
-}
-
-const detail = computed<BattleDetail | null>(() => request.data.value?.battle_detail ?? null);
-const selfOpenid = computed(() => request.data.value?.openid ?? null);
-/** 掌盟数据源的玩家没有 wegame openid，点击跳转不可用 */
-const canOpenPlayer = computed(() => selfOpenid.value !== null);
 /** 当前查看玩家的 openid：优先详情返回的顶层 openid；搜索/收藏进入（account_type=2）时 id 就是 openid */
 const viewedOpenid = computed<string | null>(() => {
   const fromDetail = selfOpenid.value ?? detail.value?.openid;
@@ -247,80 +192,6 @@ const viewedPlayer = computed<PlayerDetail | null>(() => {
   return current.player_details.find((player) => player.openid === openid) ?? null;
 });
 const viewedChampionId = computed(() => viewedPlayer.value?.championId ?? 0);
-const loading = request.loading;
-const error = request.error;
-const run = request.run;
-
-/** 当前详情数据来源（成功时才有） */
-const detailSource = computed<DetailSource | null>(() => request.data.value?.source ?? null);
-const sourceText = computed(() => (detailSource.value === "mlol" ? "掌盟公开数据" : "数据来源：WeGame"));
-const sourceTitle = computed(() =>
-  detailSource.value === "mlol"
-    ? "WeGame 详情接口不可用时回退到掌盟公开数据，不含玩家 openid"
-    : "数据来自 WeGame 战绩接口"
-);
-
-/** 失败原因分类：决定提示文案与可执行的操作 */
-type DetailErrorKind = "captcha" | "auth" | "all-failed" | "unknown";
-const errorKind = computed<DetailErrorKind | null>(() => {
-  const err = error.value;
-  if (!err) return null;
-  if (err instanceof ApiError) {
-    if (err.isUnauthenticated) return "auth";
-    if (needsCaptcha(err.code)) return "captcha";
-    if (String(err.code) === "DETAIL_ALL_FAILED") {
-      // 所有来源都失败时，原错误码只保留在尝试轨迹里，据此还原可操作的原因
-      const trailText = err.serverMessage || err.message;
-      if (/8000022|8000120/.test(trailText)) return "captcha";
-      if (trailText.includes("8000102")) return "auth";
-      return "all-failed";
-    }
-  }
-  return "unknown";
-});
-const errorHint = computed(() => {
-  switch (errorKind.value) {
-    case "captcha":
-      return "需要完成人机验证：可先去 LOL 助手页查询一次，再回来重试";
-    case "auth":
-      return "登录状态已失效，请重新登录后再查看";
-    case "all-failed":
-      return "WeGame 与掌盟两个来源都没取到这场详情，稍后可重试";
-    default:
-      return "网络或接口异常，请稍后重试";
-  }
-});
-/** 失败诊断：验证码留痕 + 各来源尝试轨迹（轨迹在错误 message 里） */
-const debugText = computed(() => {
-  const parts: string[] = [];
-  if (diag.outcome && diag.outcome !== "从未尝试") parts.push("验证码：" + (diag.at || "") + " " + diag.outcome);
-  const err = error.value;
-  if (err instanceof ApiError && err.serverMessage) parts.push(err.serverMessage);
-  if (parts.length === 0) parts.push(toErrorMessage(err ?? new Error("未知错误")));
-  return parts.join("\n");
-});
-
-const { pending: loggingIn, run: loginAction } = useLoginAction();
-
-function openHelper(): void {
-  window.open("https://www.wegame.com.cn/helper/lol/", "_blank", "noopener");
-}
-
-function retryLogin(): void {
-  void loginAction(async (signal) => {
-    await triggerLogin({ signal });
-    await waitForLogin({ signal });
-    await run();
-  });
-}
-
-watch(
-  () => props.gameId,
-  (gameId) => {
-    if (gameId) void run();
-  },
-  { immediate: true }
-);
 
 const teams = computed(() => {
   const current = detail.value;

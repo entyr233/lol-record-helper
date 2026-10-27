@@ -11,6 +11,7 @@ vi.mock("../src/api/client", () => ({
 }));
 
 const { useBattleList, PAGE_SIZE } = await import("../src/composables/useBattleList");
+const { useBattleFeed, clearBattleFeedCache } = await import("../src/composables/battleFeed");
 
 const rq: RqOptions = { account_type: 2, area: 1, id: "abc", from_src: "lol_helper" };
 
@@ -31,6 +32,8 @@ function battle(id: string, patch: Partial<BattleSummary> = {}): BattleSummary {
 
 beforeEach(() => {
   getBattleList.mockReset();
+  // 原始页缓存在 battleFeed 模块级共享：每个用例从空缓存开始，避免上一个用例的数据串进来
+  clearBattleFeedCache();
 });
 
 describe("useBattleList（翻页版）", () => {
@@ -525,5 +528,42 @@ describe("useBattleList 刷新与请求取消", () => {
     expect(aborted).toBe(true);
     expect(state.error.value).toBeNull();
     expect(state.loading.value).toBe(false);
+  });
+});
+
+describe("useBattleList 与 battleFeed 共享缓存", () => {
+  it("别处（总览）已缓存的原始页不再重复请求，且列表仍会计入英雄池", async () => {
+    const sharedPage = Array.from({ length: PAGE_SIZE }, (_, i) => battle("s" + i));
+    getBattleList.mockResolvedValueOnce(sharedPage);
+
+    // 模拟总览先取到同一玩家的第 1 页
+    const feed = useBattleFeed(() => ({ area: "1", accountType: "2", id: "abc" }));
+    const first = await feed.getPage(0);
+    expect(first.data).toHaveLength(PAGE_SIZE);
+    getBattleList.mockClear();
+
+    const state = useBattleList(() => rq);
+    await state.goToPage(1);
+
+    // 共享缓存命中：列表不再发请求，但展示与英雄池仍然正确
+    expect(getBattleList).not.toHaveBeenCalled();
+    expect(state.battles.value.map((item) => item.game_id)).toEqual(sharedPage.map((item) => item.game_id));
+    expect(state.championPool.value).toEqual([{ id: 17, count: PAGE_SIZE }]);
+  });
+
+  it("切换筛选会清掉共享缓存，重新拉取当前页", async () => {
+    const pageA = Array.from({ length: PAGE_SIZE }, (_, i) => battle("a" + i));
+    getBattleList.mockResolvedValue(pageA);
+
+    const feed = useBattleFeed(() => ({ area: "1", accountType: "2", id: "abc" }));
+    await feed.getPage(0);
+    getBattleList.mockClear();
+
+    const state = useBattleList(() => rq);
+    await state.setFilter({ champion: 17 });
+
+    // 共享缓存被清掉：需要重新请求原始页
+    expect(getBattleList).toHaveBeenCalledTimes(1);
+    expect(getBattleList.mock.calls[0]![1]).toEqual({ count: PAGE_SIZE, offset: 0 });
   });
 });

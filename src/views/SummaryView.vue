@@ -6,6 +6,7 @@
         {{ refreshing ? "刷新中…" : "刷新战绩" }}
       </button>
     </div>
+    <p v-if="refreshError" class="state-text state-text--error summary-refresh-error" role="alert">{{ refreshError }}</p>
     <SummonerInfo
       ref="summonerRef"
       :area="area"
@@ -58,9 +59,10 @@ const activeDays = ref<DaysFilter>(0);
 const activeChampion = ref<number | null>(null);
 const selectedGameId = ref<string | null>(null);
 
-/** 数据更新时间：列表首次加载完成或主动刷新后更新 */
+/** 数据更新时间：列表首次加载成功或整页刷新成功后更新。 */
 const updatedAt = ref<Date | null>(null);
 const refreshing = ref(false);
+const refreshError = ref("");
 const updatedText = computed(() => (updatedAt.value ? clock(updatedAt.value) : ""));
 
 function clock(value: Date): string {
@@ -76,9 +78,16 @@ function onUpdated(at: Date): void {
 async function refreshAll(): Promise<void> {
   if (refreshing.value) return;
   refreshing.value = true;
+  refreshError.value = "";
   try {
-    await Promise.all([summonerRef.value?.refresh(), listRef.value?.refresh()]);
-    updatedAt.value = new Date();
+    const [overviewFailures, listSucceeded] = await Promise.all([summonerRef.value?.refresh(), listRef.value?.refresh()]);
+    const failures = overviewFailures ?? [];
+    if (listSucceeded === false) failures.push("对局列表");
+    if (failures.length) {
+      refreshError.value = "未能更新：" + failures.join("、") + "。请重试。";
+    } else {
+      updatedAt.value = new Date();
+    }
   } finally {
     refreshing.value = false;
   }

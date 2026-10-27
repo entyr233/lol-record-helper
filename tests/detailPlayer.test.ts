@@ -19,7 +19,7 @@ const IconStub = defineComponent({
   }
 });
 
-/** 伤害条 stub：暴露 title 便于断言「悬浮说明」 */
+/** 伤害条 stub：暴露 title/value/text 便于断言「悬浮说明」与缺失处理 */
 const HistogramStub = defineComponent({
   name: "Histogram",
   props: {
@@ -31,9 +31,17 @@ const HistogramStub = defineComponent({
     title: { type: String, default: "" }
   },
   setup(props) {
-    return () => h("div", { class: "hist-stub", "data-title": props.title });
+    return () =>
+      h("div", {
+        class: "hist-stub",
+        "data-title": props.title,
+        "data-value": String(props.value ?? ""),
+        "data-text": props.text
+      });
   }
 });
+
+const STUBS = { GameIcon: IconStub, Histogram: HistogramStub };
 
 function makePlayer(patch: Partial<PlayerDetail> = {}): PlayerDetail {
   return {
@@ -64,10 +72,31 @@ function makePlayer(patch: Partial<PlayerDetail> = {}): PlayerDetail {
   };
 }
 
+/** 模拟掌盟公开源：组队/经济/补刀/装备/符文/伤害都没有，且带 partial 标记 */
+function makePartialPlayer(patch: Partial<PlayerDetail> = {}): PlayerDetail {
+  return makePlayer({
+    teamMadeSize: undefined,
+    goldEarned: undefined,
+    minionsKilled: undefined,
+    item0: undefined, item1: undefined, item2: undefined, item3: undefined,
+    item4: undefined, item5: undefined, item6: undefined,
+    keystoneId: undefined,
+    perkSubStyle: undefined,
+    totalDamageToChampions: undefined,
+    totalDamageTaken: undefined,
+    magicDamageToChampions: undefined,
+    physicalDamageToChampions: undefined,
+    trueDemageToChampions: undefined,
+    partial: true,
+    ...patch
+  });
+}
+
 const PLAYER = makePlayer();
 
 interface MountProps {
   mode?: "概要" | "技能" | "伤害";
+  partial?: boolean;
 }
 
 function mountPlayer(overrides: MountProps = {}) {
@@ -78,20 +107,20 @@ function mountPlayer(overrides: MountProps = {}) {
       mode: "概要",
       ...overrides
     },
-    global: { stubs: { GameIcon: IconStub, Histogram: HistogramStub } }
+    global: { stubs: STUBS }
   });
 }
 
-describe("BattleDetailPlayer 悬浮说明", () => {
+describe("BattleDetailPlayer 组队标签", () => {
   it("组队标签按队列类型区分：排位用双排，其他模式用双人开黑", () => {
     const player = makePlayer({ teamMadeSize: 2 });
     const ranked = mount(BattleDetailPlayer, {
       props: { player, players: [player], mode: "概要", ranked: true },
-      global: { stubs: { GameIcon: IconStub, Histogram: HistogramStub } }
+      global: { stubs: STUBS }
     });
     const normal = mount(BattleDetailPlayer, {
       props: { player, players: [player], mode: "概要", ranked: false },
-      global: { stubs: { GameIcon: IconStub, Histogram: HistogramStub } }
+      global: { stubs: STUBS }
     });
 
     expect(ranked.get(".tag--team").text()).toBe("双排");
@@ -100,6 +129,21 @@ describe("BattleDetailPlayer 悬浮说明", () => {
     normal.unmount();
   });
 
+  it("组队人数缺失（undefined/null/0）时不显示组队徽标，不再显示「单人」", () => {
+    for (const size of [undefined, null, 0] as const) {
+      const player = makePlayer({ teamMadeSize: size });
+      const wrapper = mount(BattleDetailPlayer, {
+        props: { player, players: [player], mode: "概要" },
+        global: { stubs: STUBS }
+      });
+
+      expect(wrapper.find(".tag--team").exists()).toBe(false);
+      wrapper.unmount();
+    }
+  });
+});
+
+describe("BattleDetailPlayer 悬浮说明", () => {
   it("伤害模式的 4 个柱子分别带总/魔法/物理/真实伤害说明", () => {
     const wrapper = mountPlayer({ mode: "伤害" });
 
@@ -112,5 +156,72 @@ describe("BattleDetailPlayer 悬浮说明", () => {
 
     const titles = wrapper.findAll(".dp-stat").map((stat) => stat.attributes("title"));
     expect(titles).toEqual(["击杀/死亡/助攻", "伤害占团队比例", "补刀/经济"]);
+  });
+});
+
+describe("BattleDetailPlayer 缺失字段（partial）", () => {
+  it("经济/补刀缺失时显示「未提供」并带来源说明，不用 0 冒充", () => {
+    const player = makePartialPlayer();
+    const wrapper = mount(BattleDetailPlayer, {
+      props: { player, players: [player], mode: "概要", partial: true },
+      global: { stubs: STUBS }
+    });
+
+    const stats = wrapper.findAll(".dp-stat");
+    // 伤害占比、补刀/经济都缺失
+    expect(stats[1]!.text()).toContain("未提供");
+    expect(stats[2]!.text()).toContain("未提供");
+    expect(stats[2]!.text()).not.toContain("经济 0");
+    expect(stats[2]!.find(".dp-missing").attributes("title")).toBe("掌盟源未提供该字段");
+  });
+
+  it("装备全空且 partial 时显示「装备未提供」，符文缺失显示「符文未提供」", () => {
+    const player = makePartialPlayer();
+    const wrapper = mount(BattleDetailPlayer, {
+      props: { player, players: [player], mode: "概要", partial: true },
+      global: { stubs: STUBS }
+    });
+
+    const items = wrapper.find(".dp-items .dp-missing");
+    expect(items.text()).toBe("装备未提供");
+    expect(items.attributes("title")).toBe("掌盟源未提供该字段");
+    expect(wrapper.find(".dp-mini-col .dp-missing").text()).toBe("符文未提供");
+    expect(wrapper.find(".dp-mini-col .dp-missing").attributes("title")).toBe("掌盟源未提供该字段");
+  });
+
+  it("未传 partial prop 时回退读取玩家自带的 partial 标记", () => {
+    const player = makePartialPlayer();
+    const wrapper = mount(BattleDetailPlayer, {
+      props: { player, players: [player], mode: "概要" },
+      global: { stubs: STUBS }
+    });
+
+    expect(wrapper.find(".dp-items .dp-missing").exists()).toBe(true);
+  });
+
+  it("真实 0 值仍按 0 展示，不当作缺失", () => {
+    const player = makePlayer({ goldEarned: 0, minionsKilled: 0, totalDamageToChampions: 0 });
+    const wrapper = mount(BattleDetailPlayer, {
+      props: { player, players: [player], mode: "概要" },
+      global: { stubs: STUBS }
+    });
+
+    const stats = wrapper.findAll(".dp-stat");
+    expect(stats[1]!.text()).toContain("0%");
+    expect(stats[2]!.text()).toContain("0");
+    expect(wrapper.find(".dp-missing").exists()).toBe(false);
+  });
+
+  it("伤害字段缺失时柱子传 0 且悬浮说明为「未提供」", () => {
+    const player = makePartialPlayer();
+    const wrapper = mount(BattleDetailPlayer, {
+      props: { player, players: [player], mode: "伤害", partial: true },
+      global: { stubs: STUBS }
+    });
+
+    const bars = wrapper.findAll(".hist-stub");
+    expect(bars.map((bar) => bar.attributes("data-value"))).toEqual(["0", "0", "0", "0"]);
+    expect(bars.map((bar) => bar.attributes("data-title"))).toEqual(["未提供", "未提供", "未提供", "未提供"]);
+    expect(bars.map((bar) => bar.attributes("data-text"))).toEqual(["", "", "", ""]);
   });
 });

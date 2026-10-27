@@ -118,7 +118,7 @@ const emit = defineEmits<{
   modeChange: [mode: ModeFilter];
   daysChange: [days: DaysFilter];
   selectionChange: [gameId: string | null];
-  /** 列表数据完成一次「初始加载 / 主动刷新」，用于展示“更新于 HH:MM” */
+  /** 列表首次成功加载的时间。 */
   updated: [at: Date];
 }>();
 
@@ -128,7 +128,7 @@ const listEl = ref<HTMLElement | null>(null);
 const rqOptions = computed(() => toRqOptions({ area: props.area, accountType: props.accountType, id: props.id }));
 const listState = useBattleList(() => rqOptions.value);
 const {
-  battles, page, hasPrev, hasNext, loading, error, selectedGameId, filter, sampleSize,
+  battles, page, requestedPage, hasPrev, hasNext, loading, error, selectedGameId, filter, sampleSize,
   rawLoaded, championPool, setFilter, goToPage, select, focusGame: locateGame,
   refresh: refreshList, dispose: disposeList
 } = listState;
@@ -186,7 +186,9 @@ const sampleText = computed(() => {
 const rawCount = rawLoaded;
 
 onMounted(() => {
-  void goToPage(1).then(() => { emit("updated", new Date()); });
+  void goToPage(1).then(() => {
+    if (!error.value) emit("updated", new Date());
+  });
 });
 
 // 外部受控 prop → 内部筛选；相等判断避免与下方 emit 来回触发
@@ -248,9 +250,9 @@ function onSelect(gameId: string): void {
   listEl.value?.focus();
 }
 
-/** 错误原位重试：按当前页码重新请求（首屏失败为第 1 页，翻页失败则重试该页） */
+/** 重试最近一次请求的页码，保留当前已经展示的列表。 */
 function retryCurrent(): void {
-  void goToPage(page.value);
+  void goToPage(requestedPage.value);
 }
 
 /** 键盘 ↑/↓：在当前页对局间移动选中，并滚动到可见区域 */
@@ -308,10 +310,9 @@ function applyChampionFilter(id: number | null): void {
 }
 
 /** 主动刷新：保留筛选条件与当前查看的比赛（只有该场已不在结果里时才重新选择） */
-async function refresh(): Promise<void> {
+async function refresh(): Promise<boolean> {
   focusedBattle.value = null;
-  await refreshList();
-  emit("updated", new Date());
+  return refreshList();
 }
 
 defineExpose({ focusGame, applyChampionFilter, refresh });

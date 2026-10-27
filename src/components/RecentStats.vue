@@ -99,8 +99,8 @@
       </div>
     </div>
   </div>
-  <!-- 统计请求失败：给出来源说明与重试，而不是静默空着 -->
-  <p v-else-if="taskError" class="state-text state-text--error recent-error" title="数据来源：WeGame 战绩接口">
+  <p v-if="taskError" class="state-text state-text--error recent-error" title="数据来源：WeGame 战绩接口" role="alert">
+    <span v-if="games.length">刷新失败，当前展示上次数据：</span>
     {{ toErrorMessage(taskError) }}
     <button type="button" class="link-button" @click="reload">重试</button>
   </p>
@@ -110,15 +110,15 @@
 import { computed, onMounted, ref, watch } from "vue";
 import GameIcon from "./GameIcon.vue";
 import { useAsyncData } from "../composables/useAsyncData";
-import { toRqOptions } from "../composables/useUserInfo";
-import { lolBattleApi } from "../api/client";
 import { toErrorMessage } from "../api/errors";
 import { championName, ensureChampionNames } from "../api/staticData";
 import type { BattleSummary } from "../api/types";
 import { battleResultLabel, classifyBattle } from "../const/wins";
 import { MODE_FILTER_OPTIONS, type ModeFilter } from "../const/modes";
-import { getQueueName, getTeamMadeLabel, isRankedQueue } from "../const/queues";
 import type { DaysFilter } from "../composables/useBattleList";
+import { useBattleFeed } from "../composables/battleFeed";
+import { summarizeRecentBattles } from "../utils/recentStats";
+import type { RecentTrendPoint } from "../utils/recentStats";
 
 const props = defineProps<{
   area: string;
@@ -152,8 +152,12 @@ const DAY_MS = 86400000;
 const internalMode = ref<ModeFilter>(props.mode ?? "all");
 const selectedMode = computed<ModeFilter>(() => props.mode ?? internalMode.value);
 const selectedDays = computed<DaysFilter>(() => props.days ?? 0);
-/** 原始页缓存：切换模式时只补拉缺少的页，不重复请求 */
-const pageCache = new Map<number, BattleSummary[]>();
+/** 与对局列表共享同一份「当前玩家」的原始战绩页缓存与在途请求（键区分大区/账号类型/玩家） */
+const feed = useBattleFeed(() => ({
+  area: String(props.area),
+  accountType: String(props.accountType),
+  id: String(props.id)
+}));
 
 function matchesMode(b: BattleSummary, mode: ModeFilter): boolean {
   if (mode === "all") return true;
@@ -173,7 +177,6 @@ function matchesSample(b: BattleSummary, mode: ModeFilter, days: DaysFilter): bo
 }
 
 const task = useAsyncData(async (signal) => {
-  const rq = toRqOptions({ area: props.area, accountType: props.accountType, id: props.id });
   const mode = selectedMode.value;
   const days = selectedDays.value;
   // 全部模式且不限时间：只取最近 20 场；否则扩大回看范围以凑够样本
@@ -183,13 +186,10 @@ const task = useAsyncData(async (signal) => {
   const collected: BattleSummary[] = [];
   for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
     if (signal.aborted) break;
-    let items = pageCache.get(pageIndex);
-    if (!items) {
-      items = await lolBattleApi.getBattleList(rq, { count: 10, offset: pageIndex * 10 }, { signal });
-      pageCache.set(pageIndex, items);
-    }
-    collected.push(...items);
-    if (items.length < 10) break;
+    // 原始页与列表共用：命中共享缓存时不会再发请求
+    const page = await feed.getPage(pageIndex, { signal });
+    collected.push(...page.data);
+    if (page.data.length < 10) break;
     if (collected.filter((item) => matchesSample(item, mode, days)).length >= target) break;
   }
   return collected;
@@ -200,19 +200,8 @@ onMounted(() => {
   void task.run();
 });
 
-// 父组件（与列表联动）改模式/时间范围时同步刷新统计
-watch(
-  () => props.mode,
-  (value) => {
-    if (value === undefined || value === internalMode.value) return;
-    internalMode.value = value;
-    void task.run();
-  }
-);
-watch(
-  () => props.days,
-  () => { void task.run(); }
-);
+// 模式和时间范围生效后再读取数据，父页面与组件内部的操作共用同一入口。
+watch([selectedMode, selectedDays], () => { void task.run(); });
 
 const taskError = task.error;
 const games = computed(() => task.data.value ?? []);
@@ -237,131 +226,32 @@ const emptyText = computed(() => {
   return scope + range + "：最近 " + games.value.length + " 场里没有符合条件的对局";
 });
 
-/** 切换模式：通知外部（若受控），并优先复用已缓存的原始页、只补拉缺少的部分 */
+/** 父页面提供模式时由父页面更新参数；独立使用时更新内部模式。 */
 function selectMode(mode: ModeFilter): void {
   if (selectedMode.value === mode) return;
-  internalMode.value = mode;
+  if (props.mode === undefined) internalMode.value = mode;
   emit("modeChange", mode);
-  void task.run();
 }
 
-/** 三分类计数：重开单列，不计入胜率分母 */
-const resultCounts = computed(() => {
-  let winCount = 0;
-  let loseCount = 0;
-  let remakeCount = 0;
-  for (const g of sample.value) {
-    const result = classifyBattle(g);
-    if (result === "win") winCount += 1;
-    else if (result === "lose") loseCount += 1;
-    else remakeCount += 1;
-  }
-  return { winCount, loseCount, remakeCount };
-});
-const wins = computed(() => resultCounts.value.winCount);
-const losses = computed(() => resultCounts.value.loseCount);
-const remakes = computed(() => resultCounts.value.remakeCount);
-const winRate = computed(() => {
-  const total = wins.value + losses.value;
-  return total ? Math.round((wins.value / total) * 100) : 0;
-});
-const avgKda = computed(() => {
-  const totals = sample.value.reduce(
-    (acc, g) => ({ k: acc.k + (g.kills ?? 0), d: acc.d + (g.deaths ?? 0), a: acc.a + (g.assists ?? 0) }),
-    { k: 0, d: 0, a: 0 }
-  );
-  if (!totals.d && !totals.k) return "0.00";
-  return ((totals.k + totals.a) / Math.max(1, totals.d)).toFixed(2);
-});
-/** 场均击杀/死亡/助攻 + 荣誉/时长等摘要，填住近期表现下方原本的空区 */
-const sampleAverages = computed(() => {
-  const size = sample.value.length;
-  if (!size) return { kills: "0.0", deaths: "0.0", assists: "0.0" };
-  const totals = sample.value.reduce(
-    (acc, g) => ({ k: acc.k + (g.kills ?? 0), d: acc.d + (g.deaths ?? 0), a: acc.a + (g.assists ?? 0) }),
-    { k: 0, d: 0, a: 0 }
-  );
-  const round = (value: number) => (value / size).toFixed(1);
-  return { kills: round(totals.k), deaths: round(totals.d), assists: round(totals.a) };
-});
-const avgKills = computed(() => sampleAverages.value.kills);
-const avgDeaths = computed(() => sampleAverages.value.deaths);
-const avgAssists = computed(() => sampleAverages.value.assists);
-const honorCount = computed(
-  () => sample.value.filter((g) => Number(g.was_mvp) === 1 || Number(g.was_svp) === 1).length
-);
-const pentaCount = computed(() => sample.value.reduce((sum, g) => sum + Number(g.penta_kills ?? 0), 0));
-/** 模式分布：当前样本里各队列占比（最多 4 类） */
-const queueStats = computed(() => {
-  const size = sample.value.length;
-  if (!size) return [];
-  const counts = new Map<number, number>();
-  for (const g of sample.value) {
-    const id = Number(g.game_queue_id) || 0;
-    counts.set(id, (counts.get(id) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4)
-    .map(([id, count]) => ({
-      id,
-      count,
-      label: getQueueName(id),
-      percent: Math.round((count / size) * 100)
-    }));
-});
-/** 平均时长：秒 → m:ss */
-const avgDuration = computed(() => {
-  const size = sample.value.length;
-  if (!size) return "0:00";
-  const total = sample.value.reduce((sum, g) => sum + Number(g.game_time_played ?? 0), 0);
-  const seconds = Math.round(total / size);
-  return Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
-});
-/**
- * 组队情况：按「排位 / 非排位 + 预组队人数」聚合。
- * 只有排位模式才叫单排/双排，其他模式叫单人/双人开黑…
- */
-const teamStats = computed(() => {
-  const size = sample.value.length;
-  if (!size) return [];
-  const buckets = new Map<string, { id: string; made: number; ranked: boolean; count: number }>();
-  for (const g of sample.value) {
-    const made = Number(g.team_made_size ?? 1) || 1;
-    const ranked = isRankedQueue(g.game_queue_id);
-    const key = (ranked ? "rank" : "normal") + "-" + made;
-    const entry = buckets.get(key) ?? { id: key, made, ranked, count: 0 };
-    entry.count += 1;
-    buckets.set(key, entry);
-  }
-  return [...buckets.values()]
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 4)
-    .map((entry) => ({
-      id: entry.id,
-      count: entry.count,
-      label: getTeamMadeLabel(entry.made, entry.ranked) ?? (entry.ranked ? "排位" : "开黑"),
-      percent: Math.round((entry.count / size) * 100)
-    }));
-});
-/** 连胜连败：跳过重开取第一场非重开结果，之后连续相同结果计数（重开不打断） */
-const streakState = computed(() => {
-  const list = sample.value;
-  const firstIndex = list.findIndex((g) => classifyBattle(g) !== "remake");
-  if (firstIndex < 0) return { count: 0, lose: false };
-  const first = classifyBattle(list[firstIndex]);
-  let count = 0;
-  for (let i = firstIndex; i < list.length; i += 1) {
-    const result = classifyBattle(list[i]);
-    if (result === "remake") continue;
-    if (result !== first) break;
-    count += 1;
-  }
-  return { count, lose: first === "lose" };
-});
-const firstIsLose = computed(() => streakState.value.lose);
+/** 统计与趋势统一由纯函数模块计算，组件只负责展示与交互 */
+const stats = computed(() => summarizeRecentBattles(sample.value));
+const wins = computed(() => stats.value.wins);
+const losses = computed(() => stats.value.losses);
+const remakes = computed(() => stats.value.remakes);
+const winRate = computed(() => stats.value.winRate);
+const avgKda = computed(() => stats.value.avgKda);
+const avgKills = computed(() => stats.value.averages.kills);
+const avgDeaths = computed(() => stats.value.averages.deaths);
+const avgAssists = computed(() => stats.value.averages.assists);
+const avgDuration = computed(() => stats.value.averages.duration);
+const honorCount = computed(() => stats.value.honorCount);
+const pentaCount = computed(() => stats.value.pentaCount);
+const queueStats = computed(() => stats.value.queues);
+const teamStats = computed(() => stats.value.teams);
+const topChampions = computed(() => stats.value.champions);
+const firstIsLose = computed(() => stats.value.streak.lose);
 const streak = computed(() => {
-  const state = streakState.value;
+  const state = stats.value.streak;
   if (state.count < 2) return "";
   return state.count + (state.lose ? "连败" : "连胜");
 });
@@ -384,31 +274,9 @@ function stripAriaLabel(g: BattleSummary, index: number): string {
   const current = g.game_id === props.activeGameId ? "（当前查看）" : "";
   return "第" + (recentGames.value.length - index) + "场 " + battleResultLabel(g) + current + "，点击定位";
 }
-const topChampions = computed(() => {
-  const byId = new Map<number, { id: number; count: number; wins: number }>();
-  for (const g of sample.value) {
-    const entry = byId.get(g.champion_id) ?? { id: g.champion_id, count: 0, wins: 0 };
-    entry.count += 1;
-    if (classifyBattle(g) === "win") entry.wins += 1;
-    byId.set(g.champion_id, entry);
-  }
-  return [...byId.values()].sort((a, b) => b.count - a.count).slice(0, 10);
-});
-
 function pad2(n: number): string {
   return n < 10 ? "0" + n : String(n);
 }
-
-interface TrendPoint {
-  key: string;
-  label: string;
-  winRate: number;
-  x: number;
-  y: number;
-}
-
-const TREND_WIDTH = 196;
-const TREND_PADDING = 4;
 
 function dateLabelOf(g: BattleSummary): string {
   const ts = Number(g.game_start_time);
@@ -417,42 +285,21 @@ function dateLabelOf(g: BattleSummary): string {
   return date.getFullYear() + "-" + pad2(date.getMonth() + 1) + "-" + pad2(date.getDate());
 }
 
-/**
- * 累计胜率趋势：按时间从旧到新逐场累计，画成迷你折线。
- * 不按天聚合，这样一天打了很多场或隔几天才打一场时也能看到走势。
- */
-const trend = computed<TrendPoint[]>(() => {
-  const list = sample.value.slice().reverse();
-  if (list.length < 2) return [];
-  let wins = 0;
-  let losses = 0;
-  const points: Array<{ key: string; label: string; winRate: number }> = [];
-  for (const g of list) {
-    const result = classifyBattle(g);
-    if (result === "win") wins += 1;
-    else if (result === "lose") losses += 1;
-    const decided = wins + losses;
-    points.push({ key: g.game_id, label: dateLabelOf(g), winRate: decided ? Math.round((wins / decided) * 100) : 0 });
-  }
-  const step = (TREND_WIDTH - TREND_PADDING * 2) / Math.max(1, points.length - 1);
-  return points.map((point, index) => ({
-    ...point,
-    x: TREND_PADDING + index * step,
-    y: 38 - (point.winRate / 100) * 34
-  }));
-});
-const trendPoints = computed(() => trend.value.map((point) => point.x.toFixed(1) + "," + point.y.toFixed(1)).join(" "));
-const trendFirstLabel = computed(() => trend.value[0]?.label ?? "");
-const trendLastLabel = computed(() => trend.value[trend.value.length - 1]?.label ?? "");
+/** 累计胜率趋势（纯函数模块计算坐标，组件只负责绘制） */
+const trend = computed(() => stats.value.trend.points);
+const trendPoints = computed(() => stats.value.trend.pointsAttr);
+const trendFirstLabel = computed(() => stats.value.trend.firstLabel);
+const trendLastLabel = computed(() => stats.value.trend.lastLabel);
 const trendTitle = computed(() => "胜率趋势：最近 " + trend.value.length + " 场累计胜率（左旧右新）");
-function trendPointTitle(point: TrendPoint): string {
+function trendPointTitle(point: RecentTrendPoint): string {
   return point.label + " · 累计 " + point.winRate + "% 胜率";
 }
 
-/** 主动刷新（“刷新战绩”按钮联动）：清掉页缓存后按当前模式重新统计 */
-function reload(): Promise<void> {
-  pageCache.clear();
-  return task.run();
+/** 主动刷新（“刷新战绩”按钮联动）：清共享页缓存后按当前模式重新统计 */
+async function reload(): Promise<boolean> {
+  feed.invalidate();
+  await task.run();
+  return task.error.value === null;
 }
 defineExpose({ reload });
 </script>

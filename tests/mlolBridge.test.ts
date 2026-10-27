@@ -110,6 +110,62 @@ describe("掌盟桥接消息约定", () => {
     expect(detail.game_id).toBe("bridge-game");
     expect(detail.player_details).toHaveLength(3);
     expect(detail.player_details[0]!.championId).toBe(57);
+    // 掌盟源不返回组队人数：不能再写死 1，且整条数据标记为字段不完整
+    expect(detail.player_details[0]!.teamMadeSize).toBeUndefined();
+    expect(detail.player_details[0]!.partial).toBe(true);
+  });
+
+  it("缺失字段保持 undefined（不填 0）、显式 0 仍保留 0，并统一标记 partial", async () => {
+    const { fetchMlolBattleDetail } = await import("../src/api/mlolDetail");
+    const promise = fetchMlolBattleDetail({ gameId: "zero-game", areaId: 1, startTime: 1700000000000 });
+    const request = await waitForRequest(harness!);
+
+    dispatchBridgeResponse({
+      type: "lol-tft-mlol-response",
+      id: request.id,
+      text: JSON.stringify({
+        data: {
+          info: {
+            game_id: "zero-game",
+            start_time_ts: 1700000000,
+            duration_ts: 1800,
+            battle_map_id: 11,
+            game_queue_id: 420,
+            win: true,
+            match: {
+              my_team: [
+                {
+                  uuid: "uuid-zero",
+                  team_id: "100",
+                  champion_id: 57,
+                  name: "零值玩家",
+                  champions_killed: 0,
+                  num_deaths: 0,
+                  assists: 0,
+                  team_made_size: 0
+                }
+              ],
+              opponent_team: []
+            }
+          }
+        }
+      })
+    });
+
+    const detail = await promise;
+    const me = detail.player_details[0]!;
+    // 显式存在且为 0：是真实值，必须保留
+    expect(me.championsKilled).toBe(0);
+    expect(me.numDeaths).toBe(0);
+    expect(me.teamMadeSize).toBe(0);
+    // 未提供的字段保持 undefined，不再被 num() 填成 0
+    expect(me.goldEarned).toBeUndefined();
+    expect(me.minionsKilled).toBeUndefined();
+    expect(me.item0).toBeUndefined();
+    expect(me.keystoneId).toBeUndefined();
+    expect(me.perkSubStyle).toBeUndefined();
+    expect(me.totalDamageToChampions).toBeUndefined();
+    expect(me.partial).toBe(true);
   });
 
   it("失败响应同样结束等待，并抛出可读错误", async () => {

@@ -225,8 +225,13 @@ const recentRef = ref<InstanceType<typeof RecentStats> | null>(null);
 
 /** 主动刷新：召唤师资料 + 场次统计 + 近期表现一起更新 */
 defineExpose({
-  refresh: async (): Promise<void> => {
-    await Promise.all([summonerTask.run(), reportTask.run(), recentRef.value?.reload()]);
+  refresh: async (): Promise<string[]> => {
+    const [, , recentSucceeded] = await Promise.all([summonerTask.run(), reportTask.run(), recentRef.value?.reload()]);
+    const failures: string[] = [];
+    if (summonerTask.error.value) failures.push("召唤师资料");
+    if (reportTask.error.value) failures.push("场次统计");
+    if (recentSucceeded === false) failures.push("近期表现");
+    return failures;
   }
 });
 </script>

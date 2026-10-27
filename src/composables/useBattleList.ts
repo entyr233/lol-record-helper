@@ -1,5 +1,5 @@
 import { computed, ref, type Ref } from "vue";
-import { lolBattleApi } from "../api/client";
+import { useBattleFeed, type BattleFeedKey } from "./battleFeed";
 import { isAbortError } from "../api/errors";
 import { classifyBattle } from "../const/wins";
 import type { ModeFilter } from "../const/modes";
@@ -37,6 +37,8 @@ export interface FocusGameResult {
 export interface BattleListState {
   battles: Ref<BattleSummary[]>;
   page: Ref<number>;
+  /** 最近一次实际请求的页码，失败后用于重试。 */
+  requestedPage: Ref<number>;
   hasPrev: Ref<boolean>;
   hasNext: Ref<boolean>;
   loading: Ref<boolean>;
@@ -54,7 +56,7 @@ export interface BattleListState {
   /** 定位并选中一场对局（筛选不匹配时先重置筛选） */
   focusGame: (game: BattleSummary) => Promise<FocusGameResult>;
   /** 刷新：清掉页缓存、按当前筛选与页码重新拉取；保留当前查看的对局（已不存在时才重新选择） */
-  refresh: () => Promise<void>;
+  refresh: () => Promise<boolean>;
   /** 组件卸载时中止在途请求 */
   dispose: () => void;
 }
@@ -73,6 +75,7 @@ function isDefaultFilter(f: ListFilter): boolean {
 export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   const rawBattles = ref<BattleSummary[]>([]);
   const page = ref(1);
+  const requestedPage = ref(1);
   /** 当前展示页之后是否还有更多（只由「正式展示某一页」更新，定位探测不碰它） */
   const displayedHasMore = ref(true);
   const loading = ref(false);
@@ -84,10 +87,14 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   const championCounts = new Map<number, number>();
   /** 已计入池子的 game_id：同一对局在不同页/重复拉同一页时只算一次 */
   const seenGameIds = new Set<string>();
-  /** 原始页缓存：offset 页号 → 数据。翻页与定位复用，避免重复请求（原始数据与筛选无关） */
-  const pageCache = new Map<number, { data: BattleSummary[]; hasMore: boolean; at: number }>();
-  /** 原始页缓存有效期：既避免同一交互内重复请求，也不至于长期记住旧战绩 */
-  const PAGE_CACHE_TTL = 30000;
+  /**
+   * 玩家级共享数据层：原始页缓存与在途请求都放在 battleFeed 里，
+   * 与总览（RecentStats）等其它消费者共用同一份「当前玩家」的原始战绩页。
+   */
+  const feed = useBattleFeed((): BattleFeedKey => {
+    const rq = rqOptions();
+    return { area: String(rq.area), accountType: String(rq.account_type), id: String(rq.id) };
+  });
   /** 已累积的原始页数（响应式：参与「下一页」按钮状态计算） */
   const fetchedPages = ref(0);
   /** 原始数据的前沿：已拉到的最后一页是否还有更多（响应式，与「当前展示页的翻页状态」分开） */
@@ -171,27 +178,16 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   });
 
   /**
-   * 取第 n 个原始页（0 基）：命中缓存不发请求。
+   * 取第 n 个原始页（0 基）：走玩家级共享缓存（battleFeed），重复页不重复请求。
    * 只读探测用——不修改当前页面的翻页状态（displayedHasMore），只有正式展示某一页时才更新翻页按钮。
-   * gen 用于丢弃「筛选已变化但响应才回来」的旧结果：既不写缓存，也不更新英雄池。
+   * gen 用于丢弃「筛选已变化但响应才回来」的旧结果：不更新英雄池；
+   * 页数据本身与筛选无关，因此仍由共享层缓存复用。
    */
   async function fetchPage(n: number, gen: number = generation): Promise<{ items: BattleSummary[]; hasMore: boolean }> {
     if (disposed) throw new DOMException("aborted", "AbortError");
-    const cached = pageCache.get(n);
-    if (cached && Date.now() - cached.at < PAGE_CACHE_TTL) {
-      return { items: cached.data, hasMore: cached.hasMore };
-    }
-    const items = await lolBattleApi.getBattleList(
-      rqOptions(),
-      { count: PAGE_SIZE, offset: n * PAGE_SIZE },
-      { signal: signalOf() }
-    );
-    const hasMore = items.length >= PAGE_SIZE;
-    if (gen === generation) {
-      pageCache.set(n, { data: items, hasMore, at: Date.now() });
-      recordChampionCounts(items);
-    }
-    return { items, hasMore };
+    const result = await feed.getPage(n, { signal: signalOf() });
+    if (gen === generation) recordChampionCounts(result.data);
+    return { items: result.data, hasMore: result.hasMore };
   }
 
   /** 把原始页追加进本地累积（筛选模式下做本地过滤时用），不改页码与选中；返回原始数据前沿 */
@@ -252,6 +248,7 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
 
   function goToPage(n: number, presetGameId?: string): Promise<void> {
     if (n < 1 || inflight || disposed) return Promise.resolve();
+    requestedPage.value = n;
     const gen = generation;
     const run = loadPage(n, gen, presetGameId);
     inflight = run;
@@ -272,6 +269,8 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
     // 中止在途请求（网络慢时不用等旧请求跑完），并让旧响应作废
     abortRequests();
     generation += 1;
+    // 清掉共享页缓存：旧筛选下发出的响应可能带着旧数据，重新拉取才不会把旧结果展示成新筛选结果
+    feed.invalidate();
     rawBattles.value = [];
     page.value = 1;
     selectedGameId.value = null;
@@ -284,25 +283,27 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   }
 
   /** 刷新：清掉原始页缓存，按当前筛选与页码重新拉取；保留选中项（已不存在时再重新选择） */
-  async function refresh(): Promise<void> {
-    if (disposed || focusing) return;
+  async function refresh(): Promise<boolean> {
+    if (disposed || focusing) return false;
     while (inflight) await inflight.catch(() => {});
     abortRequests();
     generation += 1;
-    pageCache.clear();
+    feed.invalidate();
     rawBattles.value = [];
     rawHasMore.value = true;
     displayedHasMore.value = true;
     fetchedPages.value = 0;
     const targetPage = Math.max(1, page.value);
     await goToPage(targetPage);
+    return error.value === null && !disposed;
   }
 
-  /** 组件卸载时中止所有在途列表请求 */
+  /** 组件卸载时中止所有在途列表请求，并放弃本实例产生的缓存（共享层随之重置） */
   function dispose(): void {
     disposed = true;
     requestController?.abort();
     requestController = null;
+    feed.invalidate();
   }
 
   function select(gameId: string): void {
@@ -396,6 +397,7 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   return {
     battles: visiblePage,
     page,
+    requestedPage,
     hasPrev,
     hasNext,
     loading,

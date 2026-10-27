@@ -2,6 +2,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import BattleList from "../src/components/BattleList.vue";
 import type { BattleSummary } from "../src/api/types";
+import { clearBattleFeedCache } from "../src/composables/battleFeed";
 
 const api = vi.hoisted(() => ({ getBattleList: vi.fn() }));
 vi.mock("../src/api/client", () => ({ lolBattleApi: api }));
@@ -39,6 +40,8 @@ function render() {
 
 beforeEach(() => {
   api.getBattleList.mockReset();
+  // 原始战绩页缓存是 battleFeed 的模块级单例：每个用例从空缓存开始，避免上一个用例的数据/空页串入
+  clearBattleFeedCache();
 });
 
 describe("BattleList 加载骨架屏", () => {
@@ -63,6 +66,31 @@ describe("BattleList 加载骨架屏", () => {
 });
 
 describe("BattleList 错误原位重试", () => {
+  it("第二页失败后重试第二页，成功前保留第一页内容", async () => {
+    api.getBattleList
+      .mockResolvedValueOnce(Array.from({ length: 10 }, (_, index) => battle(index + 1)))
+      .mockRejectedValueOnce(new Error("第二页请求失败"))
+      .mockResolvedValueOnce([battle(11), battle(12)]);
+    const wrapper = render();
+    await flushPromises();
+
+    await wrapper.findAll(".pager-button")[1].trigger("click");
+    await flushPromises();
+    expect(wrapper.get(".pager-indicator").text()).toBe("第 1 页");
+    expect(wrapper.findAll(".battle-list-item")).toHaveLength(10);
+    expect(wrapper.text()).toContain("第二页请求失败");
+
+    await wrapper.get(".list-retry").trigger("click");
+    await flushPromises();
+
+    expect(api.getBattleList.mock.calls.map((call) => (call[1] as { offset: number }).offset)).toEqual([0, 10, 10]);
+    expect(wrapper.get(".pager-indicator").text()).toBe("第 2 页");
+    expect(wrapper.findAll(".battle-list-item")).toHaveLength(2);
+    expect(wrapper.get(".battle-list-item.selected").attributes("data-game-id")).toBe("g11");
+    expect(wrapper.find(".list-retry").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
   it("首屏失败显示重试按钮，点击后重新请求并渲染列表", async () => {
     api.getBattleList
       .mockRejectedValueOnce(new Error("网络错误"))

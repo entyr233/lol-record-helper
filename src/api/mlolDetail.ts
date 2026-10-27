@@ -20,6 +20,17 @@ const num = (v: unknown, fallback = 0): number => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+/**
+ * 可选数值：字段缺失/非法时返回 undefined，不用 0 冒充。
+ * 用于掌盟源可能不提供的字段（组队人数/经济/补刀/装备/符文/伤害），
+ * 让 UI 区分「未提供」与真实的 0。
+ */
+const optNum = (v: unknown): number | undefined => {
+  if (v === null || v === undefined || v === "") return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
+
 function mapPlayer(p: MlolPlayer): PlayerDetail {
   const gameLevelRaw = p.game_level as { tier?: unknown; league_points?: unknown } | undefined;
   return {
@@ -28,26 +39,32 @@ function mapPlayer(p: MlolPlayer): PlayerDetail {
     championId: num(p.champion_id),
     level: num(p.level),
     teamId: String(p.team_id ?? ""),
-    teamMadeSize: 1,
+    // 掌盟源不返回预组队人数：保持 undefined，不能再写死 1（否则未知会被显示成「单人」）
+    teamMadeSize: optNum(p.team_made_size ?? p.teamMadeSize),
     championsKilled: num(p.champions_killed),
     numDeaths: num(p.num_deaths),
     assists: num(p.assists),
     gameScore: num(p.game_score),
-    totalDamageToChampions: num(p.total_damage_dealt_to_champions),
-    totalDamageTaken: num(p.total_damage_taken),
-    magicDamageToChampions: num(p.magic_damage_dealt_to_champions),
-    physicalDamageToChampions: num(p.physical_damage_dealt_to_champions),
-    trueDemageToChampions: num(p.true_damage_to_champions),
-    item0: num(p.item0), item1: num(p.item1), item2: num(p.item2), item3: num(p.item3),
-    item4: num(p.item4), item5: num(p.item5), item6: num(p.item6),
-    keystoneId: 0,
-    perkSubStyle: num(p.perkSubStyle),
+    totalDamageToChampions: optNum(p.total_damage_dealt_to_champions),
+    totalDamageTaken: optNum(p.total_damage_taken),
+    magicDamageToChampions: optNum(p.magic_damage_dealt_to_champions),
+    physicalDamageToChampions: optNum(p.physical_damage_dealt_to_champions),
+    trueDemageToChampions: optNum(p.true_damage_to_champions),
+    goldEarned: optNum(p.gold_earned ?? p.goldEarned),
+    minionsKilled: optNum(p.minions_killed ?? p.minionsKilled),
+    neutralMinionsKilled: optNum(p.neutral_minions_killed ?? p.neutralMinionsKilled),
+    item0: optNum(p.item0), item1: optNum(p.item1), item2: optNum(p.item2), item3: optNum(p.item3),
+    item4: optNum(p.item4), item5: optNum(p.item5), item6: optNum(p.item6),
+    keystoneId: optNum(p.keystone_id ?? p.keystoneId),
+    perkSubStyle: optNum(p.perkSubStyle),
     summonSpell1Id: num(p.summon_spell1_id),
     summonSpell2Id: num(p.summon_spell2_id),
     battleHonour: { isMvp: !!p.is_mvp, isSvp: !!p.is_svp },
     gameLevel: gameLevelRaw ? { tier: num(gameLevelRaw.tier, 255), leaguePoints: String(gameLevelRaw.league_points ?? "") } : undefined,
-    perkStyleUrl: p.perk_style_url ? String(p.perk_style_url) : undefined
-  } as PlayerDetail;
+    perkStyleUrl: p.perk_style_url ? String(p.perk_style_url) : undefined,
+    // 掌盟公开源字段不完整：调用方据此显示「未提供」而不是 0
+    partial: true
+  };
 }
 
 function teamSummary(players: MlolPlayer[], totals: MlolPlayer | undefined, win: boolean): TeamDetail {

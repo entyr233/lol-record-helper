@@ -1,7 +1,10 @@
 import { flushPromises, mount } from "@vue/test-utils";
+import { defineComponent, h, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import RecentStats from "../src/components/RecentStats.vue";
+import { clearBattleFeedCache, useBattleFeed } from "../src/composables/battleFeed";
 import type { BattleSummary } from "../src/api/types";
+import type { ModeFilter } from "../src/const/modes";
 
 const api = vi.hoisted(() => ({ getBattleList: vi.fn() }));
 vi.mock("../src/api/client", () => ({ lolBattleApi: api }));
@@ -56,6 +59,8 @@ const mixedRecent = [
 
 beforeEach(() => {
   api.getBattleList.mockReset();
+  // 共享页缓存是模块级单例，逐用例复位，避免上一条用例的数据串到下一个
+  clearBattleFeedCache();
   mockPages(mixedRecent);
 });
 
@@ -221,7 +226,51 @@ describe("RecentStats 三分类统计口径", () => {
   });
 });
 
+describe("RecentStats 共享数据层", () => {
+  it("列表已取过的原始页不再重复请求（总览与列表共用 battleFeed）", async () => {
+    const feed = useBattleFeed(() => ({ area: "1", accountType: "2", id: "test" }));
+    await feed.getPage(0);
+    expect(api.getBattleList).toHaveBeenCalledTimes(1);
+
+    const wrapper = render();
+    try {
+      await flushPromises();
+      // 总览需要页 0、1：页 0 命中共享缓存，只额外请求页 1
+      expect(api.getBattleList).toHaveBeenCalledTimes(2);
+      expect(api.getBattleList.mock.calls.map((call) => (call[1] as { offset: number }).offset)).toEqual([0, 10]);
+    } finally { wrapper.unmount(); }
+  });
+});
+
 describe("RecentStats 模式切换", () => {
+  it("父页面管理模式时，点击模式后按新条件继续读取后续页", async () => {
+    const rows = Array.from({ length: 30 }, (_, index) =>
+      battle(index + 1, { game_queue_id: index < 20 ? 430 : 420 })
+    );
+    api.getBattleList.mockImplementation(async (_rq: unknown, params: { offset: number }) =>
+      rows.slice(params.offset, params.offset + 10)
+    );
+    const Parent = defineComponent({
+      setup() {
+        const mode = ref<ModeFilter>("all");
+        return () => h(RecentStats, {
+          area: "1", accountType: "2", id: "test", mode: mode.value,
+          onModeChange: (value) => { mode.value = value; }
+        });
+      }
+    });
+    const wrapper = mount(Parent);
+    try {
+      await flushPromises();
+      await wrapper.findAll(".recent-modes .mode-filter-tab").find((tab) => tab.text() === "单双排")!.trigger("click");
+      await flushPromises();
+
+      expect(api.getBattleList.mock.calls.map((call) => (call[1] as { offset: number }).offset)).toEqual([0, 10, 20]);
+      expect(wrapper.get(".recent-title").text()).toBe("单双排 · 最近 30 场中 10 场");
+      expect(wrapper.findAll(".strip-block--btn")).toHaveLength(10);
+    } finally { wrapper.unmount(); }
+  });
+
   it("切换模式后只统计该模式的对局、KDA 与常用英雄", async () => {
     const recent = [
       battle(1, { game_queue_id: 420, win: "Win", kills: 8, deaths: 2, assists: 10 }),
