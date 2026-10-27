@@ -138,3 +138,19 @@ export async function postForm(url: string, form: FormData, options: TransportOp
   // FormData 的 Content-Type（boundary）由浏览器/GM 自动生成，不手动指定
   return send(url, form, undefined, timeout, options.signal);
 }
+
+/** GM GET 请求：跨域搜索类接口（不需要登录 cookie，但被 CORS 挡在浏览器 fetch 外） */
+export function gmGet(url: string, timeoutMs = 15000): Promise<string> {
+  const impl = gm();
+  if (!impl) return Promise.reject(new Error("GM 传输不可用"));
+  return new Promise((resolve, reject) => {
+    impl({
+      method: "GET",
+      url,
+      timeout: timeoutMs,
+      onload: (response: { response?: string; status?: number }) => resolve(String(response.response ?? "")),
+      onerror: () => reject(new Error("GM 请求失败")),
+      ontimeout: () => reject(new Error("GM 请求超时"))
+    });
+  });
+}

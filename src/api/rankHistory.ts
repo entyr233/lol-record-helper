@@ -87,13 +87,18 @@ export function buildRankTrend(battles: BattleSummary[]): TrendPoint[] {
 }
 
 /** 拉取历史段位（赛季记录 + 近期走势），报告走 client 缓存 */
-export async function fetchRankHistory(rq: RqOptions, signal?: AbortSignal): Promise<{ seasons: SeasonRankRow[]; trend: TrendPoint[] }> {
+export async function fetchRankHistory(rq: RqOptions, signal?: AbortSignal): Promise<{ seasons: SeasonRankRow[]; trend: TrendPoint[]; reportKeys?: string[] }> {
   const report = await lolBattleApi.getBattleReport(rq, { signal });
   let trendBattles: BattleSummary[] = [];
   try {
     trendBattles = await lolBattleApi.getBattleList(rq, { count: 20, offset: 0 }, { signal });
   } catch { /* 走势拿不到就只给赛季记录 */ }
-  return { seasons: buildSeasonRows(report), trend: buildRankTrend(trendBattles) };
+  const seasons = buildSeasonRows(report);
+  return {
+    seasons,
+    trend: buildRankTrend(trendBattles),
+    reportKeys: Array.isArray(report) ? ["(数组)"] : Object.keys(record(report)).slice(0, 12)
+  };
 }
 
 export { tierName, tierOrder };

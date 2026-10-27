@@ -1,4 +1,5 @@
 import { ApiError } from "./errors";
+import { gmGet } from "./transport";
 import type { BattleSummary } from "./types";
 
 /**
@@ -118,12 +119,19 @@ export async function searchMlolPlayers(keyword: string, signal?: AbortSignal): 
     source_game_zone: "lol",
     game_zone: "lol"
   };
+  // 搜索不需要登录 cookie，但跨域被 CORS 挡——走 GM（无 CORS）；GM 不可用时退桥
+  const query = Object.entries(params).map(([k, v]) => encodeURIComponent(k) + "=" + encodeURIComponent(String(v))).join("&");
   let payload: Record<string, unknown>;
   try {
-    payload = await mlolRequest(MLOL_SEARCH_PATH, params, "GET", signal);
-  } catch (error) {
-    // GET 空响应时换 POST 再试一次（掌盟两种都认）
-    payload = await mlolRequest(MLOL_SEARCH_PATH, params, "POST", signal);
+    const text = await gmGet("https://mlol.qt.qq.com/go/" + MLOL_SEARCH_PATH + "?" + query);
+    payload = JSON.parse(text) as Record<string, unknown>;
+  } catch (gmError) {
+    // GM 不可用（无 GM 环境）→ 桥；桥也失败 → 报告
+    try {
+      payload = await mlolRequest(MLOL_SEARCH_PATH, params, "GET", signal);
+    } catch {
+      throw gmError instanceof Error ? gmError : new Error("掌盟搜索失败");
+    }
   }
   const data = record(payload.data);
   const list = Array.isArray(data.userList) ? data.userList : [];
