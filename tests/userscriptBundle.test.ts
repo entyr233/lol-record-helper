@@ -40,6 +40,8 @@ describe.skipIf(!available)("单文件油猴脚本（构建产物）", () => {
     const code = readFileSync(FILE, "utf8");
     expect(code).toContain("@grant        GM_xmlhttpRequest");
     expect(code).toContain("@connect      mlol.qt.qq.com");
+    expect(code).toContain("@match        https://lol.qq.com/*");
+    expect(code).toContain("lol-tft-detail-request");
     expect(code).toMatch(/@match\s+https:\/\/www\.wegame\.com\.cn\/\*/);
     // 不再通过 <script src> 加载远端 bundle（bundle 已内联）
     expect(code).not.toContain("BUNDLE_URL");

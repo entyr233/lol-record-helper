@@ -1,8 +1,10 @@
 import { ApiError } from "./errors";
-import { postForm } from "./transport";
+import { hasGmTransport, postForm } from "./transport";
 import type { BattleDetail, PlayerDetail, TeamDetail } from "./types";
 
 const MLOL_DETAIL_URL = "https://mlol.qt.qq.com/go/battle_info/get_battle_detail_h5";
+const BRIDGE_ORIGIN = "https://lol.qq.com";
+const BRIDGE_URL = BRIDGE_ORIGIN + "/__lol_tft_bridge__";
 
 export interface MlolDetailInput {
   gameId: string;
@@ -11,43 +13,7 @@ export interface MlolDetailInput {
   uuid?: string;
 }
 
-interface MlolPlayer {
-  uuid?: string;
-  puuid?: string;
-  name?: string;
-  team_id?: string | number;
-  champion_id?: number;
-  level?: number;
-  champions_killed?: number;
-  num_deaths?: number;
-  assists?: number;
-  game_score?: number;
-  gold_earned?: number;
-  minions_killed?: number;
-  summon_spell1_id?: number;
-  summon_spell2_id?: number;
-  total_damage_dealt_to_champions?: number;
-  total_damage_taken?: number;
-  magic_damage_dealt_to_champions?: number;
-  physical_damage_dealt_to_champions?: number;
-  true_damage_to_champions?: number;
-  item0?: number; item1?: number; item2?: number; item3?: number; item4?: number; item5?: number; item6?: number;
-  perk_style_url?: string;
-  perkSubStyle?: number;
-  is_mvp?: number; is_svp?: number;
-  game_level?: { tier?: string | number; league_points?: number | string; rank?: number | string };
-  position?: string;
-  [key: string]: unknown;
-}
-
-interface MlolTeamSummary {
-  team_id?: string | number;
-  champions_killed?: number;
-  total_deaths?: number;
-  num_deaths?: number;
-  total_damage_dealt_to_champions?: number;
-  [key: string]: unknown;
-}
+interface MlolPlayer { [key: string]: unknown }
 
 const num = (v: unknown, fallback = 0): number => {
   const n = Number(v);
@@ -55,6 +21,7 @@ const num = (v: unknown, fallback = 0): number => {
 };
 
 function mapPlayer(p: MlolPlayer): PlayerDetail {
+  const gameLevelRaw = p.game_level as { tier?: unknown; league_points?: unknown } | undefined;
   return {
     openid: String(p.puuid ?? p.uuid ?? ""),
     name: String(p.name ?? ""),
@@ -78,12 +45,12 @@ function mapPlayer(p: MlolPlayer): PlayerDetail {
     summonSpell1Id: num(p.summon_spell1_id),
     summonSpell2Id: num(p.summon_spell2_id),
     battleHonour: { isMvp: !!p.is_mvp, isSvp: !!p.is_svp },
-    gameLevel: p.game_level ? { tier: num(p.game_level.tier, 255), leaguePoints: String(p.game_level.league_points ?? "") } : undefined,
+    gameLevel: gameLevelRaw ? { tier: num(gameLevelRaw.tier, 255), leaguePoints: String(gameLevelRaw.league_points ?? "") } : undefined,
     perkStyleUrl: p.perk_style_url ? String(p.perk_style_url) : undefined
   } as PlayerDetail;
 }
 
-function teamSummary(players: MlolPlayer[], totals: MlolTeamSummary | undefined, win: boolean): TeamDetail {
+function teamSummary(players: MlolPlayer[], totals: MlolPlayer | undefined, win: boolean): TeamDetail {
   const totalKills = num(totals?.champions_killed) || players.reduce((sum, p) => sum + num(p.champions_killed), 0);
   const totalDeaths = num(totals?.total_deaths ?? totals?.num_deaths) || players.reduce((sum, p) => sum + num(p.num_deaths), 0);
   const totalAssists = players.reduce((sum, p) => sum + num(p.assists), 0);
@@ -97,53 +64,153 @@ function teamSummary(players: MlolPlayer[], totals: MlolTeamSummary | undefined,
   };
 }
 
-/** 掌盟公开详情接口（需要 qt.qq.com 域的登录 cookie，由 GM 传输自动携带） */
-export async function fetchMlolBattleDetail(input: MlolDetailInput): Promise<BattleDetail> {
-  const form = new FormData();
-  form.append("uuid", input.uuid ?? "");
-  form.append("area_id", String(input.areaId));
-  form.append("game_id", String(input.gameId));
-  form.append("start_time", input.startTime !== undefined ? String(input.startTime) : "");
+interface MlolPayload {
+  data?: { info?: Record<string, unknown> };
+  result?: number;
+  msg?: string;
+  err_msg?: string;
+}
 
-  let payload: { data?: { info?: Record<string, unknown> }; result?: number; msg?: string; err_msg?: string };
-  try {
-    const response = await postForm(MLOL_DETAIL_URL, form);
-    payload = (await response.json()) as typeof payload;
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    throw new ApiError("MLOL_NETWORK", "GetBattleDetail(mlol)", "掌盟详情请求失败");
-  }
-
-  const info = payload.data?.info as Record<string, unknown> | undefined;
+function mapPayload(payload: MlolPayload): BattleDetail {
+  const info = payload.data?.info;
   if (!info) {
-    const message = String(payload.msg ?? payload.err_msg ?? "");
     const code = payload.result ?? "MLOL_EMPTY";
-    // 1001 = qt.qq.com 域没有登录 cookie：提示去官网登录一次
+    const message = String(payload.msg ?? payload.err_msg ?? "");
     if (String(code) === "1001") {
       throw new ApiError(code, "GetBattleDetail(mlol)", "需要 QQ 侧登录态：请在浏览器登录 lol.qq.com 官网后重试");
     }
     throw new ApiError(code, "GetBattleDetail(mlol)", message || "掌盟详情无数据");
   }
-
-  const myTeam = (info.match as { my_team?: MlolPlayer[]; opponent_team?: MlolPlayer[] } | undefined)?.my_team ?? [];
-  const opponentTeam = (info.match as { opponent_team?: MlolPlayer[] })?.opponent_team ?? [];
+  const match = info.match as { my_team?: MlolPlayer[]; opponent_team?: MlolPlayer[] } | undefined;
+  const myTeam = match?.my_team ?? [];
+  const opponentTeam = match?.opponent_team ?? [];
   const win = !!info.win;
-  const teamSummaries = {
-    my: info.my_team as MlolTeamSummary | undefined,
-    opp: info.opponent_team as MlolTeamSummary | undefined
-  };
-
   return {
-    area_id: String(input.areaId),
-    game_id: String(input.gameId),
-    game_start_time: String(info.start_time_ts ?? input.startTime ?? ""),
+    area_id: "",
+    game_id: String(info.game_id ?? ""),
+    game_start_time: String(info.start_time_ts ?? ""),
     game_time_played: num(info.duration_ts),
     map_id: num(info.battle_map_id),
     game_queue_id: num(info.game_queue_id),
     team_details: [
-      teamSummary(myTeam, teamSummaries.my, win),
-      teamSummary(opponentTeam, teamSummaries.opp, !win)
+      teamSummary(myTeam, info.my_team as MlolPlayer | undefined, win),
+      teamSummary(opponentTeam, info.opponent_team as MlolPlayer | undefined, !win)
     ],
     player_details: [...myTeam, ...opponentTeam].map(mapPlayer)
   };
+}
+
+function buildForm(input: MlolDetailInput): FormData {
+  const form = new FormData();
+  form.append("uuid", input.uuid ?? "");
+  form.append("area_id", String(input.areaId));
+  form.append("game_id", String(input.gameId));
+  // 掌盟接口的 start_time 是秒；列表里是毫秒
+  const raw = Number(input.startTime);
+  form.append("start_time", Number.isFinite(raw) && raw > 1e12 ? String(Math.floor(raw / 1000)) : input.startTime !== undefined ? String(input.startTime) : "");
+  return form;
+}
+
+async function requestDirect(input: MlolDetailInput, signal?: AbortSignal): Promise<BattleDetail> {
+  const response = await postForm(MLOL_DETAIL_URL, buildForm(input), { signal });
+  return mapPayload((await response.json()) as MlolPayload);
+}
+
+// ---------- postMessage 桥：借 lol.qq.com 页面做同源请求 ----------
+interface BridgeRequest {
+  type: "lol-tft-detail-request";
+  id: string;
+  gameId: string;
+  areaId: string;
+  startTime: string;
+  uuid: string;
+}
+
+let bridgeReadyPromise: Promise<Window> | null = null;
+const bridgePending = new Map<string, { resolve: (text: string) => void; reject: (error: unknown) => void }>();
+
+function ensureBridge(): Promise<Window> {
+  if (bridgeReadyPromise) return bridgeReadyPromise;
+  bridgeReadyPromise = new Promise((resolve, reject) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = BRIDGE_URL;
+
+    const timer = setTimeout(() => {
+      iframe.remove();
+      reject(new ApiError("BRIDGE_TIMEOUT", "GetBattleDetail(mlol)", "掌盟桥接超时"));
+    }, 15000);
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== BRIDGE_ORIGIN) return;
+      const data = event.data as { type?: string; id?: string; text?: string } | null;
+      if (!data) return;
+      if (data.type === "lol-tft-bridge-ready") {
+        clearTimeout(timer);
+        resolve(iframe.contentWindow as Window);
+      } else if (data.type === "lol-tft-detail-response" && data.id) {
+        const entry = bridgePending.get(data.id);
+        if (entry) {
+          bridgePending.delete(data.id);
+          entry.resolve(String(data.text ?? ""));
+        }
+      }
+    };
+    globalThis.addEventListener("message", onMessage);
+    document.body.appendChild(iframe);
+  });
+  return bridgeReadyPromise;
+}
+
+async function requestViaBridge(input: MlolDetailInput, signal?: AbortSignal): Promise<BattleDetail> {
+  const win = await ensureBridge();
+  const id = "req-" + Date.now() + "-" + Math.floor(Math.random() * 1e6);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const payloadPromise = new Promise<string>((resolve, reject) => {
+    bridgePending.set(id, {
+      resolve: (text) => { if (timer) clearTimeout(timer); resolve(text); },
+      reject: (error) => { if (timer) clearTimeout(timer); reject(error); }
+    });
+    timer = setTimeout(() => {
+      if (bridgePending.has(id)) {
+        bridgePending.delete(id);
+        reject(new ApiError("BRIDGE_TIMEOUT", "GetBattleDetail(mlol)", "掌盟桥接响应超时"));
+      }
+    }, 15000);
+  });
+  signal?.addEventListener("abort", () => {
+    // 丢弃迟到响应即可；Promise 已交由上层竞速处理
+    bridgePending.delete(id);
+  }, { once: true });
+  const request: BridgeRequest = {
+    type: "lol-tft-detail-request",
+    id,
+    gameId: String(input.gameId),
+    areaId: String(input.areaId),
+    startTime: String(buildForm(input).get("start_time") ?? ""),
+    uuid: input.uuid ?? ""
+  };
+  win.postMessage(request, BRIDGE_ORIGIN);
+  const text = await payloadPromise;
+  return mapPayload(JSON.parse(text) as MlolPayload);
+}
+
+/**
+ * 掌盟详情：先直连（GM 环境可能直接带 cookie），被拒（1001）再走 lol.qq.com 桥。
+ */
+export async function fetchMlolBattleDetail(input: MlolDetailInput, signal?: AbortSignal): Promise<BattleDetail> {
+  if (hasGmTransport()) {
+    try {
+      return await requestDirect(input, signal);
+    } catch (error) {
+      if (error instanceof ApiError && String(error.code) === "1001" && typeof document !== "undefined") {
+        return requestViaBridge(input, signal);
+      }
+      throw error;
+    }
+  }
+  if (typeof document !== "undefined" && globalThis.location?.host !== "lol.qq.com") {
+    return requestViaBridge(input, signal);
+  }
+  return requestDirect(input, signal);
 }

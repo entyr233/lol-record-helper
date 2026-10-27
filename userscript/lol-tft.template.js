@@ -6,10 +6,12 @@
 // @author       mscststs
 // @match        https://www.wegame.com.cn/*
 // @match        https://wegame.com.cn/*
+// @match        https://lol.qq.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wegame.com.cn
 // @license      ISC
 // @grant        GM_xmlhttpRequest
 // @connect      mlol.qt.qq.com
+// @connect      lol.qq.com
 // @connect      www.wegame.com.cn
 // @connect      wegame.com.cn
 // @run-at       document-idle
@@ -35,6 +37,53 @@
   "use strict";
 
   var VERSION = "__VERSION__";
+
+  // ---------- lol.qq.com 桥接侧：替 wegame 面板做同源 mlol 请求 ----------
+  // （掌盟接口 CORS 只放行 lol.qq.com；wegame 面板通过隐藏 iframe + postMessage 调用）
+  function isLolQqBridgeHost() {
+    return location.hostname === "lol.qq.com";
+  }
+
+  function installBridge() {
+    var wegameOriginRe = /^https:\/\/(www\.)?wegame\.com\.cn$/;
+    globalThis.addEventListener("message", function (event) {
+      if (!wegameOriginRe.test(event.origin)) return;
+      var data = event.data;
+      if (!data || data.type !== "lol-tft-detail-request") return;
+
+      var form = new FormData();
+      form.append("uuid", data.uuid || "");
+      form.append("area_id", String(data.areaId || ""));
+      form.append("game_id", String(data.gameId || ""));
+      form.append("start_time", String(data.startTime || ""));
+
+      fetch("https://mlol.qt.qq.com/go/battle_info/get_battle_detail_h5", {
+        method: "POST",
+        credentials: "include",
+        body: form
+      }).then(function (r) { return r.text(); }).then(function (text) {
+        event.source.postMessage({ type: "lol-tft-detail-response", id: data.id, text: text }, event.origin);
+      }).catch(function (error) {
+        event.source.postMessage({ type: "lol-tft-detail-response", id: data.id, error: String(error && error.message || error) }, event.origin);
+      });
+    });
+
+    notifyReady();
+    [500, 1500, 3000].forEach(function (delay) { setTimeout(notifyReady, delay); });
+
+    function notifyReady() {
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({ type: "lol-tft-bridge-ready" }, "*");
+        }
+      } catch (e) { /* ignore */ }
+    }
+  }
+
+  if (isLolQqBridgeHost()) {
+    installBridge();
+    return; // lol.qq.com 上不挂战绩面板
+  }
   var Z = "2147483000";
 
   function log() {
