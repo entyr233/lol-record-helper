@@ -45,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { areas } from "../const/areas";
 import { readStorage, writeStorage } from "../utils/storage";
 import { getSelfUinFromCookie, triggerLogin, waitForLogin } from "../utils/weGameLogin";
@@ -65,11 +65,23 @@ const uin = computed(() => getSelfUinFromCookie());
 
 watch(areaId, (value) => {
   writeStorage(AREA_STORAGE_KEY, value);
-  if (value) autoApplyOfficialQuery();
 });
 
 onMounted(() => {
-  autoApplyOfficialQuery();
+  // frame.html 在普通浏览器里不会初始化登录用户：跳到标准助手页（保留地址里已有的查询参数）
+  if (!isStandardHelperPage() && !isWeGameClient()) {
+    const hash = location.hash || "";
+    const suffix = hash.includes("?") ? hash : selfCareerHash(currentSection() || "tft");
+    location.href = HELPER_ORIGIN + "/helper/lol/" + suffix;
+    return;
+  }
+  // 等官方页面初始化；如果仍提示「未选定大区」，再用 hash 参数兜底
+  errorTimer = setTimeout(checkOfficialError, 2500);
+});
+
+onBeforeUnmount(() => {
+  if (errorTimer) clearTimeout(errorTimer);
+  errorTimer = null;
 });
 
 function login(): Promise<void> {
@@ -108,41 +120,46 @@ function officialCareerHash(section: OfficialSection): string {
   return "#/" + section + "/overview?" + query.toString();
 }
 
-/** 标准助手页的完整地址（frame.html 在浏览器里缺登录用户初始化，统一跳到这里） */
+/** 标准助手页上「我的战绩」地址：不带 uin/area 参数，让官方按登录用户（TGP 桥）初始化 */
+function selfCareerHash(section: OfficialSection): string {
+  return "#/" + section + "/overview";
+}
+
+function selfCareerUrl(section: OfficialSection): string {
+  return HELPER_ORIGIN + "/helper/lol/" + selfCareerHash(section);
+}
+
+/** 参数兜底地址：官方页面仍报「未选定大区」时，用 uin/area_id 参数强制指定查询对象 */
 function officialCareerUrl(section: OfficialSection): string {
   return HELPER_ORIGIN + "/helper/lol/" + officialCareerHash(section);
 }
 
-/**
- * 官方页面在普通浏览器里拿不到 TGP 客户端的大区，只能靠地址参数初始化查询对象。
- * - 标准助手页：给 hash 补 uin/area_id/account_type；
- * - frame.html（/helper/lol/v2/frame.html）：浏览器里不会初始化登录用户，直接跳到标准助手页；
- * - 客户端内（UA WeGame/）保持原页面，只补 hash。
- * 已有 area_id 的分享/他人链接不覆盖。
- */
-function autoApplyOfficialQuery(): void {
+let fallbackApplied = false;
+let errorTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** 官方页面初始化失败时（普通浏览器没有 TGP），用 hash 参数兜底一次 */
+function checkOfficialError(): void {
+  if (fallbackApplied) return;
+  const text = (document.body && (document.body.innerText || document.body.textContent)) || "";
+  if (!/未选定大区|请选定大区后重试/.test(text)) return;
   const section = currentSection();
-  if (!section) return;
-  if (!areaId.value || !uin.value) return;
-  const hash = location.hash || "";
-  const queryIndex = hash.indexOf("?");
-  const query = new URLSearchParams(queryIndex >= 0 ? hash.slice(queryIndex + 1) : "");
-  if (!isStandardHelperPage() && !isWeGameClient()) {
-    // frame.html 在普通浏览器里不会初始化登录用户：统一跳到标准助手页（保留已有参数）
-    location.href = query.get("area_id") ? HELPER_ORIGIN + "/helper/lol/" + hash : officialCareerUrl(section);
-    return;
-  }
-  if (query.get("area_id")) return;
-  location.hash = officialCareerHash(section);
+  if (!section || !areaId.value || !uin.value) return;
+  fallbackApplied = true;
+  location.href = officialCareerUrl(section);
 }
 
+/**
+ * 打开官方页面时优先走「登录用户自助初始化」：
+ * 脚本在 document-start 注入的 TGP 桥会让官方按当前账号加载，这样云顶/生涯都是本人数据；
+ * 只有在官方页面仍显示「未选定大区」时，才退回 hash 参数兜底。
+ */
 function openOfficial(section: OfficialSection): void {
   if (!areaId.value) return;
-  if (isStandardHelperPage() || isWeGameClient()) {
-    location.hash = officialCareerHash(section);
-  } else {
-    location.href = officialCareerUrl(section);
+  if (isWeGameClient()) {
+    location.hash = selfCareerHash(section);
+    return;
   }
+  location.href = selfCareerUrl(section);
 }
 
 function openOfficialCareer(): void {
