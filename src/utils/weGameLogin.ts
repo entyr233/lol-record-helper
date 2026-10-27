@@ -2,6 +2,11 @@ import type { WeGameLoginSdk, WeGameLoginUser } from "../types/wegame-login";
 
 function sdk(): WeGameLoginSdk | null {
   if (typeof window === "undefined") return null;
+  // 沙箱环境（@grant 后）里页面全局挂在 unsafeWindow 上
+  try {
+    const uw = (globalThis as unknown as { unsafeWindow?: { WegameLogin?: { default?: WeGameLoginSdk } } }).unsafeWindow;
+    if (uw?.WegameLogin?.default) return uw.WegameLogin.default;
+  } catch { /* 无 unsafeWindow */ }
   return (window.WegameLogin && window.WegameLogin.default) || null;
 }
 

@@ -38,7 +38,8 @@ describe.skipIf(!available)("单文件油猴脚本（构建产物）", () => {
 
   it("自动挂上右下角入口按钮，且 banner 头信息完整", () => {
     const code = readFileSync(FILE, "utf8");
-    expect(code).toContain("@grant        none");
+    expect(code).toContain("@grant        GM_xmlhttpRequest");
+    expect(code).toContain("@connect      mlol.qt.qq.com");
     expect(code).toMatch(/@match\s+https:\/\/www\.wegame\.com\.cn\/\*/);
     // 不再通过 <script src> 加载远端 bundle（bundle 已内联）
     expect(code).not.toContain("BUNDLE_URL");

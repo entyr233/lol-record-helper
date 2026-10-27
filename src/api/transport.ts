@@ -31,9 +31,28 @@ function gm(): GMXmlhttpRequest | null {
   return typeof candidate === "function" ? candidate : null;
 }
 
-/** 用户脚本环境里有 GM（绕 CORS、自动带目标域 cookie）；普通页面回落到 fetch */
 export function hasGmTransport(): boolean {
   return gm() !== null;
+}
+
+/**
+ * 页面上下文的 fetch：用户脚本沙箱（@grant 后）里的 window.fetch 不带页面的
+ * HttpOnly cookie，必须借 unsafeWindow 的原生 fetch 才能让接口读到登录态。
+ */
+function pageFetch(): typeof fetch | null {
+  try {
+    const uw = (globalThis as unknown as { unsafeWindow?: { fetch?: typeof fetch } }).unsafeWindow;
+    if (uw && typeof uw.fetch === "function") return uw.fetch.bind(uw);
+  } catch { /* 无 unsafeWindow（普通页面/测试环境） */ }
+  return null;
+}
+
+function isSameOrigin(url: string): boolean {
+  try {
+    return new URL(url, globalThis.location?.href).host === globalThis.location?.host;
+  } catch {
+    return false;
+  }
 }
 
 export interface TransportOptions {
@@ -64,7 +83,7 @@ function gmRequest(url: string, data: FormData | string, headers: Record<string,
     let settled = false;
     const done = (fn: () => void) => { if (settled) return; settled = true; fn(); };
     const timer = setTimeout(() => done(() => reject(new ApiError("TIMEOUT", url, "请求超时"))), timeout);
-    signal?.addEventListener("abort", () => done(() => reject(new DOMException("aborted", "AbortError"))), { once: true });
+    signal?.addEventListener("abort", () => { done(() => reject(new DOMException("aborted", "AbortError"))); }, { once: true });
     gm()!({
       method: "POST",
       url,
@@ -78,13 +97,31 @@ function gmRequest(url: string, data: FormData | string, headers: Record<string,
   });
 }
 
-function fetchRequest(url: string, body: FormData | string, headers: Record<string, string> | undefined, timeout: number, signal?: AbortSignal): Promise<MinimalResponse> {
+/**
+ * 统一请求路径：
+ * 1) 同源 -> 页面上下文 fetch（cookie 完整，包括 HttpOnly 的 tgp_ticket）
+ * 2) 跨源 -> GM_xmlhttpRequest（绕 CORS，带目标域 cookie）
+ * 3) 都没有 -> 普通 fetch（开发/测试环境）
+ */
+async function send(url: string, body: FormData | string, headers: Record<string, string> | undefined, timeout: number, signal?: AbortSignal): Promise<MinimalResponse> {
+  const sameOrigin = isSameOrigin(url);
+  const pf = sameOrigin ? pageFetch() : null;
+  if (pf) {
+    return viaFetch(pf, url, body, headers, timeout, signal);
+  }
+  if (gm()) {
+    return gmRequest(url, body, headers, timeout, signal);
+  }
+  return viaFetch(globalThis.fetch.bind(globalThis), url, body, headers, timeout, signal);
+}
+
+async function viaFetch(fetchImpl: typeof fetch, url: string, body: FormData | string, headers: Record<string, string> | undefined, timeout: number, signal?: AbortSignal): Promise<MinimalResponse> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(new DOMException("timeout", "TimeoutError")), timeout);
   signal?.addEventListener("abort", () => { controller.abort(signal?.reason); }, { once: true });
-  // 注意：不能写成 fetch(...).finally —— 测试与某些环境里 fetch 的返回值可能是非 Promise 的 Response-like
+  // 注意：不能用 fetch(...).finally —— 测试环境里 fetch 可能返回非 Promise 的 Response-like
   try {
-    return fetch(url, { method: "POST", body, credentials: "include", headers, signal: controller.signal });
+    return await fetchImpl(url, { method: "POST", body, credentials: "include", headers, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
@@ -92,16 +129,12 @@ function fetchRequest(url: string, body: FormData | string, headers: Record<stri
 
 export async function postJson(url: string, body: unknown, options: TransportOptions = {}): Promise<MinimalResponse> {
   const timeout = options.timeoutMs ?? 12000;
-  const headers = { ...(options.headers ?? {}) };
-  const gmApi = gm();
-  if (gmApi) return gmRequest(url, JSON.stringify(body), headers, timeout, options.signal);
-  return fetchRequest(url, JSON.stringify(body), headers, timeout, options.signal);
+  const headers = { "Content-Type": "application/json", ...(options.headers ?? {}) };
+  return send(url, JSON.stringify(body), headers, timeout, options.signal);
 }
 
 export async function postForm(url: string, form: FormData, options: TransportOptions = {}): Promise<MinimalResponse> {
   const timeout = options.timeoutMs ?? 15000;
-  const gmApi = gm();
-  if (gmApi) return gmRequest(url, form, undefined, timeout, options.signal);
-  // 浏览器直连时浏览器会自动设置 multipart 的 Content-Type
-  return fetchRequest(url, form, undefined, timeout, options.signal);
+  // FormData 的 Content-Type（boundary）由浏览器/GM 自动生成，不手动指定
+  return send(url, form, undefined, timeout, options.signal);
 }
