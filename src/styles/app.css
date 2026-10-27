@@ -97,6 +97,14 @@ button {
   font-weight: 600;
 }
 
+.login-error {
+  max-width: 320px;
+  overflow: hidden;
+  color: #e07070;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .header-spacer {
   flex: 1 1 auto;
 }

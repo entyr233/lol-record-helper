@@ -21,6 +21,7 @@ import {
   getRuneInfo,
   itemIconUrl,
   summonSpellIconUrl,
+  userIconFallbackUrl,
   userIconUrl
 } from "../api/staticData";
 
@@ -39,6 +40,7 @@ const FALLBACK_ICON =
   encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="#20262e"/></svg>');
 
 const failed = ref(false);
+const userIconFailed = ref(false);
 const spellIcon = ref<string | null>(null);
 const spellTitle = ref<string | null>(null);
 
@@ -49,7 +51,7 @@ const baseSrc = computed(() => {
     case "champion":
       return championIconUrl(props.id);
     case "user":
-      return userIconUrl(props.id);
+      return userIconFailed.value ? userIconFallbackUrl(props.id) : userIconUrl(props.id);
     case "item":
       return itemIconUrl(props.id);
     case "rune":
@@ -95,6 +97,10 @@ watch(
 function handleError(): void {
   if (spellIcon.value) {
     spellIcon.value = null;
+    return;
+  }
+  if (props.kind === "user" && !userIconFailed.value) {
+    userIconFailed.value = true;
     return;
   }
   failed.value = true;

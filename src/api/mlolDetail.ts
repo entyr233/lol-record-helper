@@ -117,7 +117,12 @@ export async function fetchMlolBattleDetail(input: MlolDetailInput): Promise<Bat
   const info = payload.data?.info as Record<string, unknown> | undefined;
   if (!info) {
     const message = String(payload.msg ?? payload.err_msg ?? "");
-    throw new ApiError(payload.result ?? "MLOL_EMPTY", "GetBattleDetail(mlol)", message || "掌盟详情无数据");
+    const code = payload.result ?? "MLOL_EMPTY";
+    // 1001 = qt.qq.com 域没有登录 cookie：提示去官网登录一次
+    if (String(code) === "1001") {
+      throw new ApiError(code, "GetBattleDetail(mlol)", "需要 QQ 侧登录态：请在浏览器登录 lol.qq.com 官网后重试");
+    }
+    throw new ApiError(code, "GetBattleDetail(mlol)", message || "掌盟详情无数据");
   }
 
   const myTeam = (info.match as { my_team?: MlolPlayer[]; opponent_team?: MlolPlayer[] } | undefined)?.my_team ?? [];

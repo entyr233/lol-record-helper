@@ -30,6 +30,11 @@ export function championIconUrl(id: number | string): string {
 }
 
 export function userIconUrl(id: number | string): string {
+  // 掌盟头像源（HAR 实证可用且与 wegame 同 id）；wegame 源做后备
+  return "https://down.qq.com/lolapp/lol/summoner/profileicon/" + id + ".jpg";
+}
+
+export function userIconFallbackUrl(id: number | string): string {
   return GTIMG_ICON + "usericon/" + id + ".png";
 }
 

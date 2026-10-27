@@ -13,7 +13,15 @@
       {{ loggingIn ? "等待登录…" : "登录" }}
     </button>
     <button v-if="loggingIn" type="button" class="header-button" @click="cancel">取消等待</button>
-    <span v-if="loginError" role="alert">{{ loginError }}</span>
+    <span v-if="loginError" role="alert" class="login-error">{{ loginError }}</span>
+    <button
+      v-if="loginError || loggingIn"
+      type="button"
+      class="header-button"
+      @click="openLink(LOGIN_PAGE_URL)"
+    >
+      去官网登录页 ↗
+    </button>
 
     <span class="header-spacer"></span>
 
@@ -40,6 +48,7 @@ import { getLoginUser, hasLoginState, logout, triggerLogin, waitForLogin, waitFo
 import { useLoginAction } from "../composables/useLoginAction";
 
 const DONATE_URL = "https://wsd.pages.interface.work/view?src=https%3A%2F%2Fpic.mscststs.com%2Fdonate.jpg";
+const LOGIN_PAGE_URL = "https://www.wegame.com.cn/home/";
 const SCRIPT_HOME = "https://greasyfork.org/zh-CN/scripts/454184";
 const REPO_URL = "https://github.com/mscststs/lol-tft";
 
