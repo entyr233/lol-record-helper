@@ -27,9 +27,6 @@
     <span class="dp-summoner">
       <button type="button" class="dp-name" @click="$emit('openSummoner', player)">{{ decodedName }}</button>
       <span class="dp-tags">
-        <!-- 当前查看玩家本身已有高亮，不再额外贴阵营标签 -->
-        <span v-if="!isSelf && sameTeam === true" class="tag tag--same">同队</span>
-        <span v-else-if="!isSelf && sameTeam === false" class="tag tag--opp">对手</span>
         <span v-if="player.battleHonour?.isSvp" class="tag tag--svp">SVP</span>
         <span v-if="player.battleHonour?.isMvp" class="tag tag--mvp">MVP</span>
         <span v-if="player.wasAfk" class="tag tag--afk">逃跑</span>
@@ -153,8 +150,6 @@ const props = defineProps<{
   hexAram?: boolean;
   /** 排序模式的行内名次与对应数值 */
   rankInfo?: { rank: number; label: string } | null;
-  /** 与当前查看玩家的队伍关系：true 同队 / false 对手 / null 未知（不显示徽标） */
-  sameTeam?: boolean | null;
 }>();
 
 defineEmits<{ openSummoner: [player: PlayerDetail] }>();

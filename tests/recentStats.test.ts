@@ -78,6 +78,20 @@ describe("RecentStats 三分类统计口径", () => {
     } finally { wrapper.unmount(); }
   });
 
+  it("近期表现下方展示场均摘要（6 项）与最多 5 个常用英雄", async () => {
+    const champions = [1, 2, 3, 4, 5, 6].map((id, index) => battle(20 + index, { champion_id: id }));
+    mockPages(champions);
+    const wrapper = render();
+    try {
+      await flushPromises();
+      expect(wrapper.get(".recent-metrics-title").text()).toBe("近 6 场场均");
+      expect(wrapper.findAll(".recent-metric")).toHaveLength(6);
+      const metrics = wrapper.findAll(".recent-metric b").map((item) => item.text());
+      expect(metrics).toEqual(["5.0", "2.0", "8.0", "0", "30:00", "0"]);
+      expect(wrapper.findAll(".recent-champ")).toHaveLength(5);
+    } finally { wrapper.unmount(); }
+  });
+
   it("读取顶部两页（offset 0 / 10），标题显示最近 20 场", async () => {
     const older = Array.from({ length: 10 }, (_, i) => battle(11 + i, { win: "Fail" }));
     mockPages(mixedRecent, older);

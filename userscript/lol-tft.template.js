@@ -46,6 +46,8 @@
   // ---------- 脚本管理器菜单（ScriptCat / Tampermonkey） ----------
   // 注册后脚本列表里就能直接看到这些入口，不必进「编辑」界面找链接。
   var PROJECT_HOME = "https://github.com/entyr233/lol-tft";
+  // 菜单直达入口：装好脚本后从脚本管理器点一下就能跳到 WeGame 战绩页
+  var WEGAME_HOME = "https://www.wegame.com.cn/";
 
   function openProjectUrl(url) {
     try { window.open(url, "_blank", "noopener"); } catch (e) { /* 忽略 */ }
@@ -53,6 +55,7 @@
 
   function registerMenuCommands() {
     var commands = [
+      { title: "打开 WeGame 战绩页", run: function () { openProjectUrl(WEGAME_HOME); } },
       { title: "打开项目主页", run: function () { openProjectUrl(PROJECT_HOME); } },
       { title: "反馈 / 问题", run: function () { openProjectUrl(PROJECT_HOME + "/issues"); } }
     ];

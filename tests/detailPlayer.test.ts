@@ -68,7 +68,6 @@ const PLAYER = makePlayer();
 
 interface MountProps {
   mode?: "概要" | "技能" | "伤害";
-  sameTeam?: boolean | null;
 }
 
 function mountPlayer(overrides: MountProps = {}) {
@@ -82,33 +81,6 @@ function mountPlayer(overrides: MountProps = {}) {
     global: { stubs: { GameIcon: IconStub, Histogram: HistogramStub } }
   });
 }
-
-describe("BattleDetailPlayer 同队/对手徽标", () => {
-  it("sameTeam=true 时在标签区显示「同队」", () => {
-    const wrapper = mountPlayer({ sameTeam: true });
-
-    const tag = wrapper.find(".dp-tags .tag--same");
-    expect(tag.exists()).toBe(true);
-    expect(tag.text()).toBe("同队");
-    expect(wrapper.find(".tag--opp").exists()).toBe(false);
-  });
-
-  it("sameTeam=false 时在标签区显示「对手」", () => {
-    const wrapper = mountPlayer({ sameTeam: false });
-
-    const tag = wrapper.find(".dp-tags .tag--opp");
-    expect(tag.exists()).toBe(true);
-    expect(tag.text()).toBe("对手");
-    expect(wrapper.find(".tag--same").exists()).toBe(false);
-  });
-
-  it("sameTeam=null（身份未知）时两种徽标都不显示", () => {
-    const wrapper = mountPlayer({ sameTeam: null });
-
-    expect(wrapper.find(".tag--same").exists()).toBe(false);
-    expect(wrapper.find(".tag--opp").exists()).toBe(false);
-  });
-});
 
 describe("BattleDetailPlayer 悬浮说明", () => {
   it("伤害模式的 4 个柱子分别带总/魔法/物理/真实伤害说明", () => {
