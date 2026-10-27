@@ -78,17 +78,34 @@ describe("RecentStats 三分类统计口径", () => {
     } finally { wrapper.unmount(); }
   });
 
-  it("近期表现下方展示场均摘要（6 项）与最多 5 个常用英雄", async () => {
-    const champions = [1, 2, 3, 4, 5, 6].map((id, index) => battle(20 + index, { champion_id: id }));
+  it("模式分布按场次排序展示前 4 类并给出占比", async () => {
+    mockPages([
+      ...Array.from({ length: 5 }, (_, index) => battle(30 + index, { game_queue_id: 420 })),
+      ...Array.from({ length: 3 }, (_, index) => battle(40 + index, { game_queue_id: 450 })),
+      ...Array.from({ length: 2 }, (_, index) => battle(50 + index, { game_queue_id: 100 }))
+    ]);
+    const wrapper = render();
+    try {
+      await flushPromises();
+      const rows = wrapper.findAll(".recent-queue-row");
+      expect(rows).toHaveLength(3);
+      expect(rows[0]!.text()).toContain("单双排");
+      expect(rows[0]!.text()).toContain("5 场");
+      expect(wrapper.findAll(".recent-queue-fill")[0]!.attributes("style")).toContain("50%");
+    } finally { wrapper.unmount(); }
+  });
+
+  it("近期表现下方展示场均摘要（6 项）与最多 8 个常用英雄", async () => {
+    const champions = Array.from({ length: 9 }, (_, index) => battle(20 + index, { champion_id: index + 1 }));
     mockPages(champions);
     const wrapper = render();
     try {
       await flushPromises();
-      expect(wrapper.get(".recent-metrics-title").text()).toBe("近 6 场场均");
+      expect(wrapper.get(".recent-metrics-title").text()).toBe("近 9 场场均");
       expect(wrapper.findAll(".recent-metric")).toHaveLength(6);
       const metrics = wrapper.findAll(".recent-metric b").map((item) => item.text());
       expect(metrics).toEqual(["5.0", "2.0", "8.0", "0", "30:00", "0"]);
-      expect(wrapper.findAll(".recent-champ")).toHaveLength(5);
+      expect(wrapper.findAll(".recent-champ")).toHaveLength(8);
     } finally { wrapper.unmount(); }
   });
 
