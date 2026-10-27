@@ -269,6 +269,11 @@ button {
   font-size: 16px;
   font-weight: 700;
 }
+.load-error {
+  justify-content: center;
+  min-height: auto;
+  padding: 6px 0;
+}
 .battle-count-hint {
   margin: 6px 4px 0;
   color: #6c7683;

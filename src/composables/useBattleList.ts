@@ -9,6 +9,8 @@ export interface BattleListState {
   loading: Ref<boolean>;
   error: Ref<Error | null>;
   hasMore: Ref<boolean>;
+  /** 本页没有新增任何对局（服务端忽略 offset 或真的到底了） */
+  noMore: Ref<boolean>;
   selectedGameId: Ref<string | null>;
   loadMore: () => Promise<void>;
   select: (gameId: string) => void;
@@ -24,6 +26,7 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   const loading = ref(false);
   const error = ref<Error | null>(null);
   const hasMore = ref(true);
+  const noMore = ref(false);
   const selectedGameId = ref<string | null>(null);
   const seen = new Set<string>();
   let serverOffset = 0;
@@ -44,6 +47,11 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
         seen.add(item.game_id);
         battles.value.push(item);
       }
+      // 服务端返回了数据但全是重复 => 再翻也翻不动（接口忽略 offset 或已到底）
+      if (page.length > 0 && fresh.length === 0) {
+        noMore.value = true;
+        hasMore.value = false;
+      }
       if (selectedGameId.value === null && battles.value.length > 0) {
         selectedGameId.value = battles.value[0].game_id;
       }
@@ -60,5 +68,5 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
     selectedGameId.value = gameId;
   }
 
-  return { battles, loading, error, hasMore, selectedGameId, loadMore, select };
+  return { battles, loading, error, hasMore, noMore, selectedGameId, loadMore, select };
 }

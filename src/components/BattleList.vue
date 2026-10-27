@@ -36,6 +36,10 @@
           <button v-if="hasMore" type="button" class="load-more" :disabled="loading" @click="loadMore">
             {{ loading ? "加载中…" : "点击加载更多" }}
           </button>
+          <p v-if="noMore" class="battle-count-hint">没有更多对局了</p>
+          <p v-else-if="error && battles.length" class="state-text state-text--error load-error">
+            加载更多失败：{{ toErrorMessage(error) }}
+          </p>
         </div>
 
         <div class="battle-list-detail">
@@ -72,7 +76,7 @@ const MODES = ["概要", "技能", "伤害"] as const;
 const currentMode = ref<(typeof MODES)[number]>("概要");
 
 const rqOptions = computed(() => toRqOptions({ area: props.area, accountType: props.accountType, id: props.id }));
-const { battles, loading, error, hasMore, selectedGameId, loadMore, select } = useBattleList(() => rqOptions.value);
+const { battles, loading, error, hasMore, noMore, selectedGameId, loadMore, select } = useBattleList(() => rqOptions.value);
 
 onMounted(() => {
   void loadMore();
