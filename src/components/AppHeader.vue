@@ -54,7 +54,12 @@
                 @keydown.esc="cancelNote"
                 @blur="saveNote(f)"
               />
-              <button v-else type="button" class="favorite-note-edit" title="编辑备注" @click="startEditNote(f)">✎</button>
+              <button v-else type="button" class="favorite-note-edit" title="编辑备注" aria-label="编辑备注" @click="startEditNote(f)">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M4 20h4.2L19 9.2 14.8 5 4 15.8V20Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+                  <path d="m12.9 6.9 4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.7" />
+                </svg>
+              </button>
               <button type="button" class="favorite-remove" :title="'取消收藏：' + f.name" @click="removeFavorite(f)">×</button>
             </div>
           </div>

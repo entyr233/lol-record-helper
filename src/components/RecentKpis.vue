@@ -1,5 +1,5 @@
 <template>
-  <div class="recent-kpis">
+  <div class="recent-kpis" role="group" aria-label="近期表现指标">
     <div class="recent-kpi">
       <span class="recent-wr" title="胜率 = 胜 /（胜 + 负），重开不计入分母"><b>{{ winRate }}%</b> 胜率</span>
     </div>

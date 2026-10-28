@@ -11,7 +11,9 @@ export default defineConfigWithVueTs(
       "userscript/lol-tft.user.js",
       "userscript/lol-tft-ui.js",
       "docs/**",
-      "coverage/**"
+      "coverage/**",
+      ".agents/skills/**",
+      ".taste-skill/**"
     ]
   },
   js.configs.recommended,

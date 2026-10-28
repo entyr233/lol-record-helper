@@ -39,7 +39,7 @@
       <p v-if="notice" class="favorites-manager-notice" role="status">{{ notice }}</p>
 
       <div class="favorites-manager-body">
-        <p v-if="!favorites.length" class="favorites-manager-empty">还没有收藏。在搜索结果或玩家资料页点击 ☆ 即可加入。</p>
+        <p v-if="!favorites.length" class="favorites-manager-empty">还没有收藏。在搜索结果或玩家资料页点击收藏按钮即可加入。</p>
         <p v-else-if="!sortedFavorites.length" class="favorites-manager-empty">没有匹配的收藏。</p>
         <div v-for="group in groupedFavorites" :key="group.key" class="favorites-manager-group">
           <div
@@ -100,7 +100,7 @@
                 <button type="button" class="favorites-manager-open" @click="openFavorite(entry)">
                   <span class="favorites-manager-name">
                     {{ entry.name }}
-                    <span v-if="entry.pinned" class="favorites-manager-pin" title="已置顶">★</span>
+                    <span v-if="entry.pinned" class="favorites-manager-pin" title="已置顶"><StarIcon filled /></span>
                   </span>
                   <span class="favorites-manager-meta">
                     {{ getAreaName(entry.area) }}
@@ -181,6 +181,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import StarIcon from "./StarIcon.vue";
 import { getAreaName } from "../const/areas";
 import {
   MAX_FAVORITES,

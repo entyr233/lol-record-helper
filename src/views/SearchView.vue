@@ -29,7 +29,8 @@
               </button>
               <button type="button" class="fav-star" :class="{ 'fav-star--on': isFavorite(player) }"
                 :title="isFavorite(player) ? '取消常看' : '加入常看玩家'"
-                @click.stop="toggleFavorite(player)">{{ isFavorite(player) ? "★" : "☆" }}</button>
+                :aria-label="isFavorite(player) ? '取消常看' : '加入常看玩家'"
+                @click.stop="toggleFavorite(player)"><StarIcon :filled="isFavorite(player)" /></button>
             </div>
           </li>
         </ul>
@@ -47,6 +48,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import Panel from "../components/Panel.vue";
 import GameIcon from "../components/GameIcon.vue";
+import StarIcon from "../components/StarIcon.vue";
 import { lolBattleApi } from "../api/client";
 import { toErrorMessage } from "../api/errors";
 import { useAsyncData } from "../composables/useAsyncData";

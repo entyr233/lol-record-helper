@@ -1,8 +1,7 @@
 <template>
   <div class="detail-player" :class="{ 'detail-player--self': isSelf, 'detail-player--tall': mode === '伤害', 'detail-player--mid': mode === '技能' }">
-    <span class="dp-champion">
+    <span class="dp-champion" :class="{ 'dp-champion--top': isTopDamage }" :title="isTopDamage ? '全场输出最高' : undefined">
       <GameIcon kind="champion" :id="player.championId" />
-      <span v-if="isTopDamage" class="dp-crown" title="全场输出最高">👑</span>
       <span class="dp-level" title="英雄等级">{{ player.level }}</span>
     </span>
 

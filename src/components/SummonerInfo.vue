@@ -28,7 +28,7 @@
                 :aria-label="isFavorite ? '取消收藏' : '收藏到首页'"
                 @click="toggleFavorite"
               >
-                {{ isFavorite ? "★" : "☆" }}
+                <StarIcon :filled="isFavorite" />
               </button>
             </p>
             <p v-if="favoriteNotice" class="list-notice favorite-notice" role="status">{{ favoriteNotice }}</p>
@@ -77,6 +77,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import Panel from "./Panel.vue";
 import GameIcon from "./GameIcon.vue";
+import StarIcon from "./StarIcon.vue";
 import RecentStats from "./RecentStats.vue";
 import { lolBattleApi } from "../api/client";
 import type { BattleSummary } from "../api/types";

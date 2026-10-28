@@ -12,7 +12,7 @@
       <p class="landing-label">收藏</p>
       <div class="landing-chips">
         <button v-for="f in favorites" :key="favoriteKey(f)" type="button" class="landing-chip landing-chip--fav" @click="openFavorite(f)">
-          <span class="landing-chip-star">★</span>
+          <span class="landing-chip-star"><StarIcon filled /></span>
           <span class="landing-chip-name">{{ f.name }}</span>
           <span class="landing-chip-area">{{ getAreaName(f.area) }}</span>
         </button>
@@ -41,6 +41,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
+import StarIcon from "../components/StarIcon.vue";
 import { readStorage } from "../utils/storage";
 import { getAreaName } from "../const/areas";
 import { favoriteKey, useFavorites } from "../composables/useFavorites";
