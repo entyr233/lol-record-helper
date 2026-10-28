@@ -3,16 +3,16 @@ import { createLolBattleApi, type LolBattleApi } from "../src/api/client";
 import { assertResponse } from "../src/api/contracts";
 import { ApiError, toErrorMessage } from "../src/api/errors";
 import { route } from "../dev/mockData";
-import detailSample from "../sample/gameid_result.json";
-import listSample from "../sample/gamelist_result.json";
+import detailSample from "./fixtures/wegame/gameid_result.json";
+import listSample from "./fixtures/wegame/gamelist_result.json";
 
-const rq = { account_type: 2, area: 1, id: "offline-contract-player", from_src: "lol_helper" };
+const playerParams = { account_type: 2, area: 1, id: "offline-contract-player", from_src: "lol_helper" };
 const calls: Array<[string, (api: LolBattleApi) => Promise<unknown>]> = [
   ["SearchPlayer", (api) => api.searchPlayer("离线示例")],
-  ["GetSummonerInfo", (api) => api.getSummonerInfo(rq)],
-  ["GetBattleReport", (api) => api.getBattleReport(rq)],
-  ["GetBattleList", (api) => api.getBattleList(rq, { offset: 0, count: 10 })],
-  ["GetBattleDetail", (api) => api.getBattleDetail(rq, "offline-contract-game")]
+  ["GetSummonerInfo", (api) => api.getSummonerInfo(playerParams)],
+  ["GetBattleReport", (api) => api.getBattleReport(playerParams)],
+  ["GetBattleList", (api) => api.getBattleList(playerParams, { offset: 0, count: 10 })],
+  ["GetBattleDetail", (api) => api.getBattleDetail(playerParams, "offline-contract-game")]
 ];
 
 function respond(body: unknown): Response {
@@ -44,16 +44,16 @@ describe("WeGame response contracts from current samples and mock routes", () =>
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(respond(payload))));
     const api = createLolBattleApi();
     if (method === "GetBattleList") {
-      expect((await api.getBattleList(rq, { count: 10, offset: 0 })).length).toBe(listSample.battles.length);
+      expect((await api.getBattleList(playerParams, { count: 10, offset: 0 })).length).toBe(listSample.battles.length);
     } else {
-      const data = await api.getBattleDetail(rq, detailSample.battle_detail.game_id);
+      const data = await api.getBattleDetail(playerParams, detailSample.battle_detail.game_id);
       expect(data.battle_detail.player_details.length).toBe(detailSample.battle_detail.player_details.length);
       expect(data.battle_detail.team_details.length).toBe(detailSample.battle_detail.team_details.length);
     }
   });
 
   it.each(calls)("%s accepts string success codes and additional fields", async (method, call) => {
-    const body = route(method, { ...rq, game_id: "offline-contract-game" }) as Record<string, unknown>;
+    const body = route(method, { ...playerParams, game_id: "offline-contract-game" }) as Record<string, unknown>;
     body.result = { error_code: "0" };
     body.future_field = { more: true };
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(respond(body))));
@@ -104,7 +104,7 @@ describe("WeGame response contracts from current samples and mock routes", () =>
   it.each(["SearchPlayer", "GetBattleList"])("%s accepts an explicit empty array", async (method) => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(respond({ [method === "SearchPlayer" ? "players" : "battles"]: [] }))));
     const api = createLolBattleApi();
-    expect(await (method === "SearchPlayer" ? api.searchPlayer("offline") : api.getBattleList(rq, { count: 10, offset: 0 }))).toEqual([]);
+    expect(await (method === "SearchPlayer" ? api.searchPlayer("offline") : api.getBattleList(playerParams, { count: 10, offset: 0 }))).toEqual([]);
   });
 
   it.each([

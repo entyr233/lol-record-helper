@@ -13,7 +13,7 @@ import type {
   GetBattleReportResponse,
   GetSummonerInfoResponse,
   PlayerSearchResult,
-  RqOptions,
+  PlayerQueryParams,
   SearchPlayerResponse,
   Summoner
 } from "./types";
@@ -134,12 +134,12 @@ async function post<T>(method: string, body: unknown, options: RequestOptions, a
 
 export interface LolBattleApi {
   searchPlayer(nickname: string, options?: RequestOptions): Promise<PlayerSearchResult[]>;
-  getSummonerInfo(rq: RqOptions, options?: RequestOptions): Promise<Summoner>;
-  getBattleReport(rq: RqOptions, options?: RequestOptions): Promise<BattleCount>;
+  getSummonerInfo(playerParams: PlayerQueryParams, options?: RequestOptions): Promise<Summoner>;
+  getBattleReport(playerParams: PlayerQueryParams, options?: RequestOptions): Promise<BattleCount>;
   /** 现任格式：战绩总览（列表 + 赛季段位 + 维度百分位） */
-  getBattleOverview(rq: RqOptions, options?: RequestOptions): Promise<BattleOverview>;
-  getBattleList(rq: RqOptions, params: { count: number; offset: number }, options?: RequestOptions): Promise<GetBattleListResponse["battles"]>;
-  getBattleDetail(rq: RqOptions, gameId: string, options?: RequestOptions): Promise<GetBattleDetailResponse>;
+  getBattleOverview(playerParams: PlayerQueryParams, options?: RequestOptions): Promise<BattleOverview>;
+  getBattleList(playerParams: PlayerQueryParams, params: { count: number; offset: number }, options?: RequestOptions): Promise<GetBattleListResponse["battles"]>;
+  getBattleDetail(playerParams: PlayerQueryParams, gameId: string, options?: RequestOptions): Promise<GetBattleDetailResponse>;
 }
 
 export function createLolBattleApi(): LolBattleApi {
@@ -181,25 +181,25 @@ export function createLolBattleApi(): LolBattleApi {
       const res = await request<SearchPlayerResponse>("SearchPlayer", { nickname, from_src: "lol_helper" }, options);
       return res.players;
     },
-    async getSummonerInfo(rq, options) {
-      const res = await request<GetSummonerInfoResponse>("GetSummonerInfo", rq, options);
+    async getSummonerInfo(playerParams, options) {
+      const res = await request<GetSummonerInfoResponse>("GetSummonerInfo", playerParams, options);
       return res.summoner;
     },
-    async getBattleReport(rq, options) {
+    async getBattleReport(playerParams, options) {
       // 现行格式要求 sids（255 = 全部赛季），否则拿不到 season_list 段位信息
-      const res = await request<GetBattleReportResponse>("GetBattleReport", { ...rq, sids: [255] }, options);
+      const res = await request<GetBattleReportResponse>("GetBattleReport", { ...playerParams, sids: [255] }, options);
       return res.battle_count;
     },
-    async getBattleOverview(rq, options) {
+    async getBattleOverview(playerParams, options) {
       // 现任前端的调用格式（gameids 传空数组 = 最近对局总览；source: "lcu"）
-      return request<BattleOverview>("GetBattleOverview", { ...rq, gameids: [], source: "lcu" }, { timeoutMs: 15000, ...options });
+      return request<BattleOverview>("GetBattleOverview", { ...playerParams, gameids: [], source: "lcu" }, { timeoutMs: 15000, ...options });
     },
-    async getBattleList(rq, params, options) {
-      const res = await request<GetBattleListResponse>("GetBattleList", { ...rq, ...params }, options);
+    async getBattleList(playerParams, params, options) {
+      const res = await request<GetBattleListResponse>("GetBattleList", { ...playerParams, ...params }, options);
       return res.battles;
     },
-    async getBattleDetail(rq, gameId, options) {
-      return details.get(rq, gameId, options);
+    async getBattleDetail(playerParams, gameId, options) {
+      return details.get(playerParams, gameId, options);
     }
   };
 }

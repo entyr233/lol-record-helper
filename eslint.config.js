@@ -11,7 +11,6 @@ export default defineConfigWithVueTs(
       "userscript/lol-tft.user.js",
       "userscript/lol-tft-ui.js",
       "docs/**",
-      "sample/**",
       "coverage/**"
     ]
   },

@@ -67,4 +67,4 @@
 
 - 接口与参数线索：[sunerpy/winer builds.rs，固定版本 9f1bb941face7b1c49870818d41e4529d931467b](https://github.com/sunerpy/winer/blob/9f1bb941face7b1c49870818d41e4529d931467b/crates/core/src/builds.rs)。本次读取的仓库更新时间为 2026-10-27（北京时间）。
 - 公共数据验证：[掌盟版本列表](https://mlol.qt.qq.com/go/database/versionlist?zone=lol&from=h5)、[安妮海克斯统计](https://mlol.qt.qq.com/go/battle_info/odp_proxy/fuwen_hero_rank?championid=1)。
-- 本地历史样本记录：`docs/har-analysis-20261027.md`。该文档作为历史证据，不代表相关功能当前已接入。
+- 本地历史样本记录：[HAR 分析](har-analysis-20261027.md)。该文档作为历史证据，不代表相关功能当前已接入。

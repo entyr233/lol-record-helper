@@ -45,7 +45,7 @@ function readSessionBody(req: Connect.IncomingMessage): Promise<string> {
  *
  * 1) 数据源切换：POST /__lol-tft/cookie 粘贴一次 WeGame cookie 即可从 mock 切到真实接口
  *    DELETE /__lol-tft/cookie 切回 mock；GET /__lol-tft/status 查询当前模式
- * 2) mock：没有 cookie（或强制 LOL_TFT_MOCK=1）时，用 sample/*.json 提供 5 个接口
+ * 2) mock：没有 cookie（或强制 LOL_TFT_MOCK=1）时，用 tests/fixtures/wegame/*.json 提供 5 个接口
  *
  * 环境变量：
  *   LOL_TFT_MOCK=1  强制 mock

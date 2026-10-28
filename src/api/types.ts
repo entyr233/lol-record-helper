@@ -1,4 +1,4 @@
-/** WeGame trpc 接口返回结构（依据 sample/*.json 实测样本） */
+/** WeGame trpc 接口返回结构（依据 tests/fixtures/wegame/*.json 实测样本） */
 
 export interface ApiResult {
   error_code?: number | string;
@@ -192,13 +192,13 @@ export interface PlayerSearchResult {
   area: number;
 }
 
-export interface UserKey {
+export interface PlayerKey {
   area: number | string;
   accountType: number | string;
   id: string | number;
 }
 
-export interface RqOptions {
+export interface PlayerQueryParams {
   account_type: number;
   area: number;
   id: string;

@@ -15,7 +15,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { getLoginUser, isLoggedIn, isSdkAvailable, triggerLogin, waitForLogin } from "../utils/weGameLogin";
+import { getLoginUser, isLoggedIn, isSdkAvailable, triggerLogin, waitForLogin } from "../utils/wegameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
 
 /**

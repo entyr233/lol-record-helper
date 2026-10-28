@@ -8,15 +8,14 @@ import { devApiPlugin } from "./dev/mockServer.ts";
 import { devSession } from "./dev/devSession.ts";
 
 // two build modes:
-//   default  -> 独立演示/调试站点 (dist/index.html + assets)
+//   default  -> 独立演示/调试站点 (dist/site/index.html + assets)
 //   lib      -> 单文件 IIFE，供油猴脚本注入 (dist/lol/lol.umd.js)
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const shared = {
     plugins: [vue(), devApiPlugin()],
-    // lib 模式下 Vite 不会自动替换 process.env.NODE_ENV（留给库使用者决定），
-    // 但我们要产出直接在浏览器跑的单文件，必须静态替换掉，否则会 "process is not defined"
+    // 构建出的独立脚本需要静态环境值；开发时由 Vite 保留开发诊断。
     define: {
-      "process.env.NODE_ENV": JSON.stringify("production"),
+      ...(command === "build" ? { "process.env.NODE_ENV": JSON.stringify("production") } : {}),
       __APP_VERSION__: JSON.stringify(pkgVersion)
     },
     resolve: {
@@ -43,7 +42,7 @@ export default defineConfig(({ mode }) => {
         },
         outDir: "dist/lol",
         emptyOutDir: true,
-        rollupOptions: {
+        rolldownOptions: {
           output: { exports: "named", extend: false }
         }
       }

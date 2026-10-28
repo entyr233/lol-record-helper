@@ -1,5 +1,5 @@
 import { createMemoryHistory, createRouter, type Router } from "vue-router";
-import { getLoginUser, getSelfUinFromCookie } from "../utils/weGameLogin";
+import { getLoginUser, getSelfUinFromCookie } from "../utils/wegameLogin";
 
 /** 每次挂载都新建 router：避免宿主页面重复注入时复用状态 */
 export function createLolRouter(signal?: AbortSignal): Router {

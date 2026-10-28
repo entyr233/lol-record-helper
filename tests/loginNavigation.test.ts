@@ -5,7 +5,7 @@ import AppHeader from "../src/components/AppHeader.vue";
 import { isNavigationFailure } from "vue-router";
 import { createLolRouter } from "../src/router";
 import type { WeGameLoginSdk } from "../src/types/wegame-login";
-import { toRqOptions } from "../src/composables/useUserInfo";
+import { toPlayerQueryParams } from "../src/composables/usePlayerParams";
 import { useLoginAction } from "../src/composables/useLoginAction";
 
 vi.mock("../src/views/SummaryView.vue", () => ({ default: { template: "<p>summary</p>" } }));
@@ -76,7 +76,7 @@ describe("login navigation with the real SDK adapter", () => {
     await button("重新读取账号").trigger("click");
     await flushPromises();
     expect(router.currentRoute.value.name).toBe("summary");
-    expect(toRqOptions(router.currentRoute.value.params as { area: string; accountType: string; id: string })).toMatchObject({
+    expect(toPlayerQueryParams(router.currentRoute.value.params as { area: string; accountType: string; id: string })).toMatchObject({
       account_type: 1, id: "90071992547409931234"
     });
   });

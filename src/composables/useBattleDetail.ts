@@ -4,10 +4,10 @@ import { ApiError, toErrorMessage } from "../api/errors";
 import { fetchMlolBattleDetail } from "../api/mlolDetail";
 import { lastCaptchaAttempt, needsCaptcha } from "../api/captcha";
 import type { BattleDetail } from "../api/types";
-import { toRqOptions } from "./useUserInfo";
+import { toPlayerQueryParams } from "./usePlayerParams";
 import { useAsyncData } from "./useAsyncData";
 import { useLoginAction } from "./useLoginAction";
-import { triggerLogin, waitForLogin } from "../utils/weGameLogin";
+import { triggerLogin, waitForLogin } from "../utils/wegameLogin";
 
 /** 详情数据来源：wegame = 官方接口（含搜索定位后的重试），mlol = 掌盟公开数据 */
 export type DetailSource = "wegame" | "mlol";
@@ -76,7 +76,7 @@ export function useBattleDetail(options: { props: BattleDetailRequestProps }) {
       const requestProps = { ...props };
       const task = (async () => {
         const signal = controller.signal;
-        const rq = toRqOptions({ area: requestProps.area, accountType: requestProps.accountType, id: requestProps.id });
+        const playerParams = toPlayerQueryParams({ area: requestProps.area, accountType: requestProps.accountType, id: requestProps.id });
         const trail: string[] = [];
         const codeOf = (error: unknown): string => {
           if (error instanceof ApiError) return String(error.code) + (error.serverMessage ? " " + error.serverMessage : "");
@@ -85,22 +85,22 @@ export function useBattleDetail(options: { props: BattleDetailRequestProps }) {
 
         try {
           // 首选：wegame 同源详情
-          const result = await lolBattleApi.getBattleDetail(rq, String(requestProps.gameId), { signal });
+          const result = await lolBattleApi.getBattleDetail(playerParams, String(requestProps.gameId), { signal });
           return { ...result, source: "wegame" as DetailSource };
         } catch (error) {
           trail.push("wegame详情:" + codeOf(error));
           if (!(error instanceof ApiError) || signal.aborted) throw error;
           // 回退一：详情接口对 account_type=2+openid 的口径可能仍开放——
           // 用召唤师名字搜索自己的 openid，换口径重试（仅 self 场景）
-          if (String(rq.account_type) === "1") {
+          if (String(playerParams.account_type) === "1") {
             try {
-              const summoner = await lolBattleApi.getSummonerInfo(rq, { signal });
+              const summoner = await lolBattleApi.getSummonerInfo(playerParams, { signal });
               const players = await lolBattleApi.searchPlayer(summoner.name, { signal });
               const match = players.find((p) => Number(p.area) === Number(requestProps.area));
               trail.push("搜索:" + (match ? "ok" : "无匹配"));
               if (match) {
                 const found = await lolBattleApi.getBattleDetail(
-                  { ...rq, account_type: 2, id: match.openid },
+                  { ...playerParams, account_type: 2, id: match.openid },
                   String(requestProps.gameId),
                   { signal }
                 );

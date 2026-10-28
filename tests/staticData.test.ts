@@ -69,6 +69,19 @@ describe("静态名称与图标", () => {
     expect(gmGet).toHaveBeenCalledTimes(2);
   });
 
+  it("过期英雄名刷新失败后保留名称，后续调用仍可重试", async () => {
+    saved.set("lol_tft:champion-names-v1", JSON.stringify({ savedAt: Date.now() - 24 * 60 * 60 * 1000,
+      entries: [[1, "安妮"]] }));
+    const { championName, ensureChampionNames } = await import("../src/api/staticData");
+    gmGet.mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce('[{"heroId":1,"name":"安妮"},{"heroId":2,"name":"奥拉夫"}]');
+    await ensureChampionNames();
+    expect(championName(1)).toBe("安妮");
+    await ensureChampionNames();
+    expect(championName(2)).toBe("奥拉夫");
+    expect(gmGet).toHaveBeenCalledTimes(2);
+  });
+
   it("并发版本查询只发一次请求，失败后仍可重试", async () => {
     const { ddragonVersion, ensureDdragonVersion } = await import("../src/api/staticData");
     const fetchMock = vi.fn().mockRejectedValueOnce(new Error("offline"));

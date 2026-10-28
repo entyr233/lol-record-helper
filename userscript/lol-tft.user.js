@@ -39,11 +39,11 @@
 
 (() => {
   // userscript/src/host.ts
-  function isWegameHost() {
+  function isWeGameHost() {
     return /^(www\.)?wegame\.com\.cn$/.test(location.hostname);
   }
   function canUsePanelHere() {
-    return isWegameHost() || /^lol\.qq\.com$/.test(location.hostname);
+    return isWeGameHost() || /^lol\.qq\.com$/.test(location.hostname);
   }
   function isHelperPage() {
     return /^\/helper\/lol(?:\/|$)/.test(location.pathname);
@@ -61,7 +61,7 @@
   }
   function registerMenuCommands(openPanel) {
     function openSelfPanelFromMenu() {
-      if (isWegameHost() && window.top === window) {
+      if (isWeGameHost() && window.top === window) {
         void openPanel();
         return;
       }
@@ -211,7 +211,7 @@
     const UI_TAG = "v2.19.0";
     const UI_URLS = buildUiUrls("entyr233/lol-record-helper", UI_TAG);
     const UI_URL = UI_URLS[0];
-    const UI_SHA256 = "e351e7a9592a1388d0db6e8cd44bdf9db35cc8a30510bf16cab89fb20d417054";
+    const UI_SHA256 = "76918ee806ec7cea4d4f4bf3e46f66a1b72c12fda6db3f3469764d86c8d8f25b";
     let libCache = null;
     let libPromise = null;
     function verifyAndEvaluate(text) {

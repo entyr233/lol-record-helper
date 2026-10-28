@@ -1,0 +1,82 @@
+# 项目协作规则
+
+## 项目范围与技术栈
+
+- 本项目是英雄联盟国服战绩查询的网页／油猴脚本，使用 Vue 3、TypeScript、Vue Router 和 Vite。
+- 使用 npm，保留 `package-lock.json`；Node 版本以 `package.json` 的 `engines` 为准。
+- 开发入口与贡献约定见 [CONTRIBUTING.md](CONTRIBUTING.md)，日常命令以 `package.json` 为准。
+- 修改前检查 `git status --short`，保留已有改动；只处理当前任务相关的文件。
+
+## 项目 skills
+
+- Vue 组件、响应式与生命周期问题使用 [vue](.agents/skills/vue/SKILL.md)。
+- Vite 配置、资源处理与构建问题使用 [vite](.agents/skills/vite/SKILL.md)。
+- 两个技能来自 [antfu/skills](https://github.com/antfu/skills)，参考资料随技能一起安装。按任务读取相关资料，具体 API 以项目安装版本为准。
+- 用户明确要求与本项目规则优先于技能中的通用偏好。技能不作为批量重排代码、升级依赖或增加架构层的理由。
+- 明显长期、多阶段或工具密集的任务使用可用的 `long-task-continuity`；简单任务直接完成。在 Windows 下按可用的 `powershell-safe-invocation` 执行命令。
+
+## 代码维护
+
+- Vue 组件沿用 Composition API 和 `<script setup lang="ts">`，保留邻近代码的格式与 SFC 区块顺序。
+- 优先使用直接、线性的实现和清楚的命名。逻辑留在调用处；仅在确实复用、隔离复杂边界或显著改善可读性时抽取函数。
+- 在网络、存储等外部入口校验未知输入一次，向内部传递有类型保证的数据；不在内部反复做同一组检查。
+- `try/catch` 用于能够处理的预期失败，例如请求回退、存储不可用和外部数据解析；不以空捕获掩盖业务错误。
+- 注释解释原因、数据含义和约束，使用现在时，不记录修改历史。
+- 不顺带重写模块、统一全仓库格式、升级依赖或增加第三方库。先说明真实需求和成本，再决定是否引入。
+- 为理论上或低概率的场景增加复杂处理前，先说明具体失败方式、发生可能性和复杂度成本，并取得用户同意。
+
+## 命名规则
+
+- Vue 组件和页面使用 PascalCase，如 `BattleList.vue`、`SummaryView.vue`；普通 TypeScript 文件使用 camelCase。
+- composable 使用 `useXxx`，文件名与主要导出一致，如 `useBattleFeed.ts`、`usePlayerParams.ts`。
+- 函数以用途明确的动词开头：`fetch` 请求远程数据，`get` 读取数据，`parse` 解析输入，`format` 生成展示文本，`ensure` 确保资源就绪。沿用已有行为，不为了名称改变同步或异步接口。
+- 类型和接口使用 PascalCase；内部玩家查询参数统一为 `PlayerQueryParams`，转换函数为 `toPlayerQueryParams`，变量为 `playerParams`，参数获取函数为 `getPlayerParams`。
+- 布尔名称应能读成判断，如 `isLoading`、`hasNext`、`canOpenPlayer`。同一模块保持一致，既有名称在修改相关逻辑时逐步整理。
+- 时间间隔和容量写明单位，如 `timeoutMs`、`maxBytes`；时间点使用 `savedAt` 等名称，并在类型或注释中明确时间戳单位。
+- 跨函数传递的数据避免含义不明的缩写，如 `rq`、`diag`、`box`；局部短函数中的 `id`、`item`、`index` 等常见名称可以保留。
+- 品牌文案和类型使用 `WeGame`，文件使用 `wegameLogin.ts` 等以 `wegame` 为前缀的名称，函数中的品牌片段使用 `WeGame`，如 `isWeGameHost`。
+- 外部协议字段、SDK 全局名称、URL、缓存键和发布资源名保留原值，例如 `account_type`、`game_id`、`window.WegameLogin`、`lol-tft.user.js`，避免破坏接口或已有用户数据。
+- 命名整理与相关模块修改同步进行，批量重命名须有明确范围；更新所有 import、测试 mock 和当前文档，历史归档保留当时的名称。
+
+## 性能与数据加载
+
+- 优先查清慢在网络、解析、计算还是渲染，再优化；报告请求次数、产物大小或实际测量结果，不凭感觉声称提速百分比。
+- 搜索过滤已经加载的内存数据；排序和索引随数据变化计算，避免每次输入重复请求、解析整份 JSON 或排序。
+- 缓存必须明确键、有效期和数量或容量上限，并在使用或更新时清理过期数据与旧版本；具体策略见 [性能说明](docs/performance.md)。
+- 公共静态资料与需要登录的玩家数据分别管理；玩家缓存按区服、账号类型和玩家标识隔离。
+- 同一数据的并发请求按现有机制复用。保留请求取消、组件卸载清理，以及旧响应不能覆盖当前选择的行为。
+- 对整体替换的只读大对象按需使用 `shallowRef`；不为小对象机械替换响应式 API。
+- 图片使用 URL、浏览器缓存和按需加载；避免另存重复 Base64。重功能保持按需加载，不阻塞战绩首屏。
+
+## 按改动范围验证
+
+| 改动 | 本地检查 |
+| --- | --- |
+| 仅文档或技能资料 | 检查内容、链接和 `git diff --check`，不运行应用测试或构建 |
+| TypeScript／Vue 逻辑 | `npm run check`，再运行 `npm run test:related -- <改动文件>` |
+| 页面交互、导航或用户脚本加载 | 在上述基础上构建所需产物，运行对应的已有 Chromium E2E 文件 |
+| UI、脚本壳、manifest 或构建逻辑 | 提交前运行 `npm run build:all`，检查生成产物与源码一致 |
+| 大范围共享逻辑改动 | 按风险扩大相关测试范围，必要时运行 `npm test` |
+
+- 优先复用已有测试。新增测试覆盖真实缺陷或重要行为，不为简单文案、静态链接或实现细节堆用例。
+- 保留请求取消、超时、登录、缓存、数据解析和契约等高价值检查；不按测试数量批量删除。
+- 检查通过后，没有新修改、失败或未解决的问题就不重复全量运行。
+- 常规 CI 的完整单测使用覆盖率模式执行一次，并运行 Chromium E2E；三浏览器验证由正式发布流程执行一次。配置以 `.github/workflows/` 为准。
+- 区分 mock 验证、真实账号验证、本地构建结果与远程 CI 结果，报告未验证的关键部分。
+
+## 构建产物与发布
+
+- `src/` 是 UI 源码；脚本壳编辑 `userscript/src/shell.ts`，元信息和权限编辑 `userscript/manifest.json`。
+- `npm run build:all` 生成网页、UI bundle 和脚本壳；不要直接手改生成的 `userscript/lol-tft.user.js`。
+- 提交涉及产物的改动时，同步构建生成的脚本壳，并检查 `git diff -- userscript`；常规 CI 会核对产物一致性。
+- `dist/` 不入库；UI bundle 由 Release workflow 上传。体积限制和浏览器兼容目标以构建脚本、Vite 配置为准，不随意放宽限制来通过检查。
+- 发布更新 `package.json`、`package-lock.json` 与 `CHANGELOG.md`，核对脚本版本、tag、UI 哈希和资源地址一致。
+- GitHub 发布沿用现有 workflow：先确认同一提交的 CI 成功，再创建对应版本 tag，检查发布资产和最终结果。
+- 发布、推送或 GreasyFork 更新按用户已授权的目标执行；构建成功不代表已经发布。
+
+## 本地环境与敏感数据
+
+- Windows 使用 PowerShell，路径作为独立参数传递；禁止 `Invoke-Expression` 和不必要的多层 shell 拼接。
+- 不提交或在日志中输出 cookie、登录令牌、ARAMGG Key、未脱敏 HAR、`.env` 等敏感资料。
+- 登录或 SDK 失败时保留账号状态，不自行清除 cookie；按已有错误展示与重试机制处理。
+- 完成后说明实际改动、验证结果与剩余限制；提交或发布前再次检查工作区差异。

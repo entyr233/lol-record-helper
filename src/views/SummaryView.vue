@@ -47,7 +47,7 @@ import type { BattleSummary } from "../api/types";
 import type { PlayerDetail } from "../api/types";
 import type { ModeFilter } from "../const/modes";
 import type { DaysFilter } from "../composables/useBattleList";
-import { useBattleFeed } from "../composables/battleFeed";
+import { useBattleFeed } from "../composables/useBattleFeed";
 
 const props = defineProps<{ area: string; accountType: string; id: string }>();
 const feed = useBattleFeed(() => props);

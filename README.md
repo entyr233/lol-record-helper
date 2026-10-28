@@ -150,7 +150,7 @@ userscript/manifest.json          # 名称/仓库/资源名等单一元信息
 userscript/src/                   # shell/host/menu/launcher/overlay/bridge/loader 的 TypeScript 源码
 ```
 
-- 开发默认走 mock（`sample/*.json` 扩展的示例数据），页面右下角有数据源状态条
+- 开发默认走 mock（`tests/fixtures/wegame/*.json` 扩展的示例数据），页面右下角有数据源状态条
 - 要连真实数据：右下角「粘贴 Cookie」（或设 `LOL_TFT_COOKIE` 环境变量）；`LOL_TFT_MOCK=0` 强制真实接口
 - 登录弹窗只在 WeGame 域内可用（登录 SDK 限制），本地开发看真实数据用 cookie 粘贴
 - 脚本元信息使用 `http://*/*` + `https://*/*` 以便菜单在任意网站可见；只有 WeGame / `lol.qq.com` 页面会注入悬浮按钮和助手面板
@@ -165,9 +165,14 @@ src/const/        大区/队列/段位/评价 等映射
 src/data/         构建期固化的符文/装备映射（node scripts/sync-static-data.mjs 更新）
 src/styles/       全部样式（仅注入 Shadow DOM）
 userscript/       manifest + TypeScript 脚本壳源码 + 构建后的安装脚本
+dev/              本地开发服务器 / 会话切换 / mock 数据与登录 mock
 scripts/          静态数据同步 / userscript 构建
 tests/            契约/策略/生命周期/登录与组件测试
-docs/             代码审查报告 / HAR 分析 / 迁移说明 / README 截图
+tests/fixtures/   测试与开发共用的接口样本（WeGame 样本在 wegame/ 下）
+docs/             当前维护文档与文档索引
+docs/reviews/     已完成的代码审查与验证记录
+docs/archive/     历史迁移、抓包与接口研究记录
+docs/assets/      README 截图与文档图片
 ```
 
 ## 排障速查
@@ -200,10 +205,11 @@ docs/             代码审查报告 / HAR 分析 / 迁移说明 / README 截图
 - Bug / 功能建议可使用仓库的 Issue 模板；提交前请跑 `lint`、`typecheck`、单测与 E2E
 ## 相关文档
 
-- 审查建议核查与处理：`docs/review-resolution-2026-10-28.md`
-- 上游 Vue 2 审查归档：`docs/code-review-2026-10.md`
-- HAR 分析（掌盟接口族逆向）：`docs/har-analysis-20261027.md`
-- Vue2 → Vue3 迁移说明：`docs/migration-vue2-to-vue3.md`
+- [文档与目录索引](docs/README.md)
+- [审查建议核查与处理](docs/reviews/review-resolution-2026-10-28.md)
+- [上游 Vue 2 审查归档](docs/reviews/code-review-2026-10.md)
+- [HAR 分析（掌盟接口族逆向）](docs/archive/har-analysis-20261027.md)
+- [Vue2 → Vue3 迁移说明](docs/archive/migration-vue2-to-vue3.md)
 - 网页性能与缓存：`docs/performance.md`
 - 变更记录：`CHANGELOG.md`
 

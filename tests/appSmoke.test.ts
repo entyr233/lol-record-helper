@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { MOCK_API_PREFIX, route } from "../dev/mockData";
-import { installDevLoginMock } from "../src/dev/mock";
+import { installDevLoginMock } from "../dev/loginMock";
 
 const { mountLolTft } = await import("../src/mount");
 

@@ -1,4 +1,4 @@
-import type { WeGameLoginSdk } from "../types/wegame-login";
+import type { WeGameLoginSdk } from "../src/types/wegame-login";
 
 /** 仅在本地开发/演示页使用：真实环境由 WeGame 页面注入 window.WegameLogin */
 const mockSdk: WeGameLoginSdk = {

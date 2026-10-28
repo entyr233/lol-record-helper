@@ -9,7 +9,7 @@ vi.mock("../src/api/client", () => ({
   }
 }));
 
-const { battleFeedKey, useBattleFeed, clearBattleFeedCache } = await import("../src/composables/battleFeed");
+const { battleFeedKey, useBattleFeed, clearBattleFeedCache } = await import("../src/composables/useBattleFeed");
 
 const key = { area: "1", accountType: "2", id: "abc" };
 

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 /**
- * 本地开发 mock 数据：用仓库里的真实接口样本（sample/*.json）扩展。
+ * 本地开发 mock 数据：用仓库里的接口样本（tests/fixtures/wegame/*.json）扩展。
  * 纯函数、无 Vite 依赖，dev server 与单测共用。
  *
  * 关键点：按玩家 id 生成**不同**的数据（名字/等级/战绩/对局列表），
@@ -11,7 +11,7 @@ import { dirname, join } from "node:path";
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
-const sampleDir = join(here, "..", "sample");
+const sampleDir = join(here, "..", "tests", "fixtures", "wegame");
 
 export interface SampleBattle {
   game_id: string;
