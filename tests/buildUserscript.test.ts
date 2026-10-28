@@ -102,7 +102,7 @@ describe("userscript packaging CLI", () => {
   it("README 指向实际生成文件和安装入口", () => {
     const readme = readFileSync(new URL("../readme.md", import.meta.url), "utf8");
     expect(readme).toContain("dist/userscript/lol-tft.user.js");
-    expect(readme).toContain("https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft.user.js");
+    expect(readme).toContain("https://raw.githubusercontent.com/entyr233/lol-record-helper/master/userscript/lol-tft.user.js");
     expect(readme).toContain("https://greasyfork.org/zh-CN/scripts/454184");
   });
 });

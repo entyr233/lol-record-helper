@@ -2,7 +2,7 @@
 
 > 归档范围：Vue 2、Webpack 4 上游实现。本文用于保留当时的审查记录，不作为当前 Vue 3 项目的待办清单。
 
-> 审查对象：`E:\Desktop\lol-tft`（fork of `entyr233/lol-tft`，上游 `mscststs/lol-tft`）
+> 审查对象：`E:\Desktop\lol-tft`（fork of `entyr233/lol-record-helper`，上游 `mscststs/lol-tft`）
 > 审查时间：2026-10-26　审查方式：全量通读 44 个文件 + 线上产物/接口实测 + 外部生态调研
 > 说明：本文所有"实测"结论都可在第 2 节复现。
 

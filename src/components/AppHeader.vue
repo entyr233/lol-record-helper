@@ -90,7 +90,7 @@ import { getLoginUser, getSelfUinFromCookie, hasLoginState, logout, triggerLogin
 import { useLoginAction } from "../composables/useLoginAction";
 
 const LOGIN_PAGE_URL = "https://www.wegame.com.cn/home/";
-const GITHUB_URL = "https://github.com/entyr233/lol-tft";
+const GITHUB_URL = "https://github.com/entyr233/lol-record-helper";
 const version = __APP_VERSION__;
 
 const route = useRoute();

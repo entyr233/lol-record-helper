@@ -187,7 +187,7 @@ describe("整页冒烟（mock 数据）", () => {
     const shadow = host.shadowRoot as ShadowRoot;
     const link = shadow.querySelector(".header-link") as HTMLAnchorElement | null;
     expect(link).not.toBeNull();
-    expect(link!.getAttribute("href")).toBe("https://github.com/entyr233/lol-tft");
+    expect(link!.getAttribute("href")).toBe("https://github.com/entyr233/lol-record-helper");
     expect(link!.getAttribute("target")).toBe("_blank");
     expect(link!.getAttribute("rel")).toContain("noopener");
     instance.unmount();

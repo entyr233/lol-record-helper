@@ -1,4 +1,4 @@
-# lol-tft
+# LOL 战绩助手
 
 英雄联盟国服战绩查询 —— 以**用户脚本**形式注入 WeGame 页面，在 PC 浏览器查看真实战绩。
 
@@ -97,7 +97,7 @@ npm run build:app          # dist/site/（演示页）
 ~~~
 
 **直接安装（推荐）**：只安装
-`https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft.user.js`
+`https://raw.githubusercontent.com/entyr233/lol-record-helper/master/userscript/lol-tft.user.js`
 ScriptCat/Tampermonkey 会识别为可安装脚本；脚本里的 `@resource` 会自动下载 UI（`userscript/lol-tft-ui.js`），此后通过 `@updateURL` 自动更新到最新版本。**不要把 `lol-tft-ui.js` 当脚本单独安装**，它只是 UI 资源。
 
 也可以本地构建后把 `dist/userscript/lol-tft.user.js` 拖进浏览器（ScriptCat/Tampermonkey）→ 覆盖安装 → F5。
@@ -107,7 +107,7 @@ ScriptCat/Tampermonkey 会识别为可安装脚本；脚本里的 `@resource` �
 **UI 按需加载**：壳只有约 21KB，在任意网站只负责注册菜单；UI 约 300KB，只在进入 WeGame 官方助手页、或点击「LOL 战绩」悬浮按钮时才加载（官方助手页首次打开会自动加载）。这样普通网页不再解析整套 Vue UI。
 
 脚本为了让这些菜单在**任何网站**都可见，元信息使用 `http://*/*` + `https://*/*` 匹配；但只有 WeGame / `lol.qq.com` 页面会注入悬浮按钮和助手面板，其他网站只注册脚本菜单、不改页面。在别的网站点「打开自建战绩面板」会新开 `https://www.wegame.com.cn/?lol_tft_panel=1` 并自动弹出面板；「打开官方助手页」直接打开官方助手页。
-本仓库：https://github.com/entyr233/lol-tft
+本仓库：https://github.com/entyr233/lol-record-helper
 原项目来源：https://greasyfork.org/zh-CN/scripts/454184（保留作者与许可证信息）。
 
 ## 目录

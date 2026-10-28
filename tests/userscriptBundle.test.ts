@@ -19,7 +19,7 @@ describe.skipIf(!available)("轻量油猴脚本与按需加载 UI", () => {
     expect(code).toContain("__LOL_TFT__");
 
     // UI 不再内联，改由 @resource 按需加载
-    expect(metadata).toMatch(/^\/\/ @resource[ \t]+lol-tft-ui[ \t]+https:\/\/raw\.githubusercontent\.com\/entyr233\/lol-tft\/master\/userscript\/lol-tft-ui\.js\?v=[^\s]+\r?$/m);
+    expect(metadata).toMatch(/^\/\/ @resource[ \t]+lol-tft-ui[ \t]+https:\/\/raw\.githubusercontent\.com\/entyr233\/lol-record-helper\/master\/userscript\/lol-tft-ui\.js\?v=[^\s]+\r?$/m);
     expect(metadata).toMatch(/^\/\/ @grant[ \t]+GM_getResourceText\r?$/m);
     expect(code).not.toContain("var LolTft=");
     expect(Buffer.byteLength(code, "utf8")).toBeLessThan(64 * 1024);
@@ -27,17 +27,17 @@ describe.skipIf(!available)("轻量油猴脚本与按需加载 UI", () => {
     // 入库副本内容一致（忽略 Git 工作区 CRLF）
     expect(normalizeEol(readFileSync("userscript/lol-tft.user.js", "utf8"))).toBe(normalizeEol(code));
 
-    expect(metadata).toMatch(/^\/\/ @downloadURL[ \t]+https:\/\/raw\.githubusercontent\.com\/entyr233\/lol-tft\/master\/userscript\/lol-tft\.user\.js\r?$/m);
-    expect(metadata).toMatch(/^\/\/ @updateURL[ \t]+https:\/\/raw\.githubusercontent\.com\/entyr233\/lol-tft\/master\/userscript\/lol-tft\.user\.js\r?$/m);
-    expect(metadata).toMatch(/^\/\/ @homepageURL[ \t]+https:\/\/github\.com\/entyr233\/lol-tft\r?$/m);
-    expect(metadata).toMatch(/^\/\/ @supportURL[ \t]+https:\/\/github\.com\/entyr233\/lol-tft\/issues\r?$/m);
+    expect(metadata).toMatch(/^\/\/ @downloadURL[ \t]+https:\/\/raw\.githubusercontent\.com\/entyr233\/lol-record-helper\/master\/userscript\/lol-tft\.user\.js\r?$/m);
+    expect(metadata).toMatch(/^\/\/ @updateURL[ \t]+https:\/\/raw\.githubusercontent\.com\/entyr233\/lol-record-helper\/master\/userscript\/lol-tft\.user\.js\r?$/m);
+    expect(metadata).toMatch(/^\/\/ @homepageURL[ \t]+https:\/\/github\.com\/entyr233\/lol-record-helper\r?$/m);
+    expect(metadata).toMatch(/^\/\/ @supportURL[ \t]+https:\/\/github\.com\/entyr233\/lol-record-helper\/issues\r?$/m);
     expect(metadata).toMatch(/^\/\/ @grant[ \t]+GM_registerMenuCommand\r?$/m);
     expect(code).toContain("GM_registerMenuCommand");
     expect(code).toContain("打开自建战绩面板");
     expect(code).toContain("打开官方助手页");
     expect(code).toContain("https://www.wegame.com.cn/");
     expect(code).toContain("打开项目主页");
-    expect(code).toContain("https://github.com/entyr233/lol-tft/issues");
+    expect(code).toContain("https://github.com/entyr233/lol-record-helper/issues");
 
     // 任意网站注入以注册菜单（悬浮入口在非 WeGame 页面自行跳过）
     expect(metadata).toMatch(/^\/\/ @match[ \t]+http:\/\/\*\/\*\r?$/m);

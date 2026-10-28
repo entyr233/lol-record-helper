@@ -1,13 +1,13 @@
 // ==UserScript==
-// @name         LOL战绩查询
+// @name         LOL 战绩助手
 // @namespace    mscststs
 // @version      __VERSION__
-// @description  英雄联盟国服战绩查询，支持官方助手登录、大区切换与掌盟详情回退
+// @description  LOL 战绩助手：英雄联盟国服战绩查询，支持官方助手登录、大区切换与掌盟详情回退
 // @author       mscststs
-// @homepage     https://github.com/entyr233/lol-tft
-// @homepageURL  https://github.com/entyr233/lol-tft
-// @supportURL   https://github.com/entyr233/lol-tft/issues
-// @source       https://github.com/entyr233/lol-tft
+// @homepage     https://github.com/entyr233/lol-record-helper
+// @homepageURL  https://github.com/entyr233/lol-record-helper
+// @supportURL   https://github.com/entyr233/lol-record-helper/issues
+// @source       https://github.com/entyr233/lol-record-helper
 // @match        https://www.wegame.com.cn/*
 // @match        https://wegame.com.cn/*
 // @match        https://lol.qq.com/*
@@ -20,7 +20,7 @@
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
-// @resource     lol-tft-ui https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft-ui.js?v=__UI_VERSION__
+// @resource     lol-tft-ui https://raw.githubusercontent.com/entyr233/lol-record-helper/master/userscript/lol-tft-ui.js?v=__UI_VERSION__
 // @connect      mlol.qt.qq.com
 // @connect      lol.qq.com
 // @connect      game.gtimg.cn
@@ -29,8 +29,8 @@
 // @connect      data.dtodo.cn
 // @connect      raw.githubusercontent.com
 // @run-at       document-start
-// @downloadURL  https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft.user.js
-// @updateURL    https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft.user.js
+// @downloadURL  https://raw.githubusercontent.com/entyr233/lol-record-helper/master/userscript/lol-tft.user.js
+// @updateURL    https://raw.githubusercontent.com/entyr233/lol-record-helper/master/userscript/lol-tft.user.js
 // ==/UserScript==
 
 /**
@@ -63,7 +63,7 @@
   // 注册后脚本列表里就能直接看到这些入口，不必进「编辑」界面找链接。
   // 脚本通过 *://*/* 匹配在任意网站运行，因此菜单在任何网址都可见；
   // 非 WeGame 页面不会注入悬浮按钮。
-  var PROJECT_HOME = "https://github.com/entyr233/lol-tft";
+  var PROJECT_HOME = "https://github.com/entyr233/lol-record-helper";
   var OFFICIAL_HELPER_URL = "https://www.wegame.com.cn/helper/lol/";
   var PANEL_HOME_URL = "https://www.wegame.com.cn/?lol_tft_panel=1";
 
@@ -205,7 +205,7 @@
   var generation = 0;
 
   var UI_RESOURCE = "lol-tft-ui";
-  var UI_URL = "https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft-ui.js?v=__UI_VERSION__";
+  var UI_URL = "https://raw.githubusercontent.com/entyr233/lol-record-helper/master/userscript/lol-tft-ui.js?v=__UI_VERSION__";
   var libCache = null;
   var libPromise = null;
 
@@ -371,7 +371,7 @@
     var head = document.createElement("div");
     head.id = "lol-tft-overlay-head";
     var title = document.createElement("span");
-    title.textContent = "LOL 战绩查询";
+    title.textContent = "LOL 战绩助手";
     var closeBtn = document.createElement("button");
     closeBtn.type = "button";
     closeBtn.className = "lol-tft-overlay-close";
@@ -443,8 +443,8 @@
       var launcher = document.createElement("button");
       launcher.id = "lol-tft-launcher";
       launcher.type = "button";
-      launcher.textContent = "LOL 战绩";
-      launcher.title = "打开 LOL 战绩查询（同源请求，自动使用当前登录态）";
+      launcher.textContent = "LOL 战绩助手";
+      launcher.title = "打开 LOL 战绩助手（同源请求，自动使用当前登录态）";
       launcher.addEventListener("click", openPanel);
       parent.appendChild(launcher);
       log("入口按钮已挂载", parent === document.body ? "body" : "html");

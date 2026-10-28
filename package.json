@@ -1,9 +1,9 @@
 {
-  "name": "lol-tft",
-  "version": "2.13.0",
+  "name": "lol-record-helper",
+  "version": "2.13.1",
   "private": true,
   "type": "module",
-  "description": "英雄联盟国服战绩查询（WeGame 页面注入版）",
+  "description": "LOL 战绩助手：英雄联盟国服战绩查询与官方助手增强（WeGame 页面注入版）",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build --mode lib",
@@ -20,7 +20,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mscststs/lol-tft.git"
+    "url": "git+https://github.com/entyr233/lol-record-helper.git"
   },
   "license": "ISC",
   "keywords": [
