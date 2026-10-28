@@ -126,6 +126,7 @@ export function getChampionSpells(championId: number): Promise<ChampionSpell[]> 
 
 const championNames = shallowRef<ReadonlyMap<number, string> | null>(null);
 let championNamesRequest: Promise<void> | null = null;
+let championNamesSavedAt = 0;
 const CHAMPION_NAMES_KEY = "champion-names-v1";
 const CHAMPION_NAMES_TTL = 24 * 60 * 60 * 1000;
 interface ChampionNamesCache {
@@ -138,14 +139,16 @@ interface ChampionNamesCache {
  * 沙箱里跨域 fetch 会被网络层拦（HTTP 0），所以走 GM GET 公共 CDN 的 hero_list.js。
  */
 export function ensureChampionNames(): Promise<void> {
-  if (championNames.value) return Promise.resolve();
   if (championNamesRequest) return championNamesRequest;
-  const cached = readStorage<ChampionNamesCache | null>(CHAMPION_NAMES_KEY, null);
-  if (cached && typeof cached.savedAt === "number" && Array.isArray(cached.entries) && cached.entries.length > 0
-    && cached.entries.every((entry) => Array.isArray(entry) && Number.isFinite(entry[0]) && typeof entry[1] === "string")) {
-    championNames.value = new Map(cached.entries);
-    if (Date.now() - cached.savedAt < CHAMPION_NAMES_TTL) return Promise.resolve();
+  if (!championNames.value) {
+    const cached = readStorage<ChampionNamesCache | null>(CHAMPION_NAMES_KEY, null);
+    if (cached && Number.isFinite(cached.savedAt) && Array.isArray(cached.entries) && cached.entries.length > 0
+      && cached.entries.every((entry) => Array.isArray(entry) && Number.isFinite(entry[0]) && typeof entry[1] === "string")) {
+      championNames.value = new Map(cached.entries);
+      championNamesSavedAt = cached.savedAt;
+    }
   }
+  if (championNames.value && Date.now() - championNamesSavedAt < CHAMPION_NAMES_TTL) return Promise.resolve();
   championNamesRequest = (async () => {
     try {
       const raw = await gmGet("https://game.gtimg.cn/images/lol/act/img/js/heroList/hero_list.js");
@@ -161,7 +164,8 @@ export function ensureChampionNames(): Promise<void> {
       }
       if (!entries.length) throw new Error("empty champion names");
       championNames.value = new Map(entries);
-      writeStorage(CHAMPION_NAMES_KEY, { savedAt: Date.now(), entries });
+      championNamesSavedAt = Date.now();
+      writeStorage(CHAMPION_NAMES_KEY, { savedAt: championNamesSavedAt, entries });
     } catch {
       // 名称加载失败不阻塞页面，下次调用可以重试。
     } finally {

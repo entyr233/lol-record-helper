@@ -6,17 +6,14 @@
 
 | 场景 | 命令 | 内容 |
 | --- | --- | --- |
-| 日常开发 | 
-pm run check` | lint + typecheck |
-| 日常开发 | 
-pm run test:related -- <改动文件>` | 只跑相关单测 |
-| 常规 CI | 
-pm run test:coverage` + 
-pm run test:e2e` | 一次完整单测 + Chromium E2E |
-| 正式发布 | 
-pm run test:e2e:all` | Chromium / Firefox / WebKit 各跑一次 |
+| 日常开发 | `npm run check` | lint + typecheck |
+| 日常开发 | `npm run test:related -- <改动文件>` | 只跑相关单测 |
+| 常规 CI | `npm run test:coverage` + `npm run test:e2e` | 一次完整单测 + Chromium E2E |
+| 正式发布 | `npm run test:e2e:all` | Chromium / Firefox / WebKit 各跑一次 |
 
-普通开发不要求每次全量单测；发布前才做三浏览器验证。\n\n`verify` 是固定 required check：文档-only 改动也会报告成功，但只跑变更检测，不跑 lint/build/test。
+普通开发不要求每次全量单测；发布前才做三浏览器验证。
+
+`verify` 是固定 required check：文档-only 改动也会报告成功，但只跑变更检测，不跑 lint/build/test。
 
 ## 本轮精简
 

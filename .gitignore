@@ -6,6 +6,8 @@ cookies
 .vite
 .lol-tft-cookie*
 .review-tmp-*
+*.log
+*.tsbuildinfo
 
 coverage
 
