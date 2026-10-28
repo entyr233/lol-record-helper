@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [2.19.1] - 2026-10-28
+
+### Changed
+
+- 整理目录：`docs/` 按 archive / reviews 分类，WeGame 接口样例迁入 `tests/fixtures/wegame/`，开发登录 mock 迁入 `dev/`。
+- 统一命名：composable 使用 `useXxx`，玩家查询参数统一为 `PlayerQueryParams` / `getPlayerParams`，WeGame 品牌文件与函数命名统一；同步更新 import、测试、mock 与文档。
+- 配置项目技能（`.agents/skills/vue`、`.agents/skills/vite`）与 `AGENTS.md`，新增 `docs/README.md`。
+- 同步构建配置、测试路径与生成脚本壳；无用户可见功能变更。
+
 ## [2.19.0] - 2026-10-28
 
 ### Changed
@@ -13,9 +22,6 @@
 - 英雄中文名增加 24 小时 localStorage 缓存（先展示已有名称再刷新）；Data Dragon 版本号请求并发去重。
 - 海克斯英雄详情使用 `shallowRef`，避免深层响应式代理。
 - 新增 `docs/performance.md` 记录缓存范围与验证边界。
-
-
-### Changed
 
 - 测试与 CI 收敛：CI 只在 master/PR 触发，常规 CI 跑一次完整单测 + Chromium；发布 workflow 复用 CI 成功结果并跑一次三浏览器 E2E。
 - 日常开发新增 `check` / `test:related` / `test:e2e:build` 命令。`verify` 固定运行，文档-only 改动只做变更检测。
