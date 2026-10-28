@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+- 新增 axe-core Playwright 可访问性门禁、SECURITY/CONTRIBUTING/Issue/PR 模板。
+
 ## [2.15.0] - 2026-10-28
 
 ### Added

@@ -1,0 +1,69 @@
+name: Bug report
+description: 反馈功能异常或界面问题
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请不要粘贴 WeGame cookie、ARAMGG API Key 或完整 HAR。可提供脱敏错误码/控制台片段。
+  - type: input
+    id: version
+    attributes:
+      label: 脚本版本
+      description: ScriptCat/Tampermonkey 脚本列表里看到的版本，或 `@version`
+      placeholder: "2.15.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: manager
+    attributes:
+      label: 脚本管理器
+      options:
+        - ScriptCat
+        - Tampermonkey
+        - Violentmonkey
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: 浏览器
+      placeholder: "Chrome 140 / Edge 140 / Firefox 143"
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: 出现问题的页面
+      description: 只填域名或页面路径即可，不要带 query 中的敏感参数
+      placeholder: "https://www.wegame.com.cn/helper/lol/"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开 ...
+        2. 点击 ...
+        3. 出现 ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果 / 错误信息
+      description: 可粘贴「复制诊断信息」的结果（不含 cookie）
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 控制台或错误码（可选）
+      render: shell

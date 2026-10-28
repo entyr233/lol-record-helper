@@ -187,6 +187,11 @@ docs/             代码审查报告 / HAR 分析 / 迁移说明 / README 截图
 - 项目/仓库/脚本显示名为 **LOL 战绩助手**，GitHub 仓库为 `lol-record-helper`；
 - 构建产物仍沿用 `lol-tft.user.js` / `lol-tft-ui.js`，是为了兼容旧安装的 `@updateURL` 与 `@resource`，避免升级断链；
 - 脚本 `@namespace` 保留上游的 `mscststs`，同样是为了让脚本管理器把新版识别为「同一脚本的更新」，而不是新装一个重复脚本。
+## 参与贡献
+
+- 开发、构建与发布流程见 [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- 安全漏洞请走私密报告，见 [`SECURITY.md`](SECURITY.md)
+- Bug / 功能建议可使用仓库的 Issue 模板；提交前请跑 `lint`、`typecheck`、单测与 E2E
 ## 相关文档
 
 - 审查建议核查与处理：`docs/review-resolution-2026-10-28.md`
