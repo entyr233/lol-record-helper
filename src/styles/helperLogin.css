@@ -82,8 +82,7 @@ button {
 }
 button:disabled { opacity: .6; cursor: default; }
 a { color: #d8bd7e; }
-.refresh,
-.open-self { margin-top: 8px; }
+.refresh { margin-top: 8px; }
 .hint {
   color: #6c7683;
   font-size: 11px;

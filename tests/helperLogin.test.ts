@@ -216,25 +216,9 @@ describe("官方助手登录入口", () => {
     root().querySelector<HTMLButtonElement>(".open-official")!.click();
     expect((location as unknown as { href?: string }).href).toBe("https://www.wegame.com.cn/helper/lol/#/life/overview");
     expect(localStorage.getItem("lol_tft:lol-tft-helper-area")).toBe("1");
-  });
-
-  it("打开历史战绩按钮跳到按登录用户初始化的历史战绩页", async () => {
-    instance = mountHelperLogin();
-    const select = root().querySelector<HTMLSelectElement>("select")!;
-    select.value = "3";
-    select.dispatchEvent(new Event("change"));
-    await nextTick();
-
-    root().querySelector<HTMLButtonElement>(".open-history")!.click();
-    expect((location as unknown as { href?: string }).href).toBe("https://www.wegame.com.cn/helper/lol/#/life/history");
-  });
-
-  it("打开自建战绩时调用页面挂载的 __LOL_TFT__.open", () => {
-    const open = vi.fn();
-    (window as unknown as { __LOL_TFT__?: { open: () => void } }).__LOL_TFT__ = { open };
-    instance = mountHelperLogin();
-    root().querySelector<HTMLButtonElement>(".open-self")!.click();
-    expect(open).toHaveBeenCalledTimes(1);
+    // 官方「战绩」页本身就是历史战绩页：不再重复放「打开历史战绩」；自建面板由右下角悬浮按钮打开
+    expect(root().querySelector(".open-history")).toBeNull();
+    expect(root().querySelector(".open-self")).toBeNull();
   });
 
   it("没有选择大区时官方战绩按钮不可用", () => {

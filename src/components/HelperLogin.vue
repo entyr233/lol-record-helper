@@ -29,7 +29,6 @@
         </div>
         <div class="open-row">
           <button type="button" class="open-official" :disabled="!areaId" @click="openOfficialCareer">打开官方战绩</button>
-          <button type="button" class="open-history" :disabled="!areaId" @click="openOfficialHistory">打开历史战绩</button>
         </div>
         <p class="hint">
           <template v-if="uin">
@@ -39,7 +38,6 @@
             未读取到登录账号：官方页面可能仍提示「未选定大区」。建议先登录，或去官网登录后刷新此页。
           </template>
         </p>
-        <button type="button" class="open-self" @click="openSelfPanel">打开自建战绩面板</button>
       </section>
     </div>
   </section>
@@ -187,19 +185,5 @@ function openOfficial(page: OfficialPage): void {
 
 function openOfficialCareer(): void {
   openOfficial("overview");
-}
-
-function openOfficialHistory(): void {
-  openOfficial("history");
-}
-
-/** 打开脚本自建的战绩面板；如果当前页没有挂载面板，则回官网页面使用 */
-function openSelfPanel(): void {
-  const api = (window as unknown as { __LOL_TFT__?: { open?: () => void } }).__LOL_TFT__;
-  if (api && typeof api.open === "function") {
-    api.open();
-    return;
-  }
-  window.open("https://www.wegame.com.cn/", "_blank", "noopener");
 }
 </script>
