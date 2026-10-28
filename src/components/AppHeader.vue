@@ -69,14 +69,6 @@
     <button v-else type="button" class="header-button header-button--login" :disabled="loggingIn" @click="handleLogin">
       {{ loggingIn ? "等待登录…" : "登录" }}
     </button>
-    <details class="header-more">
-      <summary><span class="header-more-caret" aria-hidden="true">▸</span>更多</summary>
-      <div class="header-more-pop">
-        <a class="header-link" :href="GITHUB_URL" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
-        <a class="header-link" :href="officialHelperUrl" target="_blank" rel="noopener noreferrer" title="官方 LOL 助手（同一账号与大区）">官方助手 ↗</a>
-        <span class="header-version" title="脚本版本">v{{ version }}</span>
-      </div>
-    </details>
     <button type="button" class="header-link header-settings-link" title="设置与数据" @click="openSettings">设置</button>
     <div v-if="loginError || loggingIn" class="header-login-status" role="status">
       <span v-if="loginError" role="alert" class="login-error">{{ loginError }}</span>
@@ -102,8 +94,6 @@ import { getLoginUser, getSelfUinFromCookie, hasLoginState, logout, triggerLogin
 import { useLoginAction } from "../composables/useLoginAction";
 
 const LOGIN_PAGE_URL = "https://www.wegame.com.cn/home/";
-const GITHUB_URL = "https://github.com/entyr233/lol-record-helper";
-const version = __APP_VERSION__;
 
 const route = useRoute();
 const router = useRouter();
@@ -229,21 +219,6 @@ function removeFavorite(entry: FavoriteEntry): void {
 }
 
 const currentArea = computed(() => preferredArea.value || String(route.params.area || ""));
-
-/**
- * 官方助手页通过地址栏 uin / area_id / account_type 初始化查询对象，
- * 这里带上当前账号和大区，打开后官方页面能直接查这个玩家的战绩。
- */
-const officialHelperUrl = computed(() => {
-  const area = currentArea.value;
-  if (!area) return "https://www.wegame.com.cn/helper/lol/#/info/selection";
-  const query = new URLSearchParams();
-  const uin = getSelfUinFromCookie();
-  if (uin) query.set("uin", uin);
-  query.set("area_id", area);
-  query.set("account_type", "1");
-  return "https://www.wegame.com.cn/helper/lol/#/life/overview?" + query.toString();
-});
 
 onMounted(() => {
   // 登录状态以 cookie 为准。

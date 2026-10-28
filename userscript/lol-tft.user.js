@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LOL 战绩助手
 // @namespace    mscststs
-// @version      2.22.1
+// @version      2.22.2
 // @description  LOL 战绩助手：英雄联盟国服战绩查询，支持官方助手登录、大区切换与掌盟详情回退
 // @author       mscststs
 // @homepage     https://github.com/entyr233/lol-record-helper
@@ -20,7 +20,7 @@
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
-// @resource     lol-tft-ui https://github.com/entyr233/lol-record-helper/releases/download/v2.22.1/lol-tft-ui.js
+// @resource     lol-tft-ui https://github.com/entyr233/lol-record-helper/releases/download/v2.22.2/lol-tft-ui.js
 // @connect      mlol.qt.qq.com
 // @connect      lol.qq.com
 // @connect      game.gtimg.cn
@@ -208,10 +208,10 @@
   }
   function createUiLoader(warn) {
     const UI_RESOURCE = "lol-tft-ui";
-    const UI_TAG = "v2.22.1";
+    const UI_TAG = "v2.22.2";
     const UI_URLS = buildUiUrls("entyr233/lol-record-helper", UI_TAG);
     const UI_URL = UI_URLS[0];
-    const UI_SHA256 = "0881263e397a4f1285fce5d3773c46309bb9fb015c0c6379284efed81d0ca8ae";
+    const UI_SHA256 = "0e5b6dd52ae75a2238a26a807859fc6a98ab0c9bb1c2cccb658fc80b1fd620d9";
     let libCache = null;
     let libPromise = null;
     function verifyAndEvaluate(text) {
@@ -341,9 +341,25 @@
 
   // userscript/src/overlay.ts
   function createPanel(log, warn) {
-    const VERSION = "2.22.1";
+    const VERSION = "2.22.2";
     const Z = "2147483000";
     const STYLE_ID = "lol-tft-entry-style";
+    function officialHelperUrl() {
+      let area = "";
+      try {
+        area = String(localStorage.getItem("lol_tft:last-area") || "").trim();
+      } catch (e) {
+      }
+      if (!area) return "https://www.wegame.com.cn/helper/lol/#/info/selection";
+      const match = document.cookie.match(/(?:^|;\s*)(?:uin|p_uin)=([^;]*)/);
+      const raw = match ? decodeURIComponent(match[1]) : "";
+      const uin = raw.replace(/^o/, "").replace(/\D/g, "");
+      const query = new URLSearchParams();
+      if (uin) query.set("uin", String(Number(uin)));
+      query.set("area_id", area);
+      query.set("account_type", "1");
+      return "https://www.wegame.com.cn/helper/lol/#/life/overview?" + query.toString();
+    }
     let mounted = null;
     let overlay = null;
     let loading = false;
@@ -426,10 +442,16 @@
         "#lol-tft-overlay-head{display:flex;flex:none;align-items:center;gap:12px;padding:8px 16px;",
         "background:#1a2026;border-bottom:1px solid #24292e;color:#b59758;",
         "font:13px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;}",
+        ".lol-tft-overlay-links{margin-left:auto;display:flex;align-items:center;gap:12px;",
+        "font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;}",
+        ".lol-tft-overlay-links a{color:#9aa4b2;text-decoration:none;white-space:nowrap;}",
+        ".lol-tft-overlay-links a:hover{color:#e6c37a;}",
+        ".lol-tft-overlay-version{color:#9aa4b2;white-space:nowrap;font:11px/1.4 Consolas,Monaco,monospace;}",
         "#lol-tft-overlay-host{flex:1 1 auto;overflow:auto;}",
-        ".lol-tft-overlay-close{margin-left:auto;padding:4px 12px;border:1px solid #3a4350;border-radius:4px;",
+        ".lol-tft-overlay-close{padding:4px 12px;border:1px solid #3a4350;border-radius:4px;",
         "background:transparent;color:#b59758;cursor:pointer;font:13px/1.4 inherit;}",
-        ".lol-tft-overlay-close:hover{background:rgba(255,255,255,.07);}"
+        ".lol-tft-overlay-close:hover{background:rgba(255,255,255,.07);}",
+        "@media(max-width:600px){.lol-tft-overlay-links{gap:8px}.lol-tft-overlay-version{display:none}}"
       ].join("");
       (document.head || document.documentElement).appendChild(style);
     }
@@ -524,6 +546,26 @@
       head.id = "lol-tft-overlay-head";
       const title = document.createElement("span");
       title.textContent = "LOL 战绩助手";
+      const links = document.createElement("div");
+      links.className = "lol-tft-overlay-links";
+      const githubLink = document.createElement("a");
+      githubLink.href = "https://github.com/entyr233/lol-record-helper";
+      githubLink.target = "_blank";
+      githubLink.rel = "noopener noreferrer";
+      githubLink.tabIndex = 0;
+      githubLink.textContent = "GitHub ↗";
+      const helperLink = document.createElement("a");
+      helperLink.href = officialHelperUrl();
+      helperLink.target = "_blank";
+      helperLink.rel = "noopener noreferrer";
+      helperLink.tabIndex = 0;
+      helperLink.textContent = "官方助手 ↗";
+      const version = document.createElement("span");
+      version.className = "lol-tft-overlay-version";
+      version.textContent = "v" + VERSION;
+      links.appendChild(githubLink);
+      links.appendChild(helperLink);
+      links.appendChild(version);
       const closeBtn = document.createElement("button");
       closeBtn.type = "button";
       closeBtn.className = "lol-tft-overlay-close";
@@ -531,6 +573,7 @@
       closeBtn.textContent = "✕ 关闭 (Esc)";
       closeBtn.addEventListener("click", closePanel);
       head.appendChild(title);
+      head.appendChild(links);
       head.appendChild(closeBtn);
       const host = document.createElement("div");
       host.id = "lol-tft-overlay-host";
@@ -648,7 +691,7 @@
 
   // userscript/src/shell.ts
   function startShell() {
-    const VERSION = "2.22.1";
+    const VERSION = "2.22.2";
     registerMenuCommands(() => openPanel());
     installHelperTgpBridge();
     if (isLolQqBridgeHost()) {

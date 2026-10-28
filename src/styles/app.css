@@ -125,45 +125,6 @@ button {
   stroke-width: 1.8;
   stroke-linecap: round;
 }
-.header-more {
-  position: relative;
-}
-.header-more > summary {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px;
-  color: var(--text-muted);
-  cursor: pointer;
-  list-style: none;
-  white-space: nowrap;
-}
-.header-more > summary::-webkit-details-marker {
-  display: none;
-}
-.header-more-caret {
-  display: inline-block;
-  font-size: 10px;
-  transition: transform 0.15s ease;
-}
-.header-more[open] .header-more-caret {
-  transform: rotate(90deg);
-}
-.header-more-pop {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 180px;
-  padding: 8px;
-  background-color: var(--bg-panel);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-}
 .header-login-status {
   display: flex;
   flex-basis: 100%;
@@ -229,12 +190,6 @@ button {
   color: var(--loss);
   font-size: 13px;
   overflow-wrap: anywhere;
-}
-.header-version {
-  padding: 0 10px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-family: Consolas, Monaco, monospace;
 }
 /* 顶栏常驻的项目主页入口（原来只能去脚本编辑页里找链接） */
 .header-link {

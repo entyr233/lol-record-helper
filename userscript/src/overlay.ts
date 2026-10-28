@@ -6,6 +6,25 @@ export function createPanel(log: (...args: unknown[]) => void, warn: (...args: u
   const VERSION = __VERSION__;
   const Z = "2147483000";
   const STYLE_ID = "lol-tft-entry-style";
+
+  /** 顶层快捷入口：尽量带上当前大区和登录 UIN，打不开时也保留官方入口。 */
+  function officialHelperUrl(): string {
+    let area = "";
+    try {
+      area = String(localStorage.getItem("lol_tft:last-area") || "").trim();
+    } catch {
+      /* 隐私模式 */
+    }
+    if (!area) return "https://www.wegame.com.cn/helper/lol/#/info/selection";
+    const match = document.cookie.match(/(?:^|;\s*)(?:uin|p_uin)=([^;]*)/);
+    const raw = match ? decodeURIComponent(match[1]) : "";
+    const uin = raw.replace(/^o/, "").replace(/\D/g, "");
+    const query = new URLSearchParams();
+    if (uin) query.set("uin", String(Number(uin)));
+    query.set("area_id", area);
+    query.set("account_type", "1");
+    return "https://www.wegame.com.cn/helper/lol/#/life/overview?" + query.toString();
+  }
   let mounted: MountedUi | null = null;
   let overlay: HTMLDivElement | null = null;
   let loading = false;
@@ -93,10 +112,16 @@ export function createPanel(log: (...args: unknown[]) => void, warn: (...args: u
       "#lol-tft-overlay-head{display:flex;flex:none;align-items:center;gap:12px;padding:8px 16px;",
       "background:#1a2026;border-bottom:1px solid #24292e;color:#b59758;",
       "font:13px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;}",
+      ".lol-tft-overlay-links{margin-left:auto;display:flex;align-items:center;gap:12px;",
+      "font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;}",
+      ".lol-tft-overlay-links a{color:#9aa4b2;text-decoration:none;white-space:nowrap;}",
+      ".lol-tft-overlay-links a:hover{color:#e6c37a;}",
+      ".lol-tft-overlay-version{color:#9aa4b2;white-space:nowrap;font:11px/1.4 Consolas,Monaco,monospace;}",
       "#lol-tft-overlay-host{flex:1 1 auto;overflow:auto;}",
-      ".lol-tft-overlay-close{margin-left:auto;padding:4px 12px;border:1px solid #3a4350;border-radius:4px;",
+      ".lol-tft-overlay-close{padding:4px 12px;border:1px solid #3a4350;border-radius:4px;",
       "background:transparent;color:#b59758;cursor:pointer;font:13px/1.4 inherit;}",
-      ".lol-tft-overlay-close:hover{background:rgba(255,255,255,.07);}"
+      ".lol-tft-overlay-close:hover{background:rgba(255,255,255,.07);}",
+      "@media(max-width:600px){.lol-tft-overlay-links{gap:8px}.lol-tft-overlay-version{display:none}}"
     ].join("");
     (document.head || document.documentElement).appendChild(style);
   }
@@ -188,6 +213,26 @@ export function createPanel(log: (...args: unknown[]) => void, warn: (...args: u
     head.id = "lol-tft-overlay-head";
     const title = document.createElement("span");
     title.textContent = "LOL 战绩助手";
+    const links = document.createElement("div");
+    links.className = "lol-tft-overlay-links";
+    const githubLink = document.createElement("a");
+    githubLink.href = "https://github.com/" + __REPO__;
+    githubLink.target = "_blank";
+    githubLink.rel = "noopener noreferrer";
+    githubLink.tabIndex = 0;
+    githubLink.textContent = "GitHub ↗";
+    const helperLink = document.createElement("a");
+    helperLink.href = officialHelperUrl();
+    helperLink.target = "_blank";
+    helperLink.rel = "noopener noreferrer";
+    helperLink.tabIndex = 0;
+    helperLink.textContent = "官方助手 ↗";
+    const version = document.createElement("span");
+    version.className = "lol-tft-overlay-version";
+    version.textContent = "v" + VERSION;
+    links.appendChild(githubLink);
+    links.appendChild(helperLink);
+    links.appendChild(version);
     const closeBtn = document.createElement("button");
     closeBtn.type = "button";
     closeBtn.className = "lol-tft-overlay-close";
@@ -195,6 +240,7 @@ export function createPanel(log: (...args: unknown[]) => void, warn: (...args: u
     closeBtn.textContent = "✕ 关闭 (Esc)";
     closeBtn.addEventListener("click", closePanel);
     head.appendChild(title);
+    head.appendChild(links);
     head.appendChild(closeBtn);
 
     const host = document.createElement("div");

@@ -130,7 +130,7 @@ test("共享筛选、统计常开与数据源设置保持可用", async ({ page 
 test("浮层焦点跨 Shadow DOM 循环，Esc 关闭后回到入口", async ({ page }) => {
   await bootPanel(page);
   const close = page.getByRole("button", { name: "关闭战绩面板" });
-  const last = page.locator(".app-header .header-link").last();
+  const last = page.getByRole("link", { name: "官方助手 ↗" });
   await close.focus();
   await page.keyboard.press("Shift+Tab");
   await expect(last).toBeFocused();
