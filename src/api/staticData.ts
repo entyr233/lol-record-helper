@@ -1,6 +1,6 @@
 import { ref, shallowRef } from "vue";
 import { gmGet } from "./transport";
-import { readStorage, writeStorage } from "../utils/storage";
+import { readStorage, removeStorage, writeStorage } from "../utils/storage";
 import runeMap from "../data/runes.json";
 import itemMap from "../data/items.json";
 import type { ChampionSpell } from "./types";
@@ -178,4 +178,20 @@ export function ensureChampionNames(): Promise<void> {
 /** 英雄数字 id -> 中文名（未加载/未知返回空串） */
 export function championName(id: number): string {
   return championNames.value?.get(Number(id)) ?? "";
+}
+
+/** 设置页清理静态资料：同时清内存和持久化缓存，下次使用时会重新请求。 */
+export function clearStaticDataCache(): void {
+  try {
+    localStorage.removeItem(VERSION_KEY);
+  } catch {
+    /* 隐私模式/存储不可用时内存仍可清理 */
+  }
+  removeStorage(CHAMPION_NAMES_KEY);
+  ddragonVersion.value = null;
+  versionRequest = null;
+  championNames.value = null;
+  championNamesSavedAt = 0;
+  championNamesRequest = null;
+  spellCache.clear();
 }

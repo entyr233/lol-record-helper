@@ -45,7 +45,7 @@
 
 > **不用安装第二个脚本。** `lol-tft-ui.js` 是脚本的 `@resource` UI 资源，安装/更新时会自动下载；请勿把它当作用户脚本单独安装。
 >
-> 脚本壳约 **28KB**，在任意网站只注册菜单；UI 约 **335KB**，只在进入官方助手页或点击「LOL 战绩助手」时才加载。UI 从对应版本的 GitHub Release 资产加载，失败回退 jsDelivr `ui` 分支，并在执行前做 SHA-256 校验。
+> 脚本壳约 **28KB**，在任意网站只注册菜单；UI 约 **355KB（gzip 约 118KB）**，只在进入官方助手页或点击「LOL 战绩助手」时才加载。UI 从对应版本的 GitHub Release 资产加载，失败回退 jsDelivr `ui` 分支，并在执行前做 SHA-256 校验。
 
 **更新**：脚本会通过 `@updateURL` 自动检查更新，也可以重新打开上面的安装链接覆盖安装。
 ### 权限说明
@@ -139,6 +139,8 @@ npm run test:e2e:build   # 构建 + Chromium E2E；PW_EDGE=1 时使用系统 Edg
 npm run test:e2e:all     # 三浏览器，发布前
 npm run screenshots      # 用固定 mock 数据重新生成 README 截图
 ```
+
+体积预算：壳脚本 ≤ 64KB；UI raw ≤ 400KB、gzip ≤ 140KB（raw 380KB / gzip 130KB 时预警）。构建脚本会同时检查 raw 与 gzip，超过硬上限直接失败。
 
 构建产物：
 

@@ -2727,6 +2727,108 @@ summary:focus-visible,
   color: #56606c;
   font-size: 11px;
 }
+.header-settings-link {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.settings-panel {
+  width: min(760px, 100%);
+}
+.settings-body {
+  flex: 1 1 auto;
+  min-height: 160px;
+  padding: 14px 18px 18px;
+  overflow: auto;
+}
+.settings-section + .settings-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #26313c;
+}
+.settings-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.settings-section-head h3 {
+  margin: 0;
+  color: #e8edf2;
+  font-size: 14px;
+  font-weight: 400;
+}
+.settings-section-head > span {
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.settings-hint {
+  margin: 4px 0 8px;
+  color: #6c7683;
+  font-size: 11px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #222d38;
+}
+.settings-row:last-child {
+  border-bottom: 0;
+}
+.settings-meta {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.settings-meta strong {
+  color: #c6cfda;
+  font-size: 12px;
+  font-weight: 400;
+}
+.settings-meta small {
+  color: #6c7683;
+  font-size: 11px;
+}
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.settings-diagnostic {
+  max-height: 190px;
+  margin: 8px 0 0;
+  padding: 10px;
+  overflow: auto;
+  color: #8f99a6;
+  background-color: #0d1217;
+  border: 1px solid #26313c;
+  border-radius: 4px;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+@media (max-width: 760px) {
+  .settings-body {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+  .settings-row {
+    align-items: flex-start;
+  }
+  .header-settings-link {
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+}
 @media (max-width: 760px) {
   .favorites-manager-backdrop {
     padding: 8px;

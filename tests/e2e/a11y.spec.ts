@@ -46,6 +46,11 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
     await expectNoAxeViolations(page);
     await page.locator(".favorites-manager-close").click();
     await expect(page.locator(".favorites-manager")).toHaveCount(0);
+    await page.getByRole("button", { name: "设置" }).click();
+    await expect(page.locator(".settings-panel")).toBeVisible();
+    await expectNoAxeViolations(page);
+    await page.getByRole("button", { name: "关闭设置" }).click();
+    await expect(page.locator(".settings-panel")).toHaveCount(0);
     await page.getByRole("searchbox", { name: "搜索召唤师" }).fill("测试玩家");
     await page.getByRole("searchbox", { name: "搜索召唤师" }).press("Enter");
     await expect(page.locator(".search-item")).toHaveCount(3);

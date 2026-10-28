@@ -176,7 +176,7 @@ export function setAramggApiKey(key: string, sessionOnly = false): void {
 
 export function clearAramggApiKey(): void {
   clearSessionApiKey();
-  writeStorage(API_KEY_SESSION_ONLY_STORAGE, false);
+  removeStorage(API_KEY_SESSION_ONLY_STORAGE);
   removeStorage(API_KEY_STORAGE);
 }
 
@@ -619,4 +619,18 @@ export function clearAramggMemoryCache(): void {
   memoryChampions.clear();
   championInflight.clear();
   championCacheVersion = null;
+}
+
+/** 设置页清理海克斯数据：内存 + localStorage 中的榜单/英雄详情，不动 API Key。 */
+export function clearAramggCache(): void {
+  clearAramggMemoryCache();
+  removeStorage(OVERVIEW_CACHE_STORAGE);
+  try {
+    const prefix = "lol_tft:" + CHAMPION_CACHE_PREFIX;
+    for (const key of Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))) {
+      if (key?.startsWith(prefix)) localStorage.removeItem(key);
+    }
+  } catch {
+    /* 存储不可用时内存已经清理 */
+  }
 }

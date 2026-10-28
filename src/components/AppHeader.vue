@@ -80,9 +80,11 @@
     <a class="header-link" :href="GITHUB_URL" target="_blank" rel="noopener noreferrer" title="项目 GitHub 主页">GitHub ↗</a>
     <router-link class="header-link" :to="{ name: 'aram' }" title="海克斯大乱斗数据（ARAMGG）">海克斯数据</router-link>
     <a class="header-link" :href="officialHelperUrl" target="_blank" rel="noopener noreferrer" title="官方 LOL 助手（同一账号与大区）">官方助手 ↗</a>
+    <button type="button" class="header-link header-settings-link" title="设置与数据" @click="openSettings">设置</button>
     <span class="header-version" title="脚本版本">v{{ version }}</span>
 
     <FavoritesManager v-if="managerOpen" @close="managerOpen = false" />
+    <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" @open-favorites="openFavoritesFromSettings" />
   </header>
 </template>
 
@@ -93,6 +95,7 @@ import { areas, getAreaName } from "../const/areas";
 import { favoriteKey, useFavorites } from "../composables/useFavorites";
 import type { FavoriteEntry } from "../composables/useFavorites";
 import FavoritesManager from "./FavoritesManager.vue";
+import SettingsPanel from "./SettingsPanel.vue";
 import { readStorage, writeStorage } from "../utils/storage";
 import { getLoginUser, getSelfUinFromCookie, hasLoginState, logout, triggerLogin, waitForLogin } from "../utils/wegameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
@@ -113,6 +116,7 @@ const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
 // 常驻收藏入口：与各页面共用同一份 useFavorites 单例数据
 const favoritesDetails = ref<HTMLDetailsElement | null>(null);
 const managerOpen = ref(false);
+const settingsOpen = ref(false);
 const { favorites, remove: removeFavoriteEntry, update: updateFavorite, move: moveFavorite } = useFavorites();
 
 /** 未设置 group 的条目统一落在这个分组里，并排在所有自定义分组之后 */
@@ -197,6 +201,16 @@ function closeFavorites(): void {
 
 function openManager(): void {
   closeFavorites();
+  managerOpen.value = true;
+}
+
+function openSettings(): void {
+  closeFavorites();
+  settingsOpen.value = true;
+}
+
+function openFavoritesFromSettings(): void {
+  settingsOpen.value = false;
   managerOpen.value = true;
 }
 

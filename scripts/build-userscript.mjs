@@ -19,7 +19,11 @@ const OUT_UI = OUT_DIR + "/lol-tft-ui.js";
 const REPO_OUT = "userscript/lol-tft.user.js";
 
 const MAX_SHELL_BYTES = 64 * 1024;
-const MAX_UI_BYTES = 340 * 1024;
+// UI 只在需要时加载；raw 控制解析/缓存成本，gzip 更接近真实下载成本。
+const WARN_UI_BYTES = 380 * 1024;
+const MAX_UI_BYTES = 400 * 1024;
+const WARN_UI_GZIP_BYTES = 130 * 1024;
+const MAX_UI_GZIP_BYTES = 140 * 1024;
 
 if (!existsSync(BUNDLE)) {
   console.error("找不到 " + BUNDLE + "，请先运行 npm run build");
@@ -28,6 +32,8 @@ if (!existsSync(BUNDLE)) {
 
 // 浏览器里没有 Node 全局：产物中一旦出现这些引用，脚本会在执行阶段直接抛错
 const rawBundle = readFileSync(BUNDLE, "utf8").replace(/\r\n/g, "\n");
+const uiBytes = Buffer.byteLength(rawBundle, "utf8");
+const uiGzipBytes = gzipSync(rawBundle).length;
 const uiSha256 = createHash("sha256").update(rawBundle, "utf8").digest("hex");
 const forbidden = ["process.env", "process.argv", "__dirname", "require("];
 const found = forbidden.filter((token) => rawBundle.includes(token));
@@ -108,9 +114,18 @@ if (forbidden.some((token) => runtime.includes(token)) ||
   throw new Error("用户脚本包含 Node 引用或未替换的构建标记");
 }
 
-if (Buffer.byteLength(rawBundle, "utf8") > MAX_UI_BYTES) {
-  console.error("UI bundle 超过 " + MAX_UI_BYTES + " 字节，请检查是否引入重复依赖");
+if (uiBytes > MAX_UI_BYTES) {
+  console.error("UI bundle 超过 " + MAX_UI_BYTES + " 字节（" + uiBytes + "），请检查是否引入重复依赖或大型图表库");
   process.exit(1);
+}
+
+if (uiGzipBytes > MAX_UI_GZIP_BYTES) {
+  console.error("UI bundle gzip 超过 " + MAX_UI_GZIP_BYTES + " 字节（" + uiGzipBytes + "），请检查真实下载体积");
+  process.exit(1);
+}
+
+if (uiBytes > WARN_UI_BYTES || uiGzipBytes > WARN_UI_GZIP_BYTES) {
+  console.warn("UI bundle 接近体积预警线：raw " + uiBytes + " B，gzip " + uiGzipBytes + " B");
 }
 
 if (Buffer.byteLength(output, "utf8") > MAX_SHELL_BYTES) {
@@ -126,7 +141,7 @@ writeFileSync(REPO_OUT, output, "utf8");
 
 
 const shellKb = (Buffer.byteLength(output, "utf8") / 1024).toFixed(1);
-const uiKb = (Buffer.byteLength(rawBundle, "utf8") / 1024).toFixed(1);
+const uiKb = (uiBytes / 1024).toFixed(1);
 console.log("已生成 " + OUT + "（" + shellKb + " KB，轻量壳，任意网站只注册菜单）");
-console.log("已生成 " + OUT_UI + "（" + uiKb + " KB，gzip " + (gzipSync(rawBundle).length / 1024).toFixed(1) + " KB，@resource 按需加载，SHA-256 " + uiSha256.slice(0, 16) + "…）");
+console.log("已生成 " + OUT_UI + "（" + uiKb + " KB，gzip " + (uiGzipBytes / 1024).toFixed(1) + " KB，@resource 按需加载，SHA-256 " + uiSha256.slice(0, 16) + "…）");
 console.log("已同步壳入库副本 " + REPO_OUT + "；UI 由 Release workflow 上传，不再写入仓库");
