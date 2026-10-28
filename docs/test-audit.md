@@ -43,3 +43,5 @@ pm run test:e2e:all` | Chromium / Firefox / WebKit 各跑一次 |
 - 三浏览器 E2E 只在发布 workflow 跑；
 - Node 22 不再作为独立 CI 矩阵（`engines` 仍允许，升级前手动验证）；
 - 文档/README 改动不再单独触发重复发布验证。
+
+验证：文档-only 提交应跳过 lint/build/单测/E2E。
