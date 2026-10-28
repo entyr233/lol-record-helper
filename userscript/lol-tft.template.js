@@ -280,25 +280,34 @@
     }
   }
 
+  function isHelperPage() {
+    return /^\/helper\/lol(?:\/|$)/.test(location.pathname);
+  }
+
   function mountLauncher() {
     if (document.getElementById("lol-tft-launcher")) return;
     try {
       injectStyle();
-      var launcher = document.createElement("button");
-      launcher.id = "lol-tft-launcher";
-      launcher.type = "button";
-      launcher.textContent = "LOL 战绩";
-      launcher.title = "打开 LOL 战绩查询（同源请求，自动使用当前登录态）";
-      launcher.addEventListener("click", openPanel);
       var parent = document.body || document.documentElement;
       if (!parent) {
         warn("document.body 还不存在，稍后重试");
         setTimeout(mountLauncher, 800);
         return;
       }
-      parent.appendChild(launcher);
       var lib = getLib();
       if (lib && typeof lib.mountHelperLogin === "function") lib.mountHelperLogin();
+      // 官方助手页已经有「LOL 助手增强」面板，再挂一个悬浮按钮会变成两个入口
+      if (isHelperPage()) {
+        log("助手页使用内嵌面板，跳过悬浮按钮");
+        return;
+      }
+      var launcher = document.createElement("button");
+      launcher.id = "lol-tft-launcher";
+      launcher.type = "button";
+      launcher.textContent = "LOL 战绩";
+      launcher.title = "打开 LOL 战绩查询（同源请求，自动使用当前登录态）";
+      launcher.addEventListener("click", openPanel);
+      parent.appendChild(launcher);
       log("入口按钮已挂载", parent === document.body ? "body" : "html");
     } catch (error) {
       warn("入口按钮挂载失败：", error);

@@ -1,6 +1,16 @@
 <template>
-  <section class="helper-login" aria-label="LOL 助手增强">
-    <header class="panel-head">
+  <section
+    ref="panelEl"
+    class="helper-login"
+    :class="{ 'helper-login--collapsed': collapsed, 'helper-login--positioned': pos !== null }"
+    :style="panelStyle"
+    aria-label="LOL 助手增强"
+  >
+    <header
+      class="panel-head"
+      :title="collapsed ? '点击展开；按住标题栏可拖动' : '按住标题栏可拖动调整位置'"
+      @pointerdown="startDrag"
+    >
       <strong>LOL 助手增强</strong>
       <button type="button" class="collapse" @click="collapsed = !collapsed">{{ collapsed ? "展开" : "收起" }}</button>
     </header>
@@ -30,6 +40,7 @@
         <div class="open-row">
           <button type="button" class="open-official" :disabled="!areaId" @click="openOfficialCareer">打开官方战绩</button>
         </div>
+        <button type="button" class="open-self" @click="openSelfPanel">打开自建战绩面板</button>
         <p class="hint">
           <template v-if="uin">
             官方助手页依赖登录态与 TGP 大区。脚本会在页面加载时补 TGP 桥；地址里没有参数时官方页面按当前登录用户展示全部模式战绩。
@@ -44,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { areas } from "../const/areas";
 import { readStorage, writeStorage } from "../utils/storage";
 import { getSelfUinFromCookie, triggerLogin, waitForLogin } from "../utils/weGameLogin";
@@ -56,7 +67,17 @@ const AREA_STORAGE_KEY = "lol-tft-helper-area";
 const emit = defineEmits<{ authenticated: []; refresh: [] }>();
 const { pending, loginError, run, cancel } = useLoginAction();
 
-const collapsed = ref(false);
+const collapsed = ref(readStorage<boolean>("helper-collapsed", true));
+const pos = ref<{ x: number; y: number } | null>(readStorage<{ x: number; y: number } | null>("helper-pos", null));
+const panelEl = ref<HTMLElement | null>(null);
+const panelStyle = computed(() => (pos.value ? { left: pos.value.x + "px", top: pos.value.y + "px" } : undefined));
+
+watch(collapsed, (value) => {
+  writeStorage("helper-collapsed", value);
+  void nextTick(() => {
+    if (pos.value) pos.value = clampPosition(pos.value.x, pos.value.y);
+  });
+});
 /** 记住上次选择的大区；首次打开时沿用自建面板记住的 last-area */
 const savedArea = Number(readStorage<number | string>(AREA_STORAGE_KEY, 0)) || Number(readStorage<string>("last-area", "")) || 0;
 const areaId = ref<number>(Number.isFinite(savedArea) ? savedArea : 0);
@@ -90,7 +111,49 @@ watch(areaId, (value) => {
   writeStorage(AREA_STORAGE_KEY, value);
 });
 
+/** 面板位置：默认固定在右下角；拖动后改为 left/top 并记住，展开/收起时重新夹回可视区 */
+function clampPosition(x: number, y: number): { x: number; y: number } {
+  const el = panelEl.value;
+  const width = el?.offsetWidth ?? 0;
+  const height = el?.offsetHeight ?? 0;
+  const maxX = Math.max(8, window.innerWidth - width - 8);
+  const maxY = Math.max(8, window.innerHeight - height - 8);
+  return { x: Math.min(Math.max(8, x), maxX), y: Math.min(Math.max(8, y), maxY) };
+}
+
+let dragOffset: { x: number; y: number } | null = null;
+
+function startDrag(event: PointerEvent): void {
+  if (event.button !== 0) return;
+  const target = event.target as HTMLElement | null;
+  if (target?.closest("button,a,input,select,label,summary")) return;
+  const el = panelEl.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  dragOffset = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  pos.value = clampPosition(rect.left, rect.top);
+  window.addEventListener("pointermove", onDragMove);
+  window.addEventListener("pointerup", endDrag, { once: true });
+  event.preventDefault();
+}
+
+function onDragMove(event: PointerEvent): void {
+  if (!dragOffset) return;
+  pos.value = clampPosition(event.clientX - dragOffset.x, event.clientY - dragOffset.y);
+}
+
+function endDrag(): void {
+  window.removeEventListener("pointermove", onDragMove);
+  if (dragOffset && pos.value) writeStorage("helper-pos", pos.value);
+  dragOffset = null;
+}
+
+function onViewportResize(): void {
+  if (pos.value) pos.value = clampPosition(pos.value.x, pos.value.y);
+}
+
 onMounted(() => {
+  window.addEventListener("resize", onViewportResize);
   // frame.html 在普通浏览器里不会初始化登录用户：跳到标准助手页（官方云顶页已不再提供入口）
   if (!isStandardHelperPage() && !isWeGameClient()) {
     const suffix = currentPage() === "history" ? "#/life/history" : "#/life/overview";
@@ -102,6 +165,8 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener("resize", onViewportResize);
+  window.removeEventListener("pointermove", onDragMove);
   if (errorTimer) clearTimeout(errorTimer);
   errorTimer = null;
 });
@@ -185,5 +250,15 @@ function openOfficial(page: OfficialPage): void {
 
 function openOfficialCareer(): void {
   openOfficial("overview");
+}
+
+/** 打开脚本自建的战绩面板；官方助手页不显示悬浮按钮，由这里提供唯一入口 */
+function openSelfPanel(): void {
+  const api = (window as unknown as { __LOL_TFT__?: { open?: () => void } }).__LOL_TFT__;
+  if (api && typeof api.open === "function") {
+    api.open();
+    return;
+  }
+  window.open("https://www.wegame.com.cn/", "_blank", "noopener");
 }
 </script>

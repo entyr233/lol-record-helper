@@ -87,4 +87,21 @@ describe("userscript panel lifecycle", () => {
     expect(document.getElementById("lol-tft-launcher")).not.toBeNull();
     expect(page.__LOL_TFT__).toBeDefined();
   });
+
+  it("官方助手页只保留内嵌助手面板，不再显示悬浮 LOL 战绩按钮", () => {
+    document.getElementById("lol-tft-launcher")?.remove();
+    document.getElementById("lol-tft-entry-style")?.remove();
+    window.history.replaceState({}, "", "/helper/lol/");
+    try {
+      new Function("LolTft", "console", source)(
+        { mountLolTft: mount, mountHelperLogin: mountHelper },
+        { log: vi.fn(), warn: vi.fn(), error: vi.fn() }
+      );
+      document.dispatchEvent(new Event("DOMContentLoaded"));
+      expect(mountHelper).toHaveBeenCalledTimes(2);
+      expect(document.getElementById("lol-tft-launcher")).toBeNull();
+    } finally {
+      window.history.replaceState({}, "", "/");
+    }
+  });
 });

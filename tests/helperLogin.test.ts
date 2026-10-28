@@ -12,6 +12,8 @@ let sdk: WeGameLoginSdk;
 beforeEach(() => {
   vi.useFakeTimers();
   localStorage.clear();
+  // 默认收起会让旧用例找不到控件，这里统一从展开态开始；收起/拖动另有专门用例。
+  localStorage.setItem("lol_tft:helper-collapsed", "false");
   reload = vi.fn();
   vi.stubGlobal("location", {
     hostname: "www.wegame.com.cn",
@@ -216,9 +218,29 @@ describe("官方助手登录入口", () => {
     root().querySelector<HTMLButtonElement>(".open-official")!.click();
     expect((location as unknown as { href?: string }).href).toBe("https://www.wegame.com.cn/helper/lol/#/life/overview");
     expect(localStorage.getItem("lol_tft:lol-tft-helper-area")).toBe("1");
-    // 官方「战绩」页本身就是历史战绩页：不再重复放「打开历史战绩」；自建面板由右下角悬浮按钮打开
+    // 官方「战绩」页本身就是历史战绩页：不再重复放「打开历史战绩」
     expect(root().querySelector(".open-history")).toBeNull();
-    expect(root().querySelector(".open-self")).toBeNull();
+  });
+
+  it("打开自建战绩时调用页面挂载的 __LOL_TFT__.open", () => {
+    const open = vi.fn();
+    (window as unknown as { __LOL_TFT__?: { open: () => void } }).__LOL_TFT__ = { open };
+    instance = mountHelperLogin();
+    root().querySelector<HTMLButtonElement>(".open-self")!.click();
+    expect(open).toHaveBeenCalledTimes(1);
+  });
+
+  it("默认收起为紧凑标题条，展开后恢复完整面板", async () => {
+    localStorage.removeItem("lol_tft:helper-collapsed");
+    instance = mountHelperLogin();
+    const panel = root().querySelector(".helper-login")!;
+    expect(panel.classList.contains("helper-login--collapsed")).toBe(true);
+    expect(root().querySelector(".panel-body")).toBeNull();
+    root().querySelector<HTMLButtonElement>(".collapse")!.click();
+    await nextTick();
+    expect(root().querySelector(".helper-login")!.classList.contains("helper-login--collapsed")).toBe(false);
+    expect(root().querySelector(".panel-body")).not.toBeNull();
+    expect(localStorage.getItem("lol_tft:helper-collapsed")).toBe("false");
   });
 
   it("没有选择大区时官方战绩按钮不可用", () => {

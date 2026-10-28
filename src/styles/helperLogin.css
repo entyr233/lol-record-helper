@@ -1,26 +1,41 @@
 :host {
   all: initial;
-  position: fixed;
-  right: 18px;
-  bottom: 70px;
   z-index: 1000;
-  width: min(360px, calc(100vw - 36px));
-  color: #ddd;
-  font: 13px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
 }
 * { box-sizing: border-box; }
 .helper-login {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: min(360px, calc(100vw - 36px));
   padding: 12px 14px;
   border: 1px solid #4c463d;
   border-radius: 8px;
   background: #1a2026;
   box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+  color: #ddd;
+  font: 13px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
 }
+/* 拖动后由 left/top 定位，覆盖默认的右下角锚点 */
+.helper-login--positioned {
+  right: auto;
+  bottom: auto;
+}
+/* 收起时只留一个小标题条，展开后再恢复 360px 面板 */
+.helper-login--collapsed {
+  width: auto;
+  padding: 7px 10px;
+}
+.helper-login--collapsed strong { font-size: 12px; }
+.helper-login--collapsed .collapse { padding: 2px 8px; }
 .panel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  cursor: move;
+  user-select: none;
+  touch-action: none;
 }
 strong { color: #d8bd7e; }
 p { margin: 8px 0; }
@@ -83,6 +98,7 @@ button {
 button:disabled { opacity: .6; cursor: default; }
 a { color: #d8bd7e; }
 .refresh { margin-top: 8px; }
+.open-self { margin-top: 8px; }
 .hint {
   color: #6c7683;
   font-size: 11px;
