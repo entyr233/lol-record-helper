@@ -62,6 +62,16 @@
           </div>
         </div>
       </div>
+      <details v-if="seasonRows.length > 1" class="season-history">
+        <summary>历史赛季段位（{{ seasonRows.length }}）</summary>
+        <ul class="season-list">
+          <li v-for="row in seasonRows" :key="row.key">
+            <span class="season-name">{{ row.season }}</span>
+            <span class="season-tier">{{ row.tier }}<template v-if="row.lp !== ''"> · {{ row.lp }} LP</template></span>
+            <span class="season-record"><template v-if="row.total > 0">{{ row.total }} 场 · {{ row.rate }}%</template></span>
+          </li>
+        </ul>
+      </details>
       <div class="summoner-recent">
         <RecentStats ref="recentRef" :area="area" :account-type="accountType" :id="id" :active-champion="activeChampion"
           :active-game-id="activeGameId" :mode="activeMode" :days="activeDays"
@@ -71,7 +81,6 @@
       <p v-if="loginError" class="state-text state-text--error" role="alert">{{ loginError }}</p>
       <button v-if="loggingIn" type="button" class="link-button" @click="cancel">取消等待</button>
     </Panel>
-    <PersonalRankHistory v-if="accountType === '1'" :key="area + ':' + id" :player-name="summoner?.name ?? ''" :area-name="getAreaName(area)" />
   </div>
 </template>
 
@@ -80,8 +89,6 @@ import { computed, onMounted, ref } from "vue";
 import Panel from "./Panel.vue";
 import GameIcon from "./GameIcon.vue";
 import RecentStats from "./RecentStats.vue";
-import PersonalRankHistory from "./PersonalRankHistory.vue";
-import { getAreaName } from "../const/areas";
 import { lolBattleApi } from "../api/client";
 import type { BattleSummary } from "../api/types";
 import { ApiError, toErrorMessage } from "../api/errors";
@@ -178,6 +185,45 @@ const tierText = computed(() => {
   if (label === "未定级") return label;
   const lp = best.win_point !== undefined && best.win_point !== "" ? " · " + best.win_point + " LP" : "";
   return label + lp;
+});
+
+/** 历史赛季段位：任意查询玩家的 GetBattleReport.season_list（每赛季一条，取最高段位） */
+interface SeasonRankRow {
+  key: string;
+  sid: number;
+  season: string;
+  tierValue: number;
+  tier: string;
+  lp: string;
+  total: number;
+  rate: number;
+}
+const seasonRows = computed<SeasonRankRow[]>(() => {
+  const rows = new Map<number, SeasonRankRow>();
+  for (const entry of counts.value?.season_list ?? []) {
+    const tier = Number(entry.tier);
+    const sid = Number(entry.sid);
+    if (!Number.isFinite(tier) || tier <= 0 || !Number.isFinite(sid) || sid <= 0) continue;
+    const wins = Number(entry.wins ?? 0);
+    const losses = Number(entry.losses ?? 0);
+    const listed = Number(entry.total ?? 0);
+    const total = Number.isFinite(listed) && listed > 0 ? listed : wins + losses;
+    // season_list.queue 是段位小分区（0-3），不是排位模式；同一赛季保留段位最高的记录
+    const division = Number(entry.queue);
+    const previous = rows.get(sid);
+    if (previous && tierOrder(tier) >= tierOrder(previous.tierValue)) continue;
+    rows.set(sid, {
+      key: String(sid),
+      sid,
+      season: "S" + sid,
+      tierValue: tier,
+      tier: tierLabel(tier, Number.isFinite(division) ? division : null),
+      lp: entry.win_point === undefined || entry.win_point === null || entry.win_point === "" ? "" : String(entry.win_point),
+      total: Number.isFinite(total) && total > 0 ? total : 0,
+      rate: total > 0 ? Math.round((wins / total) * 100) : 0
+    });
+  }
+  return [...rows.values()].sort((a, b) => b.sid - a.sid);
 });
 
 /** 修正旧版「匹配/排位」标签取反的问题：match = 匹配, rank = 排位 */

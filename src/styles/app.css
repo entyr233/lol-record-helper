@@ -2061,28 +2061,52 @@ summary:focus-visible,
   font-size: 12px;
 }
 
-.personal-rank {
-  margin-top: 18px;
-  padding: 16px 20px;
-  border: 1px solid #2f3844;
-  border-radius: 6px;
-  background: #151b21;
+/* 历史赛季段位（GetBattleReport.season_list，任意查询玩家） */
+.season-history {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #202831;
 }
-.personal-rank > summary { cursor: pointer; color: #d8bd7e; }
-.personal-rank p { margin: 10px 0; }
-.personal-rank-hint, .personal-rank-source { color: #99a6b6; font-size: 12px; overflow-wrap: anywhere; }
-.personal-rank label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 12px 8px 0; }
-.personal-rank select { padding: 5px 8px; color: #ddd; background: #19212b; border: 1px solid #3b4757; border-radius: 4px; }
-.personal-rank-import input { max-width: 100%; }
-.personal-rank-table { max-height: 420px; overflow: auto; margin-top: 12px; }
-.personal-rank table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
-.personal-rank th, .personal-rank td { padding: 9px 12px; white-space: nowrap; border-bottom: 1px solid #28313d; }
-.personal-rank th { position: sticky; top: 0; background: #202a36; color: #bec8d5; }
-.personal-rank-chart { display: block; width: 100%; max-height: 240px; margin-top: 12px; }
-.personal-rank-chart text { fill: #99a6b6; font-size: 12px; }
-.rank-chart-axis { stroke: #3b4757; }
-.rank-chart-line { fill: none; stroke: #d8bd7e; stroke-width: 2; }
-.rank-chart-dot { fill: #d8bd7e; }
+.season-history > summary {
+  cursor: pointer;
+  color: #b59758;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.season-list {
+  max-height: 220px;
+  margin: 8px 0 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.season-list li {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 2px;
+  border-bottom: 1px solid #202831;
+  font-size: 12px;
+}
+.season-list li:last-child {
+  border-bottom: 0;
+}
+.season-name {
+  color: #e6c37a;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.season-queue {
+  color: #8f99a6;
+}
+.season-tier {
+  color: #cfd6df;
+}
+.season-record {
+  color: #6c7683;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  text-align: right;
+}
 
 /* ---------- aram data (ARAMGG) ---------- */
 .aram-page {

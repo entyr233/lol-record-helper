@@ -60,11 +60,11 @@
 1. 海克斯强化推荐：在英雄详情旁显示公共排行与选择比例，复用当前强化名称和图标表；先核对统计口径和缺失名称。
 2. 英雄攻略页：提供版本、分路选择，以及出装、符文、技能和对位数据。公共接口已获得非空响应，适合独立于账号查询接入。
 3. 对局时间线与经济曲线：先确认现有掌盟详情响应中的实际字段，再补数据结构与图表。
-4. 历史段位：确认用户本人分享页 scene 的合法取得方式、有效期和身份，之后再决定是否恢复该功能。
+4. 历史段位：已改用 WeGame `GetBattleReport.season_list`（查询任意玩家时返回其各赛季段位），不再依赖掌盟分享页 scene 与 HAR 导入；掌盟 `get_rank_trend` 保持未接入。
 5. 完整掌盟战绩备用链路：需要先解决玩家标识、访问参数、分页与权限错误的对应关系，工作量明显高于接入公共统计。
 
 ## 公开来源
 
 - 接口与参数线索：[sunerpy/winer builds.rs，固定版本 9f1bb941face7b1c49870818d41e4529d931467b](https://github.com/sunerpy/winer/blob/9f1bb941face7b1c49870818d41e4529d931467b/crates/core/src/builds.rs)。本次读取的仓库更新时间为 2026-10-27（北京时间）。
 - 公共数据验证：[掌盟版本列表](https://mlol.qt.qq.com/go/database/versionlist?zone=lol&from=h5)、[安妮海克斯统计](https://mlol.qt.qq.com/go/battle_info/odp_proxy/fuwen_hero_rank?championid=1)。
-- 本地历史样本记录：`docs/har-analysis-20261027.md`、`docs/har-rank-history-20261027.md`。这些文档作为历史证据，不代表相关功能当前已接入。
+- 本地历史样本记录：`docs/har-analysis-20261027.md`。该文档作为历史证据，不代表相关功能当前已接入。
