@@ -1,6 +1,6 @@
 {
   "name": "lol-record-helper",
-  "version": "2.22.3",
+  "version": "2.22.4",
   "private": true,
   "type": "module",
   "description": "LOL 战绩助手：英雄联盟国服战绩查询与官方助手增强（WeGame 页面注入版）",

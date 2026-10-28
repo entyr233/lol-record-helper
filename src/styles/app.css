@@ -1586,8 +1586,8 @@ button {
 .recent-stats {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px 0 0;
+  gap: 8px;
+  padding: 10px 0 0;
   border-top: 1px solid var(--border-subtle);
 }
 .recent-side {
@@ -1687,7 +1687,7 @@ button {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin: 12px 0;
+  margin: 4px 0 8px;
 }
 .strip-end {
   flex: none;

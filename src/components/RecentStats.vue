@@ -36,7 +36,6 @@
       <button v-if="selectedMode !== 'all'" type="button" class="link-button" @click="selectMode('all')">查看全部模式</button>
     </p>
     <div v-if="sample.length" class="recent-expanded">
-      <p class="recent-expanded-title">详细统计 <span>对局走势、常用英雄与场均数据</span></p>
       <div class="recent-strip-wrap">
         <span class="strip-end">最早 {{ stripOldestLabel }}</span>
         <div class="recent-strip" :title="stripTitle">

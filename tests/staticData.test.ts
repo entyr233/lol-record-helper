@@ -25,7 +25,7 @@ describe("静态名称与图标", () => {
     let resolve!: (text: string) => void;
     gmGet.mockReturnValue(new Promise<string>((done) => { resolve = done; }));
     const name = computed(() => championName(1));
-    expect(name.value).toBe("");
+    expect(name.value).toBe("黑暗之女");
     const first = ensureChampionNames();
     const second = ensureChampionNames();
     expect(gmGet).toHaveBeenCalledTimes(1);
@@ -40,7 +40,7 @@ describe("静态名称与图标", () => {
     const { championName, ensureChampionNames } = await import("../src/api/staticData");
     gmGet.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce('[{"heroId":1,"name":"安妮"}]');
     await ensureChampionNames();
-    expect(championName(1)).toBe("");
+    expect(championName(1)).toBe("黑暗之女");
     await ensureChampionNames();
     expect(championName(1)).toBe("安妮");
   });
@@ -79,6 +79,7 @@ describe("静态名称与图标", () => {
     expect(championName(1)).toBe("安妮");
     await ensureChampionNames();
     expect(championName(2)).toBe("奥拉夫");
+    expect(championName(9999)).toBe("");
     expect(gmGet).toHaveBeenCalledTimes(2);
   });
 

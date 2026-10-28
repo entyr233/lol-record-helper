@@ -3,6 +3,7 @@ import { gmGet } from "./transport";
 import { readStorage, removeStorage, writeStorage } from "../utils/storage";
 import runeMap from "../data/runes.json";
 import itemMap from "../data/items.json";
+import championNameMap from "../data/champions.json";
 import type { ChampionSpell } from "./types";
 
 const CDRAGON_CHAMPION_ICON = "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-icons/";
@@ -12,6 +13,7 @@ const RUNE_ICON_BASE = "https://game.gtimg.cn/images/lol/act/img/rune/";
 
 const RUNES = runeMap as Record<string, { name: string; icon: string }>;
 const ITEMS = itemMap as Record<string, string>;
+const FALLBACK_CHAMPION_NAMES = championNameMap as Record<string, string>;
 
 const VERSION_KEY = "lol_tft:ddragon-version";
 const VERSION_TTL = 12 * 60 * 60 * 1000;
@@ -175,9 +177,10 @@ export function ensureChampionNames(): Promise<void> {
   return championNamesRequest;
 }
 
-/** 英雄数字 id -> 中文名（未加载/未知返回空串） */
+/** 英雄数字 id -> 中文名（网络未返回时使用内置表，未知返回空串） */
 export function championName(id: number): string {
-  return championNames.value?.get(Number(id)) ?? "";
+  const key = String(Number(id));
+  return championNames.value?.get(Number(id)) ?? FALLBACK_CHAMPION_NAMES[key] ?? "";
 }
 
 /** 设置页清理静态资料：同时清内存和持久化缓存，下次使用时会重新请求。 */
