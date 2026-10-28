@@ -37,12 +37,12 @@
               <span class="count-tier">{{ tierText }}</span>
             </p>
             <p class="summoner-line">{{ getAreaName(Number(area)) }} · 等级 {{ summoner.level }}</p>
+            <p class="summoner-line summoner-meta">经验 {{ summoner.experience }} · 赞 {{ summoner.praise }} · 黑 {{ summoner.discredit }}</p>
           </div>
         </div>
         <div ref="kpiHost" class="summoner-kpis"></div>
         <div class="summoner-stats">
           <p class="summoner-stats-title">场次统计与资料 <span v-if="reportError" class="state-text--error">· 加载失败</span></p>
-          <p class="summoner-line summoner-extra">经验 {{ summoner.experience }} · 赞 {{ summoner.praise }} · 黑 {{ summoner.discredit }}</p>
           <div class="summoner-stat-grid">
             <p v-if="reportLoading" class="summoner-report">统计加载中…</p>
             <p v-else-if="reportError" class="summoner-report summoner-report--error">

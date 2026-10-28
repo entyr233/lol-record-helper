@@ -38,7 +38,7 @@ describe("SummonerInfo independent statistics state", () => {
       expect(stats.get(".count-rate").text()).toContain("胜率");
       expect(stats.element.tagName).toBe("DIV");
       expect(wrapper.get(".summoner-base").text()).toContain("等级");
-      expect(stats.text()).toContain("赞");
+      expect(wrapper.get(".summoner-base").text()).toContain("赞");
     } finally { wrapper.unmount(); }
   });
 
