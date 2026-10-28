@@ -21,7 +21,7 @@
       </span>
       <span v-else class="dp-mini-col dp-mini-col--hex" title="海克斯强化">
         <template v-for="slot in augmentSlots.slice(0, 3)" :key="slot.id">
-          <GameIcon v-if="slot.icon" kind="url" :id="String(slot.id)" :src="slot.icon" :title="slot.name" />
+          <GameIcon v-if="slot.icon" kind="url" :id="String(slot.id)" :src="slot.icon" :title="slot.title" />
           <span v-else class="dp-augment-empty" :data-level="slot.level" />
         </template>
       </span>
@@ -145,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import GameIcon from "./GameIcon.vue";
 import Histogram from "./Histogram.vue";
 import type { PlayerDetail } from "../api/types";
@@ -155,6 +155,7 @@ import { formatGameScore, formatThousands, kdaRatio } from "../utils/format";
 import augmentMap from "../data/kiwi-augments.json";
 import { runeIconUrl } from "../api/staticData";
 import { summarizePlayers, type DamageKey, type PlayerStatistics } from "../utils/battlePlayers";
+import { useAramgg } from "../composables/useAramgg";
 
 const props = defineProps<{
   player: PlayerDetail;
@@ -196,13 +197,36 @@ const statistics = computed(() => props.statistics ?? summarizePlayers(props.pla
 const maxValues = computed(() => statistics.value.maxDamage);
 
 const AUGMENTS = augmentMap as Record<string, { name: string; icon: string; level: string }>;
+const { augmentOf: aramggAugmentOf, ensure: ensureAramgg } = useAramgg();
+onMounted(() => {
+  void ensureAramgg();
+});
+
+function augmentRarityLabel(level: string): string {
+  return level === "kPrismatic" ? "棱彩" : level === "kGold" ? "黄金" : level === "kSilver" ? "白银" : "";
+}
+
 const augmentSlots = computed(() => {
-  const slots: Array<{ id: number; name: string; icon: string; level: string }> = [];
+  const slots: Array<{ id: number; name: string; title: string; icon: string; level: string }> = [];
   for (const key of ["playerAugment1", "playerAugment2", "playerAugment3", "playerAugment4", "playerAugment5", "playerAugment6"] as const) {
     const id = Number(props.player[key] ?? 0);
     if (!Number.isFinite(id) || id === 0) continue;
     const info = AUGMENTS[String(id)];
-    slots.push({ id, name: info?.name ?? "", icon: info?.icon ? runeIconUrl(info.icon) : "", level: info?.level ?? "" });
+    const remote = aramggAugmentOf(id);
+    const name = remote?.name || info?.name || "";
+    const rarity = remote?.rarityDisplayName || augmentRarityLabel(info?.level ?? "");
+    const stats = remote?.stats;
+    const rate = typeof stats?.winRate === "number" ? "胜率 " + (stats.winRate * 100).toFixed(1) + "%" : "";
+    const pick = typeof stats?.pickRate === "number" ? "选取率 " + (stats.pickRate * 100).toFixed(1) + "%" : "";
+    const summary = [name, rarity, rate, pick].filter(Boolean).join(" · ");
+    const description = remote?.description || "";
+    slots.push({
+      id,
+      name,
+      title: description ? summary + "\n" + description : summary,
+      icon: remote?.iconUrl || (info?.icon ? runeIconUrl(info.icon) : ""),
+      level: info?.level ?? ""
+    });
   }
   return slots;
 });

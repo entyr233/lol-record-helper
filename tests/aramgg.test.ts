@@ -1,0 +1,172 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  AramggError,
+  clearAramggApiKey,
+  clearAramggMemoryCache,
+  fetchAramggChampionDetail,
+  fetchAramggOverview,
+  getAramggApiKey,
+  parseAugment,
+  parseChampionDetail,
+  parseOverview,
+  setAramggApiKey,
+  stripHtml
+} from "../src/api/aramgg";
+
+const config = { dataVersion: "16.21.2", gamePatch: "16.21", generatedAt: "2026-10-24T17:54:09.213Z" };
+const augments = {
+  data: [
+    {
+      id: 1001,
+      name: "泰坦的坚决",
+      rarity: 2,
+      rarityDisplayName: "棱彩",
+      iconUrl: "https://cdn.dtodo.cn/augment/1001.png",
+      description: "在造成或承受伤害时获得<scaleAF>适应之力</scaleAF>。",
+      tooltip: "",
+      stats: { tier: "5", winRate: "0.4826", pickRate: "0.1708", games: "1234", date: "2026-10-23" },
+      topChampions: [{ id: 223, name: "塔姆", iconUrl: "https://cdn.dtodo.cn/champ/223.png" }]
+    },
+    {
+      id: 1002,
+      name: "尖端发明家",
+      rarity: 1,
+      rarityDisplayName: "黄金",
+      iconUrl: null,
+      stats: { tier: "2", winRate: "0.5301", pickRate: "0.0901" }
+    }
+  ]
+};
+const champions = {
+  data: [
+    {
+      id: 17,
+      name: "提莫",
+      title: "迅捷斥候",
+      roles: ["marksman", "mage"],
+      iconUrl: "https://cdn.dtodo.cn/champ/17.png",
+      stats: { tier: "1", winRate: "0.5445", pickRate: "0.1366" }
+    }
+  ]
+};
+
+function jsonResponse(payload: unknown, status = 200): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => payload
+  } as unknown as Response;
+}
+
+describe("ARAMGG 数据解析", () => {
+  it("解析强化：去 HTML、比例转数字、保留 topChampions", () => {
+    const item = parseAugment(augments.data[0]);
+    expect(item).not.toBeNull();
+    expect(item!.name).toBe("泰坦的坚决");
+    expect(item!.description).toBe("在造成或承受伤害时获得适应之力。");
+    expect(item!.stats?.winRate).toBeCloseTo(0.4826);
+    expect(item!.stats?.tier).toBe(5);
+    expect(item!.topChampions[0]).toMatchObject({ id: 223, name: "塔姆" });
+  });
+
+  it("解析榜单概览并拒绝缺少 dataVersion 的配置", () => {
+    const overview = parseOverview(config, augments, champions);
+    expect(overview.dataVersion).toBe("16.21.2");
+    expect(overview.augments).toHaveLength(2);
+    expect(overview.champions[0]).toMatchObject({ id: 17, name: "提莫" });
+    expect(() => parseOverview({}, augments, champions)).toThrow(AramggError);
+  });
+
+  it("解析单英雄详情（推荐强化 + 出装）", () => {
+    const detail = parseChampionDetail({
+      data: {
+        champion: champions.data[0],
+        augments: [{ ...augments.data[1], stats: { tier: "1", rank: "1", winRate: "0.55", pickRate: "0.2" } }],
+        builds: [
+          {
+            tags: ["AP"],
+            games: 100,
+            wins: 55,
+            winRate: "0.55",
+            pickRate: "0.12",
+            coreItems: [{ id: 6655, name: "卢登的回声" }],
+            startingItems: [{ id: 1056 }],
+            summonerSpells: [{ spells: [{ id: 4 }, { id: 12 }], winRate: "0.6", pickRate: "0.3" }],
+            skillOrders: [{ skillKeys: ["E", "Q", "W", "Q"], winRate: "0.58" }]
+          }
+        ]
+      }
+    });
+    expect(detail.champion?.name).toBe("提莫");
+    expect(detail.augments[0].stats?.rank).toBe(1);
+    expect(detail.builds[0].coreItems[0]).toMatchObject({ id: 6655, name: "卢登的回声" });
+    expect(detail.builds[0].skillOrders[0].skillKeys).toEqual(["E", "Q", "W", "Q"]);
+  });
+
+  it("stripHtml 保留文本并处理常见实体", () => {
+    expect(stripHtml("<b>强化</b><br/>第二行 &amp; 更多")).toBe("强化 第二行 & 更多");
+    expect(stripHtml(null)).toBe("");
+  });
+});
+
+describe("ARAMGG 请求与缓存", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    clearAramggMemoryCache();
+    clearAramggApiKey();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+    clearAramggMemoryCache();
+  });
+
+  it("公开接口按 config → augments/champions 顺序拉取并缓存", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      calls.push(String(url));
+      if (String(url).endsWith("/config")) return jsonResponse(config);
+      if (String(url).endsWith("/augments.json")) return jsonResponse(augments);
+      if (String(url).endsWith("/champions.json")) return jsonResponse(champions);
+      return jsonResponse({}, 404);
+    }));
+
+    const first = await fetchAramggOverview();
+    expect(first.augments[0].name).toBe("泰坦的坚决");
+    expect(calls).toHaveLength(3);
+    expect(calls[0]).toBe("https://data.dtodo.cn/api/client/v1/config");
+
+    await fetchAramggOverview();
+    expect(calls).toHaveLength(3); // 命中缓存
+
+    await fetchAramggOverview(true);
+    expect(calls).toHaveLength(6);
+  });
+
+  it("单英雄详情需要 API Key，并带 Authorization 头且缓存结果", async () => {
+    await expect(fetchAramggChampionDetail(17)).rejects.toMatchObject({ status: 401 });
+
+    setAramggApiKey("hx_live_test");
+    expect(getAramggApiKey()).toBe("hx_live_test");
+    const calls: Array<{ url: string; headers?: Record<string, string> }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url: String(url), headers: init?.headers as Record<string, string> });
+      return jsonResponse({ data: { champion: champions.data[0], augments: [], builds: [] } });
+    }));
+
+    const detail = await fetchAramggChampionDetail(17);
+    expect(detail.champion?.name).toBe("提莫");
+    expect(calls[0].url).toBe("https://data.dtodo.cn/api/v1/zh-CN/champions/17.json");
+    expect(calls[0].headers?.Authorization).toBe("Bearer hx_live_test");
+
+    await fetchAramggChampionDetail(17);
+    expect(calls).toHaveLength(1); // 内存缓存
+  });
+
+  it("401/429 响应转换为可读错误", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({}, 401)));
+    await expect(fetchAramggOverview(true)).rejects.toMatchObject({ status: 401 });
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({}, 429)));
+    await expect(fetchAramggOverview(true)).rejects.toMatchObject({ status: 429 });
+  });
+});

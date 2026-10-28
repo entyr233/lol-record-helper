@@ -73,6 +73,7 @@
     <span class="header-spacer"></span>
 
     <a class="header-link" :href="GITHUB_URL" target="_blank" rel="noopener noreferrer" title="项目 GitHub 主页">GitHub ↗</a>
+    <router-link class="header-link" :to="{ name: 'aram' }" title="海克斯大乱斗数据（ARAMGG）">海克斯数据</router-link>
     <a class="header-link" :href="officialHelperUrl" target="_blank" rel="noopener noreferrer" title="官方 LOL 助手（同一账号与大区）">官方助手 ↗</a>
     <span class="header-version" title="脚本版本">v{{ version }}</span>
   </header>

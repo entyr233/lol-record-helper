@@ -48,6 +48,7 @@ export function createLolRouter(signal?: AbortSignal): Router {
             component: () => import("../views/SummaryView.vue"),
             props: true
           },
+          { path: "aram", name: "aram", component: () => import("../views/AramView.vue") },
           { path: ":pathMatch(.*)*", redirect: "/" }
         ]
       }

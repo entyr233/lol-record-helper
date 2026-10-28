@@ -22,6 +22,7 @@
 // @connect      game.gtimg.cn
 // @connect      www.wegame.com.cn
 // @connect      wegame.com.cn
+// @connect      data.dtodo.cn
 // @run-at       document-start
 // @downloadURL  https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft.user.js
 // @updateURL    https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft.user.js
