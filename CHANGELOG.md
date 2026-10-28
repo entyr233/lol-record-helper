@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- 测试与 CI 收敛：CI 只在 master/PR 触发，常规 CI 跑一次完整单测 + Chromium；发布 workflow 复用 CI 成功结果并跑一次三浏览器 E2E。
+- 日常开发新增 `check` / `test:related` / `test:e2e:build` 命令。
+- 删除 3 条静态/重复断言（repoLinks 2 条、appSmoke GitHub 入口 1 条），单测 534→531；详见 docs/test-audit.md。
+
 ## [2.18.0] - 2026-10-28
 
 ### Added

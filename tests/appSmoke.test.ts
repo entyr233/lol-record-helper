@@ -179,20 +179,6 @@ describe("整页冒烟（mock 数据）", () => {
     instance.unmount();
   });
 
-  it("顶栏提供 GitHub 主页入口", async () => {
-    const instance = mountLolTft({ host });
-    await instance.router.isReady();
-    await flushPromises();
-
-    const shadow = host.shadowRoot as ShadowRoot;
-    const link = shadow.querySelector(".header-link") as HTMLAnchorElement | null;
-    expect(link).not.toBeNull();
-    expect(link!.getAttribute("href")).toBe("https://github.com/entyr233/lol-record-helper");
-    expect(link!.getAttribute("target")).toBe("_blank");
-    expect(link!.getAttribute("rel")).toContain("noopener");
-    instance.unmount();
-  });
-
   it("列表时间范围筛选会同步总览统计（近 7 天）", async () => {
     const instance = mountLolTft({ host });
     await instance.router.isReady();

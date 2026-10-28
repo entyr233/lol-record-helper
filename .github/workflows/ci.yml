@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [master]
   pull_request:
   workflow_dispatch:
 
@@ -9,41 +10,30 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       LOL_TFT_COOKIE: ''
       LOL_TFT_MOCK: '1'
-    strategy:
-      fail-fast: false
-      matrix:
-        node: ['22.22.2', '24.x']
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          # jsdom 30 / undici 8 需要 Node 22.22+；22.22.2 与 24 各跑一遍
-          node-version: ${{ matrix.node }}
+          node-version: '24.x'
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
       - run: npm run build:all
       # 构建后的入库产物必须与源码一致，防止提交旧脚本/旧 UI
       - run: git diff --exit-code -- userscript
-      - if: matrix.node == '24.x'
-        run: npx playwright install --with-deps ${{ github.event_name == 'push' && 'chromium' || 'chromium firefox webkit' }}
-      - if: matrix.node == '24.x' && github.event_name == 'push'
-        run: npm run test:e2e -- --project=chromium
-      - if: matrix.node == '24.x' && github.event_name != 'push'
-        run: npm run test:e2e
-      - if: matrix.node == '22.22.2'
-        run: npm test
-      - if: matrix.node == '24.x'
-        run: npm run test:coverage
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      # 常规 CI 只跑一次完整单测（覆盖率模式包含全量测试）
+      - run: npm run test:coverage

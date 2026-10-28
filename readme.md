@@ -130,13 +130,14 @@ WeGame 的 `GetBattleReport.season_list` 历史赛季数据已被服务端下线
 ```bash
 npm install
 npm run dev          # 本地演示站（mock 数据），http://localhost:5173
-npm run typecheck    # vue-tsc
-npm test             # vitest
-npx playwright install chromium firefox webkit  # 首次安装浏览器
-npm run test:e2e     # 构建并运行三个浏览器的懒加载/可访问性/键盘测试
-npm run test:e2e -- --project=chromium  # 仅 Chromium；PW_EDGE=1 时使用系统 Edge
-npm run screenshots  # 用固定 mock 数据重新生成 README 截图
-npm run build:all    # typecheck + lib 构建 + userscript 打包 + 演示站
+npm run check        # lint + typecheck
+npm run test:related -- src/...   # 日常只跑相关单测
+npm test             # 全量 vitest
+npm run test:coverage
+npm run build:all
+npm run test:e2e:build   # 构建 + Chromium E2E；PW_EDGE=1 时使用系统 Edge
+npm run test:e2e:all     # 三浏览器，发布前
+npm run screenshots      # 用固定 mock 数据重新生成 README 截图
 ```
 
 构建产物：
