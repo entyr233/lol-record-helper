@@ -10,7 +10,7 @@ const script = fileURLToPath(new URL("../scripts/build-userscript.mjs", import.m
 const template = readFileSync(new URL("../userscript/lol-tft.template.js", import.meta.url), "utf8");
 const tempParent = realpathSync(tmpdir());
 let root: string;
-const bundle = 'var LolTft = {}; var literal = "$& $$ $` $\' __OTHER_TOKEN__";';
+const bundle = 'var LolTft = { mountLolTft: function () {}, mountHelperLogin: function () {} }; var literal = "$& $$ $` $\' __OTHER_TOKEN__";';
 
 beforeEach(() => {
   root = mkdtempSync(join(tempParent, "lol-tft-build-test-"));
@@ -37,36 +37,47 @@ function build() {
 }
 
 function outputPath() { return resolve(root, "dist/userscript/lol-tft.user.js"); }
+function outputUiPath() { return resolve(root, "dist/userscript/lol-tft-ui.js"); }
 
 describe("userscript packaging CLI", () => {
-  it("完整替换两个版本标记，原样保留 bundle 字面量和其他 token", () => {
+  it("生成轻量 shell 与独立 UI bundle，版本占位符全部替换", () => {
     const result = build();
     expect(result.status).toBe(0);
     const output = readFileSync(outputPath(), "utf8");
     expect(output).toContain("// @version      1.2.3-beta.1+test");
     expect(output).toContain('var VERSION = "1.2.3-beta.1+test";');
-    expect(output).toContain(bundle);
-    expect(output).toContain("__LOL_TFT__");
+    expect(output).toContain("@resource     lol-tft-ui");
+    expect(output).toContain("lol-tft-ui.js?v=1.2.3-beta.1+test");
+    expect(output).not.toContain(bundle);
     expect(output).not.toContain("__VERSION__");
+    expect(output).not.toContain("__UI_VERSION__");
     expect(output).not.toContain("__BUNDLE__");
     expect(output.startsWith("// ==UserScript==")).toBe(true);
+    expect(Buffer.byteLength(output, "utf8")).toBeLessThan(64 * 1024);
     expect(() => new Function(output)).not.toThrow();
+
+    const ui = readFileSync(outputUiPath(), "utf8");
+    expect(ui).toBe(bundle);
+    expect(readFileSync(join(root, "userscript/lol-tft.user.js"), "utf8")).toBe(output);
+    expect(readFileSync(join(root, "userscript/lol-tft-ui.js"), "utf8")).toBe(ui);
   });
 
-  it.each(["missing-version", "extra-version", "wrong-version-location", "missing-bundle", "extra-bundle", "bad-header"])(
+  it.each(["missing-version", "extra-version", "wrong-version-location", "missing-ui-version", "inline-bundle", "bad-header"])(
     "模板 %s 时拒绝生成，保留已有输出", (kind) => {
       let invalid = template;
       if (kind === "missing-version") invalid = template.replace("__VERSION__", "1.0.0");
       if (kind === "extra-version") invalid += "\n// __VERSION__";
       if (kind === "wrong-version-location") invalid = template.replace("var VERSION =", "var OTHER =");
-      if (kind === "missing-bundle") invalid = template.replace("/*__BUNDLE__*/", "");
-      if (kind === "extra-bundle") invalid += "\n/*__BUNDLE__*/";
+      if (kind === "missing-ui-version") invalid = template.split("__UI_VERSION__").join("1.0.0");
+      if (kind === "inline-bundle") invalid += "\n/*__BUNDLE__*/";
       if (kind === "bad-header") invalid = "\uFEFF" + template;
       writeFileSync(join(root, "userscript/lol-tft.template.js"), invalid);
       mkdirSync(dirname(outputPath()), { recursive: true });
       writeFileSync(outputPath(), "existing output");
+      writeFileSync(outputUiPath(), "existing ui");
       expect(build().status).toBe(1);
       expect(readFileSync(outputPath(), "utf8")).toBe("existing output");
+      expect(readFileSync(outputUiPath(), "utf8")).toBe("existing ui");
     }
   );
 
@@ -74,12 +85,18 @@ describe("userscript packaging CLI", () => {
     writeFileSync(join(root, "package.json"), JSON.stringify({ version: '1.0.0";\n// @grant unsafeWindow' }));
     expect(build().status).toBe(1);
     expect(existsSync(outputPath())).toBe(false);
+    expect(existsSync(outputUiPath())).toBe(false);
   });
 
-  it("bundle 中出现保留构建标记时拒绝生成，不静默改写 bundle", () => {
-    writeFileSync(join(root, "dist/lol/lol.umd.js"), bundle + '\nvar reserved = "__VERSION__";');
+  it.each([
+    ["Node 引用", bundle + '\nvar bad = process.env.NODE_ENV;'],
+    ["保留构建标记", bundle + '\nvar reserved = "__VERSION__";'],
+    ["不是 LolTft UMD", "var Other = {};"]
+  ])("UI bundle 出现%s时拒绝生成", (_label, invalidBundle) => {
+    writeFileSync(join(root, "dist/lol/lol.umd.js"), invalidBundle);
     expect(build().status).toBe(1);
     expect(existsSync(outputPath())).toBe(false);
+    expect(existsSync(outputUiPath())).toBe(false);
   });
 
   it("README 指向实际生成文件和安装入口", () => {

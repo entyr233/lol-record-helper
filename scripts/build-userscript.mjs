@@ -1,6 +1,7 @@
-// 生成可直接安装的单文件油猴脚本：
-// - dist/userscript/lol-tft.user.js（构建产物）
-// - userscript/lol-tft.user.js（入库副本，提供 GitHub raw 直装/自动更新地址）
+// 生成可直接安装的油猴脚本（轻量菜单壳 + 按需加载的 UI bundle）：
+// - dist/userscript/lol-tft.user.js（shell，任意网站注入只注册菜单）
+// - dist/userscript/lol-tft-ui.js（UI bundle，@resource 按需加载）
+// - userscript/lol-tft.user.js / userscript/lol-tft-ui.js（入库副本，GitHub raw 直装/自动更新）
 // 用法：npm run build:userscript（会先构建 lib bundle）
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
@@ -8,7 +9,10 @@ const BUNDLE = "dist/lol/lol.umd.js";
 const TEMPLATE = "userscript/lol-tft.template.js";
 const OUT_DIR = "dist/userscript";
 const OUT = OUT_DIR + "/lol-tft.user.js";
+const OUT_UI = OUT_DIR + "/lol-tft-ui.js";
 const REPO_OUT = "userscript/lol-tft.user.js";
+const REPO_UI = "userscript/lol-tft-ui.js";
+const MAX_SHELL_BYTES = 64 * 1024;
 
 if (!existsSync(BUNDLE)) {
   console.error("找不到 " + BUNDLE + "，请先运行 npm run build");
@@ -34,27 +38,51 @@ if (typeof pkg.version !== "string" || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0
 }
 
 if (template.split("__VERSION__").length - 1 !== 2 ||
+    template.split("__UI_VERSION__").length - 1 !== 2 ||
     (template.match(/^\/\/ @version[ \t]+__VERSION__\r?$/gm) || []).length !== 1 ||
-    (template.match(/^[ \t]*var VERSION = "__VERSION__";\r?$/gm) || []).length !== 1 ||
-    template.split("/*__BUNDLE__*/").length - 1 !== 1) {
-  console.error("模板必须恰含一个元信息版本、一个运行时版本和一个 bundle 占位符");
+    (template.match(/^[ \t]*var VERSION = "__VERSION__";\r?$/gm) || []).length !== 1) {
+  console.error("模板必须恰含一个元信息版本、一个运行时版本和两个 UI 资源版本占位符");
+  process.exit(1);
+}
+
+if (template.includes("/*__BUNDLE__*/") || template.includes("__BUNDLE__")) {
+  console.error("模板不再接受内联 bundle 占位符（UI 已改为 @resource 按需加载）");
+  process.exit(1);
+}
+
+if (rawBundle.includes("__VERSION__") || rawBundle.includes("__BUNDLE__")) {
+  console.error("UI bundle 中出现保留构建标记，拒绝生成");
+  process.exit(1);
+}
+
+if (!/^\s*var LolTft\s*=/.test(rawBundle) || !rawBundle.includes("mountLolTft")) {
+  console.error("UI bundle 不是预期的 LolTft UMD 产物");
   process.exit(1);
 }
 
 const output = template
   .replaceAll("__VERSION__", () => pkg.version)
-  .replace("/*__BUNDLE__*/", () => rawBundle);
+  .replaceAll("__UI_VERSION__", () => pkg.version);
 
-if (!output.startsWith("// ==UserScript==") || output.includes("__VERSION__") || output.includes("__BUNDLE__")) {
+if (!output.startsWith("// ==UserScript==") || output.includes("__VERSION__") || output.includes("__UI_VERSION__")) {
   console.error("用户脚本起始头无效或仍包含未替换占位符");
+  process.exit(1);
+}
+
+if (Buffer.byteLength(output, "utf8") > MAX_SHELL_BYTES) {
+  console.error("用户脚本壳超过 " + MAX_SHELL_BYTES + " 字节，UI bundle 可能又被内联进来了");
   process.exit(1);
 }
 
 mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(OUT, output, "utf8");
-// 同时写入入库副本：GitHub raw 地址可直接安装，并由 @updateURL 自动更新
+writeFileSync(OUT_UI, rawBundle, "utf8");
+// 入库副本：GitHub raw 地址可直接安装，并由 @updateURL / @resource 自动更新
 writeFileSync(REPO_OUT, output, "utf8");
+writeFileSync(REPO_UI, rawBundle, "utf8");
 
-const kb = (Buffer.byteLength(output, "utf8") / 1024).toFixed(1);
-console.log("已生成 " + OUT + "（" + kb + " KB，含内联 bundle，无需任何外部托管）");
-console.log("已同步入库副本 " + REPO_OUT + "（GitHub raw 直装/自动更新）");
+const shellKb = (Buffer.byteLength(output, "utf8") / 1024).toFixed(1);
+const uiKb = (Buffer.byteLength(rawBundle, "utf8") / 1024).toFixed(1);
+console.log("已生成 " + OUT + "（" + shellKb + " KB，轻量壳，任意网站只注册菜单）");
+console.log("已生成 " + OUT_UI + "（" + uiKb + " KB，@resource 按需加载）");
+console.log("已同步入库副本 " + REPO_OUT + " / " + REPO_UI + "（GitHub raw 直装/自动更新）");

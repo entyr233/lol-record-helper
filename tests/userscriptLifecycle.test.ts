@@ -50,9 +50,10 @@ afterEach(() => {
 });
 
 describe("userscript panel lifecycle", () => {
-  it("脚本启动时安装助手页入口，不需要先打开自建面板", () => {
-    expect(mountHelper).toHaveBeenCalledTimes(1);
+  it("脚本启动时在 WeGame 页面挂入口按钮，但不预加载 UI", () => {
+    expect(mountHelper).not.toHaveBeenCalled();
     expect(mount).not.toHaveBeenCalled();
+    expect(document.getElementById("lol-tft-launcher")).not.toBeNull();
     expect(scripts()).toHaveLength(0);
   });
 
@@ -158,7 +159,7 @@ describe("userscript panel lifecycle", () => {
         { log: vi.fn(), warn: vi.fn(), error: vi.fn() }
       );
       document.dispatchEvent(new Event("DOMContentLoaded"));
-      expect(mountHelper).toHaveBeenCalledTimes(2);
+      expect(mountHelper).toHaveBeenCalledTimes(1);
       expect(document.getElementById("lol-tft-launcher")).toBeNull();
     } finally {
       document.getElementById("lol-tft-launcher")?.remove();

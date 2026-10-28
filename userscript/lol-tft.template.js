@@ -17,14 +17,17 @@
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wegame.com.cn
 // @license      ISC
 // @grant        GM_xmlhttpRequest
+// @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
+// @resource     lol-tft-ui https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft-ui.js?v=__UI_VERSION__
 // @connect      mlol.qt.qq.com
 // @connect      lol.qq.com
 // @connect      game.gtimg.cn
 // @connect      www.wegame.com.cn
 // @connect      wegame.com.cn
 // @connect      data.dtodo.cn
+// @connect      raw.githubusercontent.com
 // @run-at       document-start
 // @downloadURL  https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft.user.js
 // @updateURL    https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft.user.js
@@ -37,11 +40,11 @@
  * 是同源请求，浏览器会自动带上你的登录 cookie —— 和旧版脚本的体验一致。
  *
  * v0.15：改为单文件分发（UI 打包内联），不再依赖 lol-tft.pages.dev 上的远端 bundle。
+ * v2.13：UI bundle 改为按需加载（@resource + GM_getResourceText），脚本主体保持精简，
+ *        只有 WeGame / 官方助手页或点击悬浮按钮时才加载 UI。
  */
 
-/* ================= lol-tft UI bundle（构建时自动内联，勿手动编辑） ================= */
-/*__BUNDLE__*/
-/* ================= 以上为内联 bundle ================= */
+/* ================= lol-tft UI bundle 改为按需加载（@resource） ================= */
 
 (function () {
   "use strict";
@@ -201,14 +204,118 @@
   var loading = false;
   var generation = 0;
 
+  var UI_RESOURCE = "lol-tft-ui";
+  var UI_URL = "https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft-ui.js?v=__UI_VERSION__";
+  var libCache = null;
+  var libPromise = null;
+
+  /** 已内联/已加载/页面全局可用的 UI（测试与热更新场景） */
   function getLib() {
+    if (libCache) return libCache;
     try {
       if (typeof LolTft !== "undefined" && LolTft && typeof LolTft.mountLolTft === "function") return LolTft;
     } catch (e) { /* ignore */ }
     try {
-      if (typeof unsafeWindow !== "undefined" && unsafeWindow.LolTft) return unsafeWindow.LolTft;
+      if (typeof unsafeWindow !== "undefined" && unsafeWindow && unsafeWindow.LolTft) return unsafeWindow.LolTft;
     } catch (e) { /* ignore */ }
-    return window.LolTft || null;
+    try {
+      if (window.LolTft && typeof window.LolTft.mountLolTft === "function") return window.LolTft;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  /** 执行 UI bundle：优先 new Function（沙箱内），被 CSP 拦时退回页面内联注入 */
+  function evaluateLib(text) {
+    try {
+      var factory = new Function(text + "\n;return (typeof LolTft !== 'undefined' ? LolTft : null);");
+      var evaluated = factory();
+      if (evaluated && typeof evaluated.mountLolTft === "function") return evaluated;
+    } catch (error) {
+      warn("new Function 执行 UI 失败，尝试页面注入：", error);
+    }
+    var script = document.createElement("script");
+    script.textContent = text;
+    (document.head || document.documentElement).appendChild(script);
+    script.remove();
+    var pageLib = null;
+    try { pageLib = (typeof unsafeWindow !== "undefined" && unsafeWindow && unsafeWindow.LolTft) || window.LolTft || null; } catch (e) { /* ignore */ }
+    if (pageLib && typeof pageLib.mountLolTft === "function") return pageLib;
+    throw new Error("UI bundle 无法执行（可能被页面 CSP 拦截）");
+  }
+
+  function requestUiText() {
+    return new Promise(function (resolve, reject) {
+      if (typeof GM_xmlhttpRequest === "function") {
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: UI_URL,
+          timeout: 30000,
+          onload: function (response) {
+            if (response.status >= 200 && response.status < 300 && response.responseText) resolve(response.responseText);
+            else reject(new Error("加载 UI 失败：HTTP " + response.status));
+          },
+          onerror: function () { reject(new Error("加载 UI 网络错误")); },
+          ontimeout: function () { reject(new Error("加载 UI 超时")); }
+        });
+        return;
+      }
+      if (typeof fetch === "function") {
+        fetch(UI_URL, { credentials: "omit" }).then(function (response) {
+          if (!response.ok) throw new Error("加载 UI 失败：HTTP " + response.status);
+          return response.text();
+        }).then(resolve, reject);
+        return;
+      }
+      reject(new Error("当前环境无法加载 UI bundle"));
+    });
+  }
+
+  /**
+   * 按需加载 UI：
+   * - 普通网站不调用，脚本只保留菜单；
+   * - WeGame 助手页启动时加载（显示登录/大区面板）；
+   * - 普通 WeGame 页面在点击「LOL 战绩」时才加载。
+   */
+  function ensureLib() {
+    var current = getLib();
+    if (current) return Promise.resolve(current);
+    if (libPromise) return libPromise;
+
+    var resourceText = "";
+    try {
+      if (typeof GM_getResourceText === "function") resourceText = GM_getResourceText(UI_RESOURCE) || "";
+    } catch (e) { /* @resource 不可用时走远端 */ }
+
+    if (resourceText) {
+      try {
+        libCache = evaluateLib(resourceText);
+        return Promise.resolve(libCache);
+      } catch (error) {
+        warn("内置 UI 解析失败，尝试远端加载：", error);
+      }
+    }
+
+    libPromise = requestUiText().then(function (text) {
+      libCache = evaluateLib(text);
+      return libCache;
+    });
+    libPromise.then(function () { libPromise = null; }, function () { libPromise = null; });
+    return libPromise;
+  }
+
+  /** 助手页需要 UI 面板：有现成 lib 就同步挂，没有则异步加载后挂 */
+  function mountHelperPanel() {
+    if (!isHelperPage()) return;
+    var current = getLib();
+    if (current && typeof current.mountHelperLogin === "function") {
+      current.mountHelperLogin();
+      return;
+    }
+    ensureLib().then(function (loaded) {
+      if (loaded && typeof loaded.mountHelperLogin === "function") loaded.mountHelperLogin();
+    }).catch(function (error) {
+      warn("助手面板 UI 加载失败：", error);
+    });
   }
 
   function injectStyle() {
@@ -252,7 +359,6 @@
     if (loading || overlay) return;
     loading = true;
     var currentGeneration = ++generation;
-    var lib = getLib();
     injectStyle();
 
     var launcher = document.getElementById("lol-tft-launcher");
@@ -280,12 +386,19 @@
     overlay.appendChild(host);
     document.body.appendChild(overlay);
     document.documentElement.style.overflow = "hidden";
+    host.textContent = "正在加载战绩界面…";
 
-    if (!lib) {
-      host.textContent = "战绩脚本未正确加载：bundle 缺失（请重新构建 userscript）";
-      loading = false;
+    var lib;
+    try {
+      lib = await ensureLib();
+    } catch (error) {
+      if (currentGeneration !== generation || overlay !== currentOverlay || !host.isConnected) return;
+      host.textContent = "战绩界面加载失败：" + (error && error.message ? error.message : String(error));
+      console.error("[lol-tft]", error);
+      if (currentGeneration === generation) loading = false;
       return;
     }
+
     try {
       // 不预载登录 SDK：其初始化票据握手在拦截插件环境下会把有效会话换失效。
       // 需要登录时由应用内「登录 / 重新登录」按钮按需注入。
@@ -320,8 +433,8 @@
         setTimeout(mountLauncher, 800);
         return;
       }
-      var lib = getLib();
-      if (lib && typeof lib.mountHelperLogin === "function") lib.mountHelperLogin();
+      // 助手页才需要 UI 面板；普通 WeGame 页面在点击悬浮按钮时才加载 UI
+      mountHelperPanel();
       // 官方助手页已经有「LOL 助手增强」面板，再挂一个悬浮按钮会变成两个入口
       if (isHelperPage()) {
         log("助手页使用内嵌面板，跳过悬浮按钮");

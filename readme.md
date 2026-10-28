@@ -92,17 +92,19 @@ npm test             # vitest
 ## 构建与安装
 
 ~~~bash
-npm run build:userscript   # dist/userscript/lol-tft.user.js（单文件，含内联 UI）
+npm run build:userscript   # dist/userscript/lol-tft.user.js（轻量壳）+ lol-tft-ui.js（UI，按需加载）
 npm run build:app          # dist/site/（演示页）
 ~~~
 
-**直接安装（推荐）**：打开
+**直接安装（推荐）**：只安装
 `https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft.user.js`
-ScriptCat/Tampermonkey 会识别为可安装脚本；此后脚本会通过 `@updateURL` 自动更新到仓库里的最新构建。
+ScriptCat/Tampermonkey 会识别为可安装脚本；脚本里的 `@resource` 会自动下载 UI（`userscript/lol-tft-ui.js`），此后通过 `@updateURL` 自动更新到最新版本。**不要把 `lol-tft-ui.js` 当脚本单独安装**，它只是 UI 资源。
 
 也可以本地构建后把 `dist/userscript/lol-tft.user.js` 拖进浏览器（ScriptCat/Tampermonkey）→ 覆盖安装 → F5。
-构建时会把同一份产物同步写入 `userscript/lol-tft.user.js`（入库副本，供 raw 直装/自动更新），两者内容必须一致。
+构建时会把两份产物同步写入 `userscript/lol-tft.user.js`（壳）和 `userscript/lol-tft-ui.js`（UI），两者都由脚本版本号锁定，更新脚本时会一起刷新。
 装好后脚本列表菜单里可直接「打开自建战绩面板 / 打开官方助手页 / 项目主页 / 反馈」，无需进编辑界面。
+
+**UI 按需加载**：壳只有约 21KB，在任意网站只负责注册菜单；UI 约 300KB，只在进入 WeGame 官方助手页、或点击「LOL 战绩」悬浮按钮时才加载（官方助手页首次打开会自动加载）。这样普通网页不再解析整套 Vue UI。
 
 脚本为了让这些菜单在**任何网站**都可见，元信息使用 `http://*/*` + `https://*/*` 匹配；但只有 WeGame / `lol.qq.com` 页面会注入悬浮按钮和助手面板，其他网站只注册脚本菜单、不改页面。在别的网站点「打开自建战绩面板」会新开 `https://www.wegame.com.cn/?lol_tft_panel=1` 并自动弹出面板；「打开官方助手页」直接打开官方助手页。
 本仓库：https://github.com/entyr233/lol-tft
