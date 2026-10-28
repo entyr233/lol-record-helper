@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
 const FILE = "dist/userscript/lol-tft.user.js";
@@ -19,7 +20,7 @@ describe.skipIf(!available)("轻量油猴脚本与按需加载 UI", () => {
     expect(code).toContain("__LOL_TFT__");
 
     // UI 不再内联，改由 @resource 按需加载
-    expect(metadata).toMatch(/^\/\/ @resource[ \t]+lol-tft-ui[ \t]+https:\/\/raw\.githubusercontent\.com\/entyr233\/lol-record-helper\/master\/userscript\/lol-tft-ui\.js\?v=[^\s]+\r?$/m);
+    expect(metadata).toMatch(/^\/\/ @resource[ \t]+lol-tft-ui[ \t]+https:\/\/raw\.githubusercontent\.com\/entyr233\/lol-record-helper\/v[^/]+\/userscript\/lol-tft-ui\.js\r?$/m);
     expect(metadata).toMatch(/^\/\/ @grant[ \t]+GM_getResourceText\r?$/m);
     expect(code).not.toContain("var LolTft=");
     expect(Buffer.byteLength(code, "utf8")).toBeLessThan(64 * 1024);
@@ -51,6 +52,9 @@ describe.skipIf(!available)("轻量油猴脚本与按需加载 UI", () => {
   it("独立 UI bundle 可执行，并导出两个挂载入口", () => {
     const ui = readFileSync(UI_FILE, "utf8");
     expect(normalizeEol(readFileSync("userscript/lol-tft-ui.js", "utf8"))).toBe(normalizeEol(ui));
+    const shell = readFileSync(FILE, "utf8");
+    const uiHash = createHash("sha256").update(normalizeEol(ui), "utf8").digest("hex");
+    expect(shell).toContain('var UI_SHA256 = "' + uiHash + '";');
     expect(ui.startsWith("var LolTft=")).toBe(true);
     const factory = new Function(
       "process",

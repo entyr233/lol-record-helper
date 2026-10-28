@@ -6,12 +6,14 @@
  *   每次 2 credits，见 developer.html）；Key 只存本机 localStorage，不写进代码或仓库。
  * - 数据比例字段均为 0-1 小数。
  */
-import { readStorage, writeStorage } from "../utils/storage";
+import { readStorage, removeStorage, writeStorage } from "../utils/storage";
 
 const ORIGIN = "https://data.dtodo.cn";
 const CLIENT_API = ORIGIN + "/api/client/v1";
 const DATA_API = ORIGIN + "/api/v1/zh-CN";
 const API_KEY_STORAGE = "aramgg-api-key";
+const API_KEY_SESSION_STORAGE = "aramgg-api-key-session";
+const API_KEY_SESSION_ONLY_STORAGE = "aramgg-api-key-session-only";
 const OVERVIEW_CACHE_STORAGE = "aramgg-overview";
 const CHAMPION_CACHE_PREFIX = "aramgg-champion:";
 const OVERVIEW_TTL_MS = 6 * 60 * 60 * 1000;
@@ -114,20 +116,60 @@ export interface AramggOverviewCache {
 
 /* ------------------------------ API Key ------------------------------ */
 
+function readSessionApiKey(): string {
+  try {
+    return String(sessionStorage.getItem("lol_tft:" + API_KEY_SESSION_STORAGE) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function writeSessionApiKey(key: string): void {
+  try {
+    sessionStorage.setItem("lol_tft:" + API_KEY_SESSION_STORAGE, key);
+  } catch {
+    /* 隐私模式等场景忽略 */
+  }
+}
+
+function clearSessionApiKey(): void {
+  try {
+    sessionStorage.removeItem("lol_tft:" + API_KEY_SESSION_STORAGE);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function getAramggApiKey(): string {
-  return String(readStorage<string>(API_KEY_STORAGE, "") || "").trim();
+  return (String(readStorage<string>(API_KEY_STORAGE, "") || "").trim() || readSessionApiKey()).trim();
 }
 
 export function hasAramggApiKey(): boolean {
   return getAramggApiKey().length > 0;
 }
 
-export function setAramggApiKey(key: string): void {
-  writeStorage(API_KEY_STORAGE, key.trim());
+export function isAramggApiKeySessionOnly(): boolean {
+  return Boolean(readStorage<boolean>(API_KEY_SESSION_ONLY_STORAGE, false));
+}
+
+/** sessionOnly=true 时只写 sessionStorage，关闭标签页即失效 */
+export function setAramggApiKey(key: string, sessionOnly = false): void {
+  const value = key.trim();
+  if (sessionOnly) {
+    removeStorage(API_KEY_STORAGE);
+    writeStorage(API_KEY_SESSION_ONLY_STORAGE, true);
+    writeSessionApiKey(value);
+  } else {
+    clearSessionApiKey();
+    writeStorage(API_KEY_SESSION_ONLY_STORAGE, false);
+    writeStorage(API_KEY_STORAGE, value);
+  }
 }
 
 export function clearAramggApiKey(): void {
-  writeStorage(API_KEY_STORAGE, "");
+  clearSessionApiKey();
+  writeStorage(API_KEY_SESSION_ONLY_STORAGE, false);
+  removeStorage(API_KEY_STORAGE);
 }
 
 /* ------------------------------ 数据解析 ------------------------------ */

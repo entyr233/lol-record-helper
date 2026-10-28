@@ -143,11 +143,11 @@ describe("整页冒烟（mock 数据）", () => {
       await instance.router.isReady();
       await flushPromises();
       const shadow = host.shadowRoot as ShadowRoot;
-      response: {
-        // 顶栏应出现登录按钮、不应出现注销
-        expect(shadow.textContent).toContain("登录");
-        expect(shadow.textContent).not.toContain("注销");
-      }
+      // 顶栏应出现登录按钮、不应出现注销
+      expect(shadow.textContent).toContain("登录");
+      expect(shadow.textContent).not.toContain("注销");
+
+
       instance.unmount();
     } finally {
       if (sdk && original) sdk.isLogin = original;

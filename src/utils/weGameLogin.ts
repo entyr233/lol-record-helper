@@ -134,7 +134,7 @@ function normalizeUin(value: unknown): string | null {
 async function readAccount(options: LoginWaitOptions, waitForSession: boolean): Promise<{ uin: string }> {
   const deadline = Date.now() + (options.timeoutMs ?? (waitForSession ? 180000 : 4000));
   const api = await readySdk(Math.min(deadline, Date.now() + 4000), options.signal);
-  let error = new LoginError("ACCOUNT_UNAVAILABLE", "已登录，但尚未读取到账号，请点击重新读取账号重试。");
+  let error: LoginError | undefined;
   do {
     if (options.signal?.aborted) throw cancelled();
     try {

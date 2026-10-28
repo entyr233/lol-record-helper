@@ -18,6 +18,18 @@ export default defineConfig({
     environment: "jsdom",
     css: true,
     include: ["tests/**/*.test.ts"],
-    restoreMocks: true
+    restoreMocks: true,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov"],
+      include: ["src/**/*.{ts,vue}"],
+      exclude: ["src/data/**", "src/dev/**", "src/**/*.d.ts"],
+      thresholds: {
+        statements: 78,
+        branches: 65,
+        functions: 75,
+        lines: 80
+      }
+    }
   }
 });

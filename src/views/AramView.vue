@@ -22,6 +22,7 @@
         </p>
         <p v-if="hasKey && !editingKey" class="aram-source-key">
           已配置：<code>{{ maskedKey }}</code>
+          <span v-if="keySessionOnly" class="aram-key-session-tag">仅本次会话</span>
           <button type="button" class="link-button" @click="editingKey = true">更换</button>
           <button type="button" class="link-button" @click="removeKey">清除</button>
           <a href="https://data.dtodo.cn/developer.html" target="_blank" rel="noopener noreferrer">开发者后台 ↗</a>
@@ -35,6 +36,10 @@
             placeholder="hx_live_…"
             aria-label="ARAMGG API Key"
           />
+          <label class="aram-key-session">
+            <input v-model="keySessionOnly" type="checkbox" />
+            仅本次会话保存
+          </label>
           <button type="submit" class="summary-refresh" :disabled="!keyDraft">保存</button>
           <button v-if="hasKey" type="button" class="summary-refresh" @click="editingKey = false">取消</button>
           <a href="https://data.dtodo.cn/developer.html" target="_blank" rel="noopener noreferrer">申请 API Key ↗</a>
@@ -210,6 +215,7 @@ import {
   fetchAramggChampionDetail,
   getAramggApiKey,
   hasAramggApiKey,
+  isAramggApiKeySessionOnly,
   setAramggApiKey,
   type AramggAugment,
   type AramggChampion,
@@ -230,6 +236,7 @@ const detailError = ref<string | null>(null);
 
 const hasKey = ref(hasAramggApiKey());
 const editingKey = ref(false);
+const keySessionOnly = ref(isAramggApiKeySessionOnly());
 const keyDraft = ref(getAramggApiKey());
 
 onMounted(() => {
@@ -324,7 +331,7 @@ async function selectChampion(id: number): Promise<void> {
 }
 
 function saveKey(): void {
-  setAramggApiKey(keyDraft.value);
+  setAramggApiKey(keyDraft.value, keySessionOnly.value);
   hasKey.value = hasAramggApiKey();
   keyDraft.value = getAramggApiKey();
   editingKey.value = false;
@@ -334,6 +341,7 @@ function saveKey(): void {
 function removeKey(): void {
   clearAramggApiKey();
   hasKey.value = false;
+  keySessionOnly.value = false;
   keyDraft.value = "";
   editingKey.value = true;
   detail.value = null;

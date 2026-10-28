@@ -153,6 +153,7 @@ describe("userscript panel lifecycle", () => {
     document.getElementById("lol-tft-launcher")?.remove();
     document.getElementById("lol-tft-entry-style")?.remove();
     stubLocation({ pathname: "/helper/lol/", href: "https://www.wegame.com.cn/helper/lol/" });
+    document.getElementById("lol-tft-launcher")?.remove();
     try {
       new Function("LolTft", "console", source)(
         { mountLolTft: mount, mountHelperLogin: mountHelper },
@@ -163,6 +164,25 @@ describe("userscript panel lifecycle", () => {
       expect(document.getElementById("lol-tft-launcher")).toBeNull();
     } finally {
       document.getElementById("lol-tft-launcher")?.remove();
+    }
+  });
+  it("助手面板 UI 加载失败时显示可重试提示", async () => {
+    stubLocation({ pathname: "/helper/lol/", href: "https://www.wegame.com.cn/helper/lol/" });
+    document.getElementById("lol-tft-launcher")?.remove();
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("offline"))));
+    try {
+      new Function("LolTft", "console", source)(
+        undefined as unknown as { mountLolTft: unknown },
+        { log: vi.fn(), warn: vi.fn(), error: vi.fn() }
+      );
+      document.dispatchEvent(new Event("DOMContentLoaded"));
+      await vi.advanceTimersByTimeAsync(1);
+      const error = document.getElementById("lol-tft-helper-error");
+      expect(error).not.toBeNull();
+      expect(error?.textContent).toContain("LOL 助手增强加载失败");
+      expect(error?.textContent).toContain("重试");
+    } finally {
+      document.getElementById("lol-tft-helper-error")?.remove();
     }
   });
 });

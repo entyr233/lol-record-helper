@@ -2,7 +2,7 @@
   <span class="game-icon" :class="'game-icon--' + kind">
     <img
       class="game-icon-img"
-      :src="src"
+      :src="imageSrc"
       :title="failed ? '图标加载失败' : title"
       :alt="title || kind"
       loading="lazy"
@@ -65,7 +65,7 @@ const baseSrc = computed(() => {
   }
 });
 
-const src = computed(() => (failed.value ? FALLBACK_ICON : spellIcon.value || baseSrc.value));
+const imageSrc = computed(() => (failed.value ? FALLBACK_ICON : spellIcon.value || baseSrc.value));
 
 const title = computed(() => {
   // 明确传入的 title 优先（例如海克斯强化名称、装备自定义说明）

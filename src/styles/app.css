@@ -2387,3 +2387,22 @@ summary:focus-visible,
   }
 }
 
+
+.aram-key-session {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #9aa4b2;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.aram-key-session input {
+  accent-color: #b59758;
+}
+.aram-key-session-tag {
+  padding: 1px 6px;
+  border: 1px solid #4c463d;
+  border-radius: 10px;
+  color: #b59758;
+  font-size: 11px;
+}

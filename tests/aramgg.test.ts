@@ -6,6 +6,7 @@ import {
   fetchAramggChampionDetail,
   fetchAramggOverview,
   getAramggApiKey,
+  isAramggApiKeySessionOnly,
   parseAugment,
   parseChampionDetail,
   parseOverview,
@@ -121,6 +122,16 @@ describe("ARAMGG 请求与缓存", () => {
     clearAramggMemoryCache();
   });
 
+  it("sessionOnly Key 不写 localStorage，清空会话后失效", () => {
+    sessionStorage.clear();
+    setAramggApiKey("hx_live_session", true);
+    expect(getAramggApiKey()).toBe("hx_live_session");
+    expect(isAramggApiKeySessionOnly()).toBe(true);
+    expect(localStorage.getItem("lol_tft:aramgg-api-key")).toBeNull();
+    sessionStorage.clear();
+    expect(getAramggApiKey()).toBe("");
+    clearAramggApiKey();
+  });
   it("公开接口按 config → augments/champions 顺序拉取并缓存", async () => {
     const calls: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {

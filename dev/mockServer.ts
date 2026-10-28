@@ -210,7 +210,7 @@ export function devApiPlugin(): Plugin {
           try {
             body = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
           } catch {
-            body = {};
+            /* 保持默认空对象 */
           }
           const payload = route(method, body);
           logger.info("[lol-tft] mock " + method + " " + JSON.stringify(body).slice(0, 100));

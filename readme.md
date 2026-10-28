@@ -47,6 +47,13 @@
 > 脚本壳约 **21KB**，在任意网站只注册菜单；UI 约 **300KB**，只在进入官方助手页或点击「LOL 战绩助手」时才加载。
 
 **更新**：脚本会通过 `@updateURL` 自动检查更新，也可以重新打开上面的安装链接覆盖安装。
+### 权限说明
+
+脚本为了在**任何网站**都能显示脚本菜单，声明了 `http://*/*` + `https://*/*`：
+
+- 非 WeGame / `lol.qq.com` 页面只执行约 21KB 的轻量壳，用于注册菜单，不注入悬浮按钮、不加载 UI、不读取页面内容；
+- 只有 WeGame / `lol.qq.com` 页面会注入战绩面板或掌盟桥接；
+- 如果你不希望它在某些站点运行，可以在 ScriptCat / Tampermonkey 的脚本设置里按站点排除。
 
 ## 功能一览
 
@@ -95,7 +102,7 @@
 - **英雄榜**：173 个英雄的海克斯大乱斗胜率/选取率排序；点开需要 ARAMGG API Key，展示推荐强化、核心装/出门装和技能加点。
 - 对局详情里的强化图标悬浮提示会显示「名称 · 品质 · 胜率 · 选取率 · 描述」。
 
-数据来自 [ARAMGG](https://aramgg.com/)（`data.dtodo.cn`）：榜单走公开客户端接口，免 Key；单英雄推荐走开发者接口，每次 2 credits，结果缓存 12 小时。API Key 在「海克斯数据」页填写，只保存在本机 `localStorage`，不会写进代码、仓库或上传；额度每天 200 credits（北京时间 08:00 重置）。榜单按需加载，打开战绩页不会自动请求。
+数据来自 [ARAMGG](https://aramgg.com/)（`data.dtodo.cn`）：榜单走公开客户端接口，免 Key；单英雄推荐走开发者接口，每次 2 credits，结果缓存 12 小时。API Key 在「海克斯数据」页填写，可勾选「仅本次会话保存」；默认只保存在本机 `localStorage`，不会写进代码、仓库或上传；额度每天 200 credits（北京时间 08:00 重置）。榜单按需加载，打开战绩页不会自动请求。
 
 ## 数据源与鉴权
 
@@ -173,16 +180,22 @@ docs/             代码审查报告 / HAR 分析 / 迁移说明 / README 截图
 
 本项目调用 WeGame / 掌盟的非公开接口，仅供个人查询使用，不做批量抓取；不收集、不上传任何数据。诊断工具只读取被拒响应的结构，不包含 cookie。
 
+## 命名说明
+
+- 项目/仓库/脚本显示名为 **LOL 战绩助手**，GitHub 仓库为 `lol-record-helper`；
+- 构建产物仍沿用 `lol-tft.user.js` / `lol-tft-ui.js`，是为了兼容旧安装的 `@updateURL` 与 `@resource`，避免升级断链；
+- 脚本 `@namespace` 保留上游的 `mscststs`，同样是为了让脚本管理器把新版识别为「同一脚本的更新」，而不是新装一个重复脚本。
 ## 相关文档
 
 - 审查建议核查与处理：`docs/review-resolution-2026-10-28.md`
 - 上游 Vue 2 审查归档：`docs/code-review-2026-10.md`
 - HAR 分析（掌盟接口族逆向）：`docs/har-analysis-20261027.md`
 - Vue2 → Vue3 迁移说明：`docs/migration-vue2-to-vue3.md`
+- 变更记录：`CHANGELOG.md`
 
 ---
 
 <p align="center">
   <sub>数据来自 WeGame / 腾讯公开接口，仅供参考；本项目与 Riot Games、腾讯官方无关。</sub><br />
-  <sub>原项目：<a href="https://greasyfork.org/zh-CN/scripts/454184">lol-tft（mscststs）</a> · 许可证：ISC</sub>
+  <sub>原项目：<a href="https://greasyfork.org/zh-CN/scripts/454184">lol-tft（mscststs）</a> · 许可证：<a href="LICENSE">ISC</a></sub>
 </p>

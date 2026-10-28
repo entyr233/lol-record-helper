@@ -157,7 +157,7 @@ function sortPlayers(players: PlayerDetail[], key: SortKey, teamKills: number): 
 /** 行内名次（排序时显示第 N 名 + 该项数值） */
 function rankOf(player: PlayerDetail, index: number, teamKills: number, key: SortKey): { rank: number; label: string } | null {
   if (key === "default") return null;
-  let label = "";
+  let label: string;
   if (key === "damage") label = (player.totalDamageToChampions || 0) + " 伤害";
   else if (key === "taken") label = (player.totalDamageTaken || 0) + " 承伤";
   else if (key === "gold") label = (player.goldEarned || 0) + " 经济";

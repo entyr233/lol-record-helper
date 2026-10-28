@@ -23,4 +23,12 @@ export function writeStorage(name: string, value: unknown): void {
   }
 }
 
-export const storage = { read: readStorage, write: writeStorage };
+export function removeStorage(name: string): void {
+  try {
+    localStorage.removeItem(key(name));
+  } catch {
+    /* ignore */
+  }
+}
+
+export const storage = { read: readStorage, write: writeStorage, remove: removeStorage };

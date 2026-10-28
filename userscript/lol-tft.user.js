@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LOL 战绩助手
 // @namespace    mscststs
-// @version      2.13.1
+// @version      2.14.0
 // @description  LOL 战绩助手：英雄联盟国服战绩查询，支持官方助手登录、大区切换与掌盟详情回退
 // @author       mscststs
 // @homepage     https://github.com/entyr233/lol-record-helper
@@ -20,7 +20,7 @@
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
-// @resource     lol-tft-ui https://raw.githubusercontent.com/entyr233/lol-record-helper/master/userscript/lol-tft-ui.js?v=2.13.1
+// @resource     lol-tft-ui https://raw.githubusercontent.com/entyr233/lol-record-helper/v2.14.0/userscript/lol-tft-ui.js
 // @connect      mlol.qt.qq.com
 // @connect      lol.qq.com
 // @connect      game.gtimg.cn
@@ -49,7 +49,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "2.13.1";
+  var VERSION = "2.14.0";
 
   /** 只有 WeGame / lol.qq.com 页面才挂载悬浮按钮和面板 */
   function isWegameHost() {
@@ -143,6 +143,7 @@
     var wegameOriginRe = /^https:\/\/(www\.)?wegame\.com\.cn$/;
     globalThis.addEventListener("message", function (event) {
       if (!wegameOriginRe.test(event.origin)) return;
+      if (!event.source) return;
       var data = event.data;
       if (!data || data.type !== "lol-tft-detail-request") return;
       if (!data.id) return;
@@ -167,7 +168,11 @@
     function notifyReady() {
       try {
         if (window.parent && window.parent !== window) {
-          window.parent.postMessage({ type: "lol-tft-bridge-ready" }, "*");
+          var targetOrigin = "*";
+          try {
+            if (document.referrer) targetOrigin = new URL(document.referrer).origin;
+          } catch (e) { /* referrer 不可解析时退回广播 */ }
+          window.parent.postMessage({ type: "lol-tft-bridge-ready" }, targetOrigin);
         }
       } catch (e) { /* ignore */ }
     }
@@ -205,9 +210,36 @@
   var generation = 0;
 
   var UI_RESOURCE = "lol-tft-ui";
-  var UI_URL = "https://raw.githubusercontent.com/entyr233/lol-record-helper/master/userscript/lol-tft-ui.js?v=2.13.1";
+  // 固定到 tag（不可变）而不是 master；UI 内容再用 SHA-256 二次校验
+  var UI_URL = "https://raw.githubusercontent.com/entyr233/lol-record-helper/v2.14.0/userscript/lol-tft-ui.js";
+  var UI_SHA256 = "27c047a2e5ec6181de2ea29bd79c4e16da66f89176ceaf8fb861992465c6586d";
   var libCache = null;
   var libPromise = null;
+
+  function normalizeUiText(text) {
+    return String(text || "").replace(/\r\n/g, "\n");
+  }
+
+  function sha256Hex(text) {
+    if (typeof crypto === "undefined" || !crypto.subtle || typeof TextEncoder === "undefined") {
+      return Promise.reject(new Error("当前浏览器不支持 UI 完整性校验（缺少 WebCrypto）"));
+    }
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalizeUiText(text))).then(function (buffer) {
+      return Array.prototype.map.call(new Uint8Array(buffer), function (byte) {
+        return ("0" + byte.toString(16)).slice(-2);
+      }).join("");
+    });
+  }
+
+  /** 校验通过后才执行；不匹配直接拒绝，避免执行被篡改的远端 UI */
+  function verifyAndEvaluate(text) {
+    return sha256Hex(text).then(function (hash) {
+      if (!UI_SHA256 || hash !== UI_SHA256) {
+        throw new Error("UI 资源完整性校验失败（可能被篡改或版本不匹配），已拒绝执行");
+      }
+      return evaluateLib(normalizeUiText(text));
+    });
+  }
 
   /** 已内联/已加载/页面全局可用的 UI（测试与热更新场景） */
   function getLib() {
@@ -286,21 +318,73 @@
       if (typeof GM_getResourceText === "function") resourceText = GM_getResourceText(UI_RESOURCE) || "";
     } catch (e) { /* @resource 不可用时走远端 */ }
 
+    var task;
     if (resourceText) {
-      try {
-        libCache = evaluateLib(resourceText);
-        return Promise.resolve(libCache);
-      } catch (error) {
-        warn("内置 UI 解析失败，尝试远端加载：", error);
-      }
+      task = verifyAndEvaluate(resourceText).catch(function (error) {
+        warn("内置 UI 校验/解析失败，尝试从固定 tag 重新下载：", error);
+        return requestUiText().then(verifyAndEvaluate).catch(function (remoteError) {
+          var first = error && error.message ? error.message : String(error);
+          var second = remoteError && remoteError.message ? remoteError.message : String(remoteError);
+          throw new Error("内置 UI 校验失败：" + first + "；远端重试失败：" + second);
+        });
+      });
+    } else {
+      task = requestUiText().then(verifyAndEvaluate);
     }
 
-    libPromise = requestUiText().then(function (text) {
-      libCache = evaluateLib(text);
-      return libCache;
+    libPromise = task.then(function (loaded) {
+      libCache = loaded;
+      return loaded;
     });
     libPromise.then(function () { libPromise = null; }, function () { libPromise = null; });
     return libPromise;
+  }
+
+  function clearHelperLoadError() {
+    var existing = document.getElementById("lol-tft-helper-error");
+    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+  }
+
+  /** 助手页 UI 下载失败时显示可重试提示，避免右下角“什么都没有” */
+  function showHelperLoadError(error) {
+    if (!isHelperPage() || document.getElementById("lol-tft-helper-error")) return;
+    var box = document.createElement("div");
+    box.id = "lol-tft-helper-error";
+    box.setAttribute("role", "alert");
+    box.style.cssText = [
+      "position:fixed;right:18px;bottom:18px;z-index:2147483000;max-width:min(360px,calc(100vw - 36px));",
+      "display:flex;flex-direction:column;gap:6px;padding:10px 12px;color:#ddd;background:#1a2026;",
+      "border:1px solid #4c463d;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.35);",
+      "font:12px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;"
+    ].join("");
+    var title = document.createElement("strong");
+    title.textContent = "LOL 助手增强加载失败";
+    title.style.color = "#d8bd7e";
+    var detail = document.createElement("span");
+    detail.textContent = "请检查网络或脚本管理器的资源权限，也可以打开 UI 资源地址后再重试。";
+    var row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap;";
+    var retry = document.createElement("button");
+    retry.type = "button";
+    retry.textContent = "重试";
+    retry.style.cssText = "padding:4px 10px;color:#d8bd7e;background:#242c37;border:1px solid #4c463d;border-radius:4px;cursor:pointer;";
+    retry.addEventListener("click", function () {
+      clearHelperLoadError();
+      mountHelperPanel();
+    });
+    var link = document.createElement("a");
+    link.href = UI_URL;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "打开 UI 资源";
+    link.style.color = "#b59758";
+    row.appendChild(retry);
+    row.appendChild(link);
+    box.appendChild(title);
+    box.appendChild(detail);
+    box.appendChild(row);
+    if (error) console.warn("[lol-tft] 助手面板加载失败：", error);
+    (document.body || document.documentElement).appendChild(box);
   }
 
   /** 助手页需要 UI 面板：有现成 lib 就同步挂，没有则异步加载后挂 */
@@ -308,13 +392,16 @@
     if (!isHelperPage()) return;
     var current = getLib();
     if (current && typeof current.mountHelperLogin === "function") {
+      clearHelperLoadError();
       current.mountHelperLogin();
       return;
     }
     ensureLib().then(function (loaded) {
+      clearHelperLoadError();
       if (loaded && typeof loaded.mountHelperLogin === "function") loaded.mountHelperLogin();
     }).catch(function (error) {
       warn("助手面板 UI 加载失败：", error);
+      showHelperLoadError(error);
     });
   }
 
@@ -367,6 +454,9 @@
     overlay = document.createElement("div");
     var currentOverlay = overlay;
     overlay.id = "lol-tft-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "LOL 战绩助手");
 
     var head = document.createElement("div");
     head.id = "lol-tft-overlay-head";
@@ -375,6 +465,7 @@
     var closeBtn = document.createElement("button");
     closeBtn.type = "button";
     closeBtn.className = "lol-tft-overlay-close";
+    closeBtn.setAttribute("aria-label", "关闭走势面板");
     closeBtn.textContent = "✕ 关闭 (Esc)";
     closeBtn.addEventListener("click", closePanel);
     head.appendChild(title);
@@ -443,6 +534,7 @@
       var launcher = document.createElement("button");
       launcher.id = "lol-tft-launcher";
       launcher.type = "button";
+      launcher.setAttribute("aria-label", "打开 LOL 战绩助手");
       launcher.textContent = "LOL 战绩助手";
       launcher.title = "打开 LOL 战绩助手（同源请求，自动使用当前登录态）";
       launcher.addEventListener("click", openPanel);
