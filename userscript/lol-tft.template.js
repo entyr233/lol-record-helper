@@ -20,13 +20,15 @@
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
-// @resource     lol-tft-ui https://cdn.jsdelivr.net/gh/entyr233/lol-record-helper@v__UI_VERSION__/userscript/lol-tft-ui.js
+// @resource     lol-tft-ui https://github.com/entyr233/lol-record-helper/releases/download/v__UI_VERSION__/lol-tft-ui.js
 // @connect      mlol.qt.qq.com
 // @connect      lol.qq.com
 // @connect      game.gtimg.cn
 // @connect      www.wegame.com.cn
 // @connect      wegame.com.cn
 // @connect      data.dtodo.cn
+// @connect      github.com
+// @connect      objects.githubusercontent.com
 // @connect      cdn.jsdelivr.net
 // @connect      fastly.jsdelivr.net
 // @connect      raw.githubusercontent.com
@@ -51,6 +53,8 @@
 (function () {
   "use strict";
 
+/*__LOADER__*/
+
   var VERSION = "__VERSION__";
 
   /** 只有 WeGame / lol.qq.com 页面才挂载悬浮按钮和面板 */
@@ -65,7 +69,7 @@
   // 注册后脚本列表里就能直接看到这些入口，不必进「编辑」界面找链接。
   // 脚本通过 *://*/* 匹配在任意网站运行，因此菜单在任何网址都可见；
   // 非 WeGame 页面不会注入悬浮按钮。
-  var PROJECT_HOME = "https://github.com/entyr233/lol-record-helper";
+  var PROJECT_HOME = "https://github.com/__REPO__";
   var OFFICIAL_HELPER_URL = "https://www.wegame.com.cn/helper/lol/";
   var PANEL_HOME_URL = "https://www.wegame.com.cn/?lol_tft_panel=1";
 
@@ -215,38 +219,21 @@
   var UI_RESOURCE = "lol-tft-ui";
   // 固定到 tag（不可变）而不是 master；UI 内容再用 SHA-256 二次校验
   var UI_TAG = "v__UI_VERSION__";
-  var UI_URLS = [
-    "https://cdn.jsdelivr.net/gh/entyr233/lol-record-helper@" + UI_TAG + "/userscript/lol-tft-ui.js",
-    "https://fastly.jsdelivr.net/gh/entyr233/lol-record-helper@" + UI_TAG + "/userscript/lol-tft-ui.js",
-    "https://raw.githubusercontent.com/entyr233/lol-record-helper/" + UI_TAG + "/userscript/lol-tft-ui.js"
-  ];
+  var UI_URLS = LolTftLoader.buildUiUrls("__REPO__", UI_TAG);
   var UI_URL = UI_URLS[0];
   var UI_SHA256 = "__UI_SHA256__";
   var libCache = null;
   var libPromise = null;
 
-  function normalizeUiText(text) {
-    return String(text || "").replace(/\r\n/g, "\n");
-  }
 
-  function sha256Hex(text) {
-    if (typeof crypto === "undefined" || !crypto.subtle || typeof TextEncoder === "undefined") {
-      return Promise.reject(new Error("当前浏览器不支持 UI 完整性校验（缺少 WebCrypto）"));
-    }
-    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalizeUiText(text))).then(function (buffer) {
-      return Array.prototype.map.call(new Uint8Array(buffer), function (byte) {
-        return ("0" + byte.toString(16)).slice(-2);
-      }).join("");
-    });
-  }
 
   /** 校验通过后才执行；不匹配直接拒绝，避免执行被篡改的远端 UI */
   function verifyAndEvaluate(text) {
-    return sha256Hex(text).then(function (hash) {
+    return LolTftLoader.sha256Hex(text).then(function (hash) {
       if (!UI_SHA256 || hash !== UI_SHA256) {
         throw new Error("UI 资源完整性校验失败（可能被篡改或版本不匹配），已拒绝执行");
       }
-      return evaluateLib(normalizeUiText(text));
+      return evaluateLib(LolTftLoader.normalizeUiText(text));
     });
   }
 
@@ -474,14 +461,13 @@
   }
 
   function diagnosticsText(error) {
-    var message = error && error.message ? error.message : String(error || "");
-    return [
-      "LOL 战绩助手 v" + VERSION,
-      "UI SHA-256: " + UI_SHA256,
-      "URL: " + location.href,
-      "UA: " + navigator.userAgent,
-      "错误: " + message
-    ].join("\n");
+    return LolTftLoader.diagnosticsText({
+      version: VERSION,
+      sha256: UI_SHA256,
+      href: location.href,
+      userAgent: navigator.userAgent,
+      error: error
+    });
   }
 
   function copyText(text) {

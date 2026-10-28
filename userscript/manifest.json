@@ -1,0 +1,6 @@
+{
+  "name": "LOL 战绩助手",
+  "namespace": "mscststs",
+  "repo": "entyr233/lol-record-helper",
+  "uiResource": "lol-tft-ui"
+}

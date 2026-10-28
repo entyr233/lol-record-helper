@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          persist-credentials: false
+          persist-credentials: true
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24.x'
@@ -33,4 +33,15 @@ jobs:
           generate_release_notes: true
           files: |
             userscript/lol-tft.user.js
-            userscript/lol-tft-ui.js
+            dist/userscript/lol-tft-ui.js
+      - name: Publish UI fallback branch
+        run: |
+          cp dist/userscript/lol-tft-ui.js /tmp/lol-tft-ui.js
+          git checkout --orphan ui
+          git rm -rf . >/dev/null 2>&1 || true
+          cp /tmp/lol-tft-ui.js ./lol-tft-ui.js
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lol-tft-ui.js
+          git commit -m "ui: ${GITHUB_REF_NAME}"
+          git push --force origin HEAD:ui

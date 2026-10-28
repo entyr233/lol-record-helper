@@ -17,9 +17,11 @@ const uiHash = createHash("sha256").update(bundle.replace(/\r\n/g, "\n"), "utf8"
 beforeEach(() => {
   root = mkdtempSync(join(tempParent, "lol-tft-build-test-"));
   mkdirSync(join(root, "dist/lol"), { recursive: true });
-  mkdirSync(join(root, "userscript"));
+  mkdirSync(join(root, "userscript/src"), { recursive: true });
   writeFileSync(join(root, "dist/lol/lol.umd.js"), bundle);
   writeFileSync(join(root, "userscript/lol-tft.template.js"), template);
+  writeFileSync(join(root, "userscript/manifest.json"), readFileSync(new URL("../userscript/manifest.json", import.meta.url), "utf8"));
+  writeFileSync(join(root, "userscript/src/loader.ts"), readFileSync(new URL("../userscript/src/loader.ts", import.meta.url), "utf8"));
   writeFileSync(join(root, "package.json"), JSON.stringify({ version: "1.2.3-beta.1+test" }));
 });
 
@@ -49,13 +51,15 @@ describe("userscript packaging CLI", () => {
     expect(output).toContain("// @version      1.2.3-beta.1+test");
     expect(output).toContain('var VERSION = "1.2.3-beta.1+test";');
     expect(output).toContain("@resource     lol-tft-ui");
-    expect(output).toContain("https://cdn.jsdelivr.net/gh/entyr233/lol-record-helper@v1.2.3-beta.1+test/userscript/lol-tft-ui.js");
-    expect(output).toContain('"https://raw.githubusercontent.com/entyr233/lol-record-helper/" + UI_TAG + "/userscript/lol-tft-ui.js"');
+    expect(output).toContain("https://github.com/entyr233/lol-record-helper/releases/download/v1.2.3-beta.1+test/lol-tft-ui.js");
+    expect(output).toContain("LolTftLoader");
     expect(output).toContain('var UI_SHA256 = "' + uiHash + '";');
     expect(output).not.toContain(bundle);
     expect(output).not.toContain("__VERSION__");
     expect(output).not.toContain("__UI_VERSION__");
     expect(output).not.toContain("__UI_SHA256__");
+    expect(output).not.toContain("__REPO__");
+    expect(output).not.toContain("__LOADER__");
     expect(output).not.toContain("__BUNDLE__");
     expect(output.startsWith("// ==UserScript==")).toBe(true);
     expect(Buffer.byteLength(output, "utf8")).toBeLessThan(64 * 1024);
@@ -64,7 +68,7 @@ describe("userscript packaging CLI", () => {
     const ui = readFileSync(outputUiPath(), "utf8");
     expect(ui).toBe(bundle);
     expect(readFileSync(join(root, "userscript/lol-tft.user.js"), "utf8")).toBe(output);
-    expect(readFileSync(join(root, "userscript/lol-tft-ui.js"), "utf8")).toBe(ui);
+
   });
 
   it.each(["missing-version", "extra-version", "wrong-version-location", "missing-ui-version", "missing-ui-sha", "inline-bundle", "bad-header"])(

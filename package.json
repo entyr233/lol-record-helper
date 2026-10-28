@@ -1,6 +1,6 @@
 {
   "name": "lol-record-helper",
-  "version": "2.15.0",
+  "version": "2.16.0",
   "private": true,
   "type": "module",
   "description": "LOL 战绩助手：英雄联盟国服战绩查询与官方助手增强（WeGame 页面注入版）",
@@ -51,6 +51,7 @@
     "@vitest/coverage-v8": "^5.0.5",
     "@vue/eslint-config-typescript": "^14.9.0",
     "@vue/test-utils": "^2.5.1",
+    "esbuild": "^0.28.2",
     "eslint": "^10.13.0",
     "eslint-plugin-vue": "^10.12.0",
     "globals": "^17.13.0",

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LOL 战绩助手
 // @namespace    mscststs
-// @version      2.15.0
+// @version      2.16.0
 // @description  LOL 战绩助手：英雄联盟国服战绩查询，支持官方助手登录、大区切换与掌盟详情回退
 // @author       mscststs
 // @homepage     https://github.com/entyr233/lol-record-helper
@@ -20,13 +20,15 @@
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
-// @resource     lol-tft-ui https://cdn.jsdelivr.net/gh/entyr233/lol-record-helper@v2.15.0/userscript/lol-tft-ui.js
+// @resource     lol-tft-ui https://github.com/entyr233/lol-record-helper/releases/download/v2.16.0/lol-tft-ui.js
 // @connect      mlol.qt.qq.com
 // @connect      lol.qq.com
 // @connect      game.gtimg.cn
 // @connect      www.wegame.com.cn
 // @connect      wegame.com.cn
 // @connect      data.dtodo.cn
+// @connect      github.com
+// @connect      objects.githubusercontent.com
 // @connect      cdn.jsdelivr.net
 // @connect      fastly.jsdelivr.net
 // @connect      raw.githubusercontent.com
@@ -51,7 +53,69 @@
 (function () {
   "use strict";
 
-  var VERSION = "2.15.0";
+"use strict";
+var LolTftLoader = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // userscript/src/loader.ts
+  var loader_exports = {};
+  __export(loader_exports, {
+    buildUiUrls: () => buildUiUrls,
+    diagnosticsText: () => diagnosticsText,
+    normalizeUiText: () => normalizeUiText,
+    sha256Hex: () => sha256Hex
+  });
+  function normalizeUiText(text) {
+    return String(text != null ? text : "").replace(/\r\n/g, "\n");
+  }
+  function buildUiUrls(repo, version) {
+    return [
+      "https://github.com/" + repo + "/releases/download/" + version + "/lol-tft-ui.js",
+      "https://cdn.jsdelivr.net/gh/" + repo + "@ui/lol-tft-ui.js?v=" + version,
+      "https://fastly.jsdelivr.net/gh/" + repo + "@ui/lol-tft-ui.js?v=" + version
+    ];
+  }
+  function sha256Hex(text) {
+    const cryptoApi = globalThis.crypto;
+    if (!(cryptoApi == null ? void 0 : cryptoApi.subtle) || typeof TextEncoder === "undefined") {
+      return Promise.reject(new Error("\u5F53\u524D\u6D4F\u89C8\u5668\u4E0D\u652F\u6301 UI \u5B8C\u6574\u6027\u6821\u9A8C\uFF08\u7F3A\u5C11 WebCrypto\uFF09"));
+    }
+    return cryptoApi.subtle.digest("SHA-256", new TextEncoder().encode(normalizeUiText(text))).then((buffer) => {
+      return Array.from(new Uint8Array(buffer), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    });
+  }
+  function diagnosticsText(input) {
+    var _a;
+    const message = input.error instanceof Error ? input.error.message : String((_a = input.error) != null ? _a : "");
+    return [
+      "LOL \u6218\u7EE9\u52A9\u624B v" + input.version,
+      "UI SHA-256: " + input.sha256,
+      "URL: " + input.href,
+      "UA: " + input.userAgent,
+      "\u9519\u8BEF: " + message
+    ].join("\n");
+  }
+  return __toCommonJS(loader_exports);
+})();
+
+
+  var VERSION = "2.16.0";
 
   /** 只有 WeGame / lol.qq.com 页面才挂载悬浮按钮和面板 */
   function isWegameHost() {
@@ -214,39 +278,22 @@
 
   var UI_RESOURCE = "lol-tft-ui";
   // 固定到 tag（不可变）而不是 master；UI 内容再用 SHA-256 二次校验
-  var UI_TAG = "v2.15.0";
-  var UI_URLS = [
-    "https://cdn.jsdelivr.net/gh/entyr233/lol-record-helper@" + UI_TAG + "/userscript/lol-tft-ui.js",
-    "https://fastly.jsdelivr.net/gh/entyr233/lol-record-helper@" + UI_TAG + "/userscript/lol-tft-ui.js",
-    "https://raw.githubusercontent.com/entyr233/lol-record-helper/" + UI_TAG + "/userscript/lol-tft-ui.js"
-  ];
+  var UI_TAG = "v2.16.0";
+  var UI_URLS = LolTftLoader.buildUiUrls("entyr233/lol-record-helper", UI_TAG);
   var UI_URL = UI_URLS[0];
-  var UI_SHA256 = "26c6ddb6e0868bbd78924a25e4bfb64a37e245f933387212d433dae4a075b3a3";
+  var UI_SHA256 = "cb9b5fcc45ad36c2847fc717688ca820028160c0db230e140badd7487e7f055b";
   var libCache = null;
   var libPromise = null;
 
-  function normalizeUiText(text) {
-    return String(text || "").replace(/\r\n/g, "\n");
-  }
 
-  function sha256Hex(text) {
-    if (typeof crypto === "undefined" || !crypto.subtle || typeof TextEncoder === "undefined") {
-      return Promise.reject(new Error("当前浏览器不支持 UI 完整性校验（缺少 WebCrypto）"));
-    }
-    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalizeUiText(text))).then(function (buffer) {
-      return Array.prototype.map.call(new Uint8Array(buffer), function (byte) {
-        return ("0" + byte.toString(16)).slice(-2);
-      }).join("");
-    });
-  }
 
   /** 校验通过后才执行；不匹配直接拒绝，避免执行被篡改的远端 UI */
   function verifyAndEvaluate(text) {
-    return sha256Hex(text).then(function (hash) {
+    return LolTftLoader.sha256Hex(text).then(function (hash) {
       if (!UI_SHA256 || hash !== UI_SHA256) {
         throw new Error("UI 资源完整性校验失败（可能被篡改或版本不匹配），已拒绝执行");
       }
-      return evaluateLib(normalizeUiText(text));
+      return evaluateLib(LolTftLoader.normalizeUiText(text));
     });
   }
 
@@ -474,14 +521,13 @@
   }
 
   function diagnosticsText(error) {
-    var message = error && error.message ? error.message : String(error || "");
-    return [
-      "LOL 战绩助手 v" + VERSION,
-      "UI SHA-256: " + UI_SHA256,
-      "URL: " + location.href,
-      "UA: " + navigator.userAgent,
-      "错误: " + message
-    ].join("\n");
+    return LolTftLoader.diagnosticsText({
+      version: VERSION,
+      sha256: UI_SHA256,
+      href: location.href,
+      userAgent: navigator.userAgent,
+      error: error
+    });
   }
 
   function copyText(text) {

@@ -6,6 +6,15 @@
 
 - 新增 axe-core Playwright 可访问性门禁、SECURITY/CONTRIBUTING/Issue/PR 模板。
 
+## [2.16.0] - 2026-10-28
+
+### Changed
+
+- UI 改为对应版本 GitHub Release 资产，`@resource` 不再指向仓库文件；jsDelivr `ui` 分支作为回退。
+- 仓库不再提交 `userscript/lol-tft-ui.js`，减少主分支历史体积。
+- 新增 `userscript/manifest.json` 与 `userscript/src/loader.ts`：名称/仓库/资源名单一来源，UI URL、哈希、诊断信息由 TS loader 生成。
+- Release workflow 发布 UI 到 Release 资产，并强制更新 `ui` 回退分支。
+- 所有 axe 可访问性检查从 serious/critical 扩展到 moderate，修复顶栏版本对比度。
 ## [2.15.0] - 2026-10-28
 
 ### Added

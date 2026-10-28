@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Exercise the editable template directly; never rebuild or rewrite a published script.
-const source = readFileSync("userscript/lol-tft.template.js", "utf8");
+const source = readFileSync("userscript/lol-tft.user.js", "utf8");
 type PanelApi = { open: () => Promise<void>; close: () => void };
 const page = window as unknown as { __LOL_TFT__?: PanelApi };
 let api: PanelApi;

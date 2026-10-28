@@ -45,14 +45,14 @@
 
 > **不用安装第二个脚本。** `lol-tft-ui.js` 是脚本的 `@resource` UI 资源，安装/更新时会自动下载；请勿把它当作用户脚本单独安装。
 >
-> 脚本壳约 **25KB**，在任意网站只注册菜单；UI 约 **305KB**，只在进入官方助手页或点击「LOL 战绩助手」时才加载。UI 从 jsDelivr 固定 tag 加载，失败回退 fastly / raw，并在执行前做 SHA-256 校验。
+> 脚本壳约 **31KB**，在任意网站只注册菜单；UI 约 **305KB**，只在进入官方助手页或点击「LOL 战绩助手」时才加载。UI 从对应版本的 GitHub Release 资产加载，失败回退 jsDelivr `ui` 分支，并在执行前做 SHA-256 校验。
 
 **更新**：脚本会通过 `@updateURL` 自动检查更新，也可以重新打开上面的安装链接覆盖安装。
 ### 权限说明
 
 脚本为了在**任何网站**都能显示脚本菜单，声明了 `http://*/*` + `https://*/*`：
 
-- 非 WeGame / `lol.qq.com` 页面只执行约 25KB 的轻量壳，用于注册菜单，不注入悬浮按钮、不加载 UI、不读取页面内容；
+- 非 WeGame / `lol.qq.com` 页面只执行约 31KB 的轻量壳，用于注册菜单，不注入悬浮按钮、不加载 UI、不读取页面内容；
 - 只有 WeGame / `lol.qq.com` 页面会注入战绩面板或掌盟桥接；
 - 如果你不希望它在某些站点运行，可以在 ScriptCat / Tampermonkey 的脚本设置里按站点排除。
 
@@ -139,9 +139,9 @@ npm run build:all    # typecheck + lib 构建 + userscript 打包 + 演示站
 
 ```text
 dist/userscript/lol-tft.user.js   # 轻量壳
-dist/userscript/lol-tft-ui.js     # UI，@resource 按需加载
+dist/userscript/lol-tft-ui.js     # UI，上传到 Release 资产
 userscript/lol-tft.user.js        # 入库副本，GitHub raw 直装/自动更新
-userscript/lol-tft-ui.js          # 入库副本，UI 资源
+userscript/manifest.json          # 名称/仓库/资源名等单一元信息
 ```
 
 - 开发默认走 mock（`sample/*.json` 扩展的示例数据），页面右下角有数据源状态条
@@ -185,7 +185,7 @@ docs/             代码审查报告 / HAR 分析 / 迁移说明 / README 截图
 ## 命名说明
 
 - 项目/仓库/脚本显示名为 **LOL 战绩助手**，GitHub 仓库为 `lol-record-helper`；
-- 构建产物仍沿用 `lol-tft.user.js` / `lol-tft-ui.js`，是为了兼容旧安装的 `@updateURL` 与 `@resource`，避免升级断链；
+- 壳文件仍沿用 `lol-tft.user.js`，UI 资源名仍为 `lol-tft-ui`，是为了兼容旧安装的 `@updateURL` 与 `@resource`，避免升级断链；
 - 脚本 `@namespace` 保留上游的 `mscststs`，同样是为了让脚本管理器把新版识别为「同一脚本的更新」，而不是新装一个重复脚本。
 ## 参与贡献
 

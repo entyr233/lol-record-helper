@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 
 const shell = readFileSync("userscript/lol-tft.user.js", "utf8");
-const ui = readFileSync("userscript/lol-tft-ui.js", "utf8");
+const ui = readFileSync("dist/userscript/lol-tft-ui.js", "utf8");
 const pageHtml = "<!doctype html><html><head><meta charset='utf-8'></head><body><div id='host'>mock</div></body></html>";
 
 interface InitOptions {
@@ -83,6 +83,7 @@ test("CDN 主源失败时回退到备用源并校验哈希", async ({ page }) =>
 });
 
 test("UI 被篡改时拒绝执行并显示错误", async ({ page }) => {
+  await page.route("https://github.com/entyr233/lol-record-helper/releases/**", (route) => route.fulfill({ status: 500, body: "blocked" }));
   await page.route("https://cdn.jsdelivr.net/**", (route) => route.fulfill({ status: 500, body: "blocked" }));
   await page.route("https://fastly.jsdelivr.net/**", (route) => route.fulfill({ status: 500, body: "blocked" }));
   await page.route("https://raw.githubusercontent.com/**", (route) => route.fulfill({ status: 500, body: "blocked" }));

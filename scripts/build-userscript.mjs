@@ -1,19 +1,22 @@
 // 生成可直接安装的油猴脚本（轻量菜单壳 + 按需加载的 UI bundle）：
 // - dist/userscript/lol-tft.user.js（shell，任意网站注入只注册菜单）
-// - dist/userscript/lol-tft-ui.js（UI bundle，@resource 按需加载）
-// - userscript/lol-tft.user.js / userscript/lol-tft-ui.js（入库副本，GitHub raw 直装/自动更新）
+// - dist/userscript/lol-tft-ui.js（UI bundle，发布时由 Release workflow 上传）
+// - userscript/lol-tft.user.js（入库壳，GitHub raw 直装/自动更新）
 // 用法：npm run build:userscript（会先构建 lib bundle）
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
+import { buildSync } from "esbuild";
 
 const BUNDLE = "dist/lol/lol.umd.js";
 const TEMPLATE = "userscript/lol-tft.template.js";
+const MANIFEST = "userscript/manifest.json";
+const LOADER = "userscript/src/loader.ts";
 const OUT_DIR = "dist/userscript";
 const OUT = OUT_DIR + "/lol-tft.user.js";
 const OUT_UI = OUT_DIR + "/lol-tft-ui.js";
 const REPO_OUT = "userscript/lol-tft.user.js";
-const REPO_UI = "userscript/lol-tft-ui.js";
+
 const MAX_SHELL_BYTES = 64 * 1024;
 const MAX_UI_BYTES = 340 * 1024;
 
@@ -34,26 +37,53 @@ if (found.length > 0) {
 }
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+const manifest = JSON.parse(readFileSync(MANIFEST, "utf8"));
 const template = readFileSync(TEMPLATE, "utf8");
 
-if (typeof pkg.version !== "string" || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?(?:\+[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/.test(pkg.version)) {
-  console.error("package.json version 必须是安全的版本号");
-  process.exit(1);
+for (const key of ["name", "namespace", "repo", "uiResource"]) {
+  if (typeof manifest[key] !== "string" || !manifest[key]) {
+    console.error("userscript/manifest.json 缺少字段：" + key);
+    process.exit(1);
+  }
 }
 
 if (template.split("__VERSION__").length - 1 !== 2 ||
     template.split("__UI_VERSION__").length - 1 !== 2 ||
     template.split("__UI_SHA256__").length - 1 !== 1 ||
+    template.split("/*__LOADER__*/").length - 1 !== 1 ||
+    template.split("__REPO__").length - 1 < 1 ||
     (template.match(/^\/\/ @version[ \t]+__VERSION__\r?$/gm) || []).length !== 1 ||
     (template.match(/^[ \t]*var VERSION = "__VERSION__";\r?$/gm) || []).length !== 1) {
-  console.error("模板必须恰含一个元信息版本、一个运行时版本、两个 UI 资源版本和一个 UI 哈希占位符");
+  console.error("模板版本/UI 哈希/loader/repo 占位符数量不符合预期");
   process.exit(1);
 }
 
 if (template.includes("/*__BUNDLE__*/") || template.includes("__BUNDLE__")) {
-  console.error("模板不再接受内联 bundle 占位符（UI 已改为 @resource 按需加载）");
+  console.error("模板不接受内联 bundle 占位符（UI 已改为 @resource 按需加载）");
   process.exit(1);
 }
+
+if (!template.includes("// @name         " + manifest.name) ||
+    !template.includes("// @namespace    " + manifest.namespace) ||
+    !template.includes("// @resource     " + manifest.uiResource) ||
+    !template.includes("https://github.com/" + manifest.repo)) {
+  console.error("模板元信息与 userscript/manifest.json 不一致");
+  process.exit(1);
+}
+
+if (typeof pkg.version !== "string" || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?(?:\+[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/.test(pkg.version)) {
+  console.error("package.json version 必须是安全的版本号");
+  process.exit(1);
+}
+const loader = buildSync({
+  entryPoints: [LOADER],
+  bundle: true,
+  format: "iife",
+  globalName: "LolTftLoader",
+  target: "es2018",
+  write: false,
+  logLevel: "silent"
+}).outputFiles[0].text;
 
 if (rawBundle.includes("__VERSION__") || rawBundle.includes("__BUNDLE__")) {
   console.error("UI bundle 中出现保留构建标记，拒绝生成");
@@ -68,9 +98,12 @@ if (!/^\s*var LolTft\s*=/.test(rawBundle) || !rawBundle.includes("mountLolTft"))
 const output = template
   .replaceAll("__VERSION__", () => pkg.version)
   .replaceAll("__UI_VERSION__", () => pkg.version)
-  .replaceAll("__UI_SHA256__", () => uiSha256);
+  .replaceAll("__UI_SHA256__", () => uiSha256)
+  .replaceAll("__REPO__", () => manifest.repo)
+  .replaceAll("/*__LOADER__*/", () => loader);
 
-if (!output.startsWith("// ==UserScript==") || output.includes("__VERSION__") || output.includes("__UI_VERSION__") || output.includes("__UI_SHA256__")) {
+if (!output.startsWith("// ==UserScript==") ||
+    ["__VERSION__", "__UI_VERSION__", "__UI_SHA256__", "__REPO__", "__LOADER__"].some((token) => output.includes(token))) {
   console.error("用户脚本起始头无效或仍包含未替换占位符");
   process.exit(1);
 }
@@ -90,10 +123,10 @@ writeFileSync(OUT, output, "utf8");
 writeFileSync(OUT_UI, rawBundle, "utf8");
 // 入库副本：GitHub raw 地址可直接安装，并由 @updateURL / @resource 自动更新
 writeFileSync(REPO_OUT, output, "utf8");
-writeFileSync(REPO_UI, rawBundle, "utf8");
+
 
 const shellKb = (Buffer.byteLength(output, "utf8") / 1024).toFixed(1);
 const uiKb = (Buffer.byteLength(rawBundle, "utf8") / 1024).toFixed(1);
 console.log("已生成 " + OUT + "（" + shellKb + " KB，轻量壳，任意网站只注册菜单）");
 console.log("已生成 " + OUT_UI + "（" + uiKb + " KB，gzip " + (gzipSync(rawBundle).length / 1024).toFixed(1) + " KB，@resource 按需加载，SHA-256 " + uiSha256.slice(0, 16) + "…）");
-console.log("已同步入库副本 " + REPO_OUT + " / " + REPO_UI + "（GitHub raw 直装/自动更新）");
+console.log("已同步壳入库副本 " + REPO_OUT + "；UI 由 Release workflow 上传，不再写入仓库");

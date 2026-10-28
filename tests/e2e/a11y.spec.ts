@@ -3,7 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 const shell = readFileSync("userscript/lol-tft.user.js", "utf8");
-const ui = readFileSync("userscript/lol-tft-ui.js", "utf8");
+const ui = readFileSync("dist/userscript/lol-tft-ui.js", "utf8");
 const pageHtml = "<!doctype html><html><head><meta charset='utf-8'></head><body><div>mock</div></body></html>";
 
 async function boot(page: Page, url: string): Promise<void> {

@@ -21,7 +21,7 @@ Node 要求：`^22.22.2 || >=24.15.0`。
 - `npm run lint`
 - `npm run typecheck`
 - `npm test`
-- **修改了 UI/脚本模板时**：`npm run build:all`，并提交 `userscript/lol-tft.user.js`、`userscript/lol-tft-ui.js`
+- **修改了 UI/脚本模板时**：`npm run build:all`，并提交 `userscript/lol-tft.user.js`；UI 由 Release workflow 上传，不写回仓库
 - 不要把 WeGame cookie、ARAMGG Key、HAR、`.env` 提交进仓库
 
 ## Commit 约定
