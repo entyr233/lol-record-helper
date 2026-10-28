@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import type { BattleSummary } from "../src/api/types";
 import { summarizeRecentBattles, type RecentSummaryOptions } from "../src/utils/recentStats";

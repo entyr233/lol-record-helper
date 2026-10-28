@@ -1,4 +1,5 @@
 import { postJson } from "./transport";
+import { reactive } from "vue";
 import { ApiError } from "./errors";
 
 /** 验证码 AppId 与 SDK 地址：取自现任 LOL 助手前端（逆向） */
@@ -87,7 +88,7 @@ export async function runCaptchaVerification(): Promise<void> {
 }
 
 /** 最近一次验证码尝试的留痕（诊断用，界面会显示） */
-export const lastCaptchaAttempt = { at: "", outcome: "从未尝试" };
+export const lastCaptchaAttempt = reactive({ at: "", outcome: "从未尝试" });
 
 function note(outcome: string): void {
   lastCaptchaAttempt.at = new Date().toLocaleTimeString();

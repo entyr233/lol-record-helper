@@ -206,4 +206,21 @@ describe("useBattleFeed.getPage（共享缓存与在途请求）", () => {
     expect(result.hasMore).toBe(false);
     expect(result.data).toHaveLength(1);
   });
+
+  it("已取消请求即使迟到成功，也不能覆盖同页的新缓存", async () => {
+    let resolveOld!: (items: BattleSummary[]) => void;
+    getBattleList.mockReturnValueOnce(new Promise<BattleSummary[]>((resolve) => { resolveOld = resolve; }))
+      .mockResolvedValueOnce(page("fresh"));
+    const feed = useBattleFeed(() => key);
+    const controller = new AbortController();
+    const pending = feed.getPage(0, { signal: controller.signal });
+    const cancelled = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    controller.abort();
+    await cancelled;
+    await feed.getPage(0);
+    resolveOld(page("old"));
+    await Promise.resolve();
+    expect((await feed.getPage(0)).data[0].game_id).toBe("fresh0");
+    expect(getBattleList).toHaveBeenCalledTimes(2);
+  });
 });

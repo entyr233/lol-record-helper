@@ -75,7 +75,7 @@
       <span class="dp-items">
         <span v-if="itemsMissing" class="dp-missing" :title="MISSING_TITLE">装备未提供</span>
         <template v-else>
-          <GameIcon v-for="itemId in itemSlots" :key="itemId" kind="item" :id="itemId ?? 0" />
+          <GameIcon v-for="(itemId, slotIndex) in itemSlots" :key="slotIndex" kind="item" :id="itemId ?? 0" />
         </template>
       </span>
     </template>
@@ -153,17 +153,13 @@ import { getTeamMadeLabel } from "../const/queues";
 import { tierName } from "../const/tiers";
 import { formatGameScore, formatThousands, kdaRatio } from "../utils/format";
 import augmentMap from "../data/kiwi-augments.json";
-
-type DamageKey =
-  | "totalDamageToChampions"
-  | "totalDamageTaken"
-  | "magicDamageToChampions"
-  | "physicalDamageToChampions"
-  | "trueDemageToChampions";
+import { runeIconUrl } from "../api/staticData";
+import { summarizePlayers, type DamageKey, type PlayerStatistics } from "../utils/battlePlayers";
 
 const props = defineProps<{
   player: PlayerDetail;
   players: PlayerDetail[];
+  statistics?: PlayerStatistics;
   mode: "概要" | "技能" | "伤害";
   isSelf?: boolean;
   /** 是否排位类队列：排位用单排/双排，其他模式用单人/双人开黑 */
@@ -196,30 +192,8 @@ function damageTitle(key: DamageKey, label: string): string {
   return hasValue(props.player[key]) ? label : "未提供";
 }
 
-const DAMAGE_KEYS: DamageKey[] = [
-  "totalDamageToChampions",
-  "totalDamageTaken",
-  "magicDamageToChampions",
-  "physicalDamageToChampions",
-  "trueDemageToChampions"
-];
-
-const maxValues = computed(() => {
-  const result: Record<DamageKey, number> = {
-    totalDamageToChampions: 0,
-    totalDamageTaken: 0,
-    magicDamageToChampions: 0,
-    physicalDamageToChampions: 0,
-    trueDemageToChampions: 0
-  };
-  for (const item of props.players) {
-    for (const key of DAMAGE_KEYS) {
-      const value = Number(item[key]);
-      if (Number.isFinite(value) && value > result[key]) result[key] = value;
-    }
-  }
-  return result;
-});
+const statistics = computed(() => props.statistics ?? summarizePlayers(props.players));
+const maxValues = computed(() => statistics.value.maxDamage);
 
 const AUGMENTS = augmentMap as Record<string, { name: string; icon: string; level: string }>;
 const augmentSlots = computed(() => {
@@ -228,7 +202,7 @@ const augmentSlots = computed(() => {
     const id = Number(props.player[key] ?? 0);
     if (!Number.isFinite(id) || id === 0) continue;
     const info = AUGMENTS[String(id)];
-    slots.push({ id, name: info?.name ?? "", icon: info?.icon ?? "", level: info?.level ?? "" });
+    slots.push({ id, name: info?.name ?? "", icon: info?.icon ? runeIconUrl(info.icon) : "", level: info?.level ?? "" });
   }
   return slots;
 });
@@ -284,17 +258,13 @@ const kdaClass = computed(() => (kda.value >= 5 ? "well" : kda.value >= 3 ? "nor
 const gameScore = computed(() => formatGameScore(props.player.gameScore));
 
 /** LeagueAkari 风格：参与击杀率与伤害团队占比（按同队 10 人内数据归一） */
-const teamKills = computed(() =>
-  props.players.filter((p) => p.teamId === props.player.teamId).reduce((sum, p) => sum + (p.championsKilled || 0), 0)
-);
+const teamKills = computed(() => statistics.value.teams.get(props.player.teamId)?.kills ?? 0);
 const killParticipation = computed(() => {
   const tk = teamKills.value;
   if (!tk) return 0;
   return Math.round(((props.player.championsKilled + props.player.assists) / tk) * 100);
 });
-const teamDamage = computed(() =>
-  props.players.filter((p) => p.teamId === props.player.teamId).reduce((sum, p) => sum + (p.totalDamageToChampions || 0), 0)
-);
+const teamDamage = computed(() => statistics.value.teams.get(props.player.teamId)?.damage ?? 0);
 const damageShare = computed(() => {
   const td = teamDamage.value;
   if (!td) return 0;

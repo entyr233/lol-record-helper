@@ -47,8 +47,10 @@ import type { BattleSummary } from "../api/types";
 import type { PlayerDetail } from "../api/types";
 import type { ModeFilter } from "../const/modes";
 import type { DaysFilter } from "../composables/useBattleList";
+import { useBattleFeed } from "../composables/battleFeed";
 
 const props = defineProps<{ area: string; accountType: string; id: string }>();
+const feed = useBattleFeed(() => props);
 const router = useRouter();
 const listRef = ref<InstanceType<typeof BattleList> | null>(null);
 const summonerRef = ref<InstanceType<typeof SummonerInfo> | null>(null);
@@ -80,7 +82,10 @@ async function refreshAll(): Promise<void> {
   refreshing.value = true;
   refreshError.value = "";
   try {
-    const [overviewFailures, listSucceeded] = await Promise.all([summonerRef.value?.refresh(), listRef.value?.refresh()]);
+    feed.invalidate();
+    const [overviewFailures, listSucceeded] = await Promise.all([
+      summonerRef.value?.refresh({ invalidate: false }), listRef.value?.refresh({ invalidate: false })
+    ]);
     const failures = overviewFailures ?? [];
     if (listSucceeded === false) failures.push("对局列表");
     if (failures.length) {

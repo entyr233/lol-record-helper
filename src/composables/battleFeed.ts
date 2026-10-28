@@ -22,6 +22,10 @@ export function battleFeedKey(key: BattleFeedKey): string {
 
 /** 原始页与展示页共用的条数。 */
 export const PAGE_SIZE = 10;
+export interface BattleRefreshOptions {
+  /** 整页刷新由父组件统一清缓存时，子组件传入 false。 */
+  invalidate?: boolean;
+}
 /** 原始页缓存有效期：同一交互内复用，也不至于长期记住旧战绩 */
 const PAGE_TTL_MS = 30000;
 
@@ -84,7 +88,7 @@ function startRequest(key: BattleFeedKey, entry: FeedEntry, page: number): FeedR
       );
       const result: BattlePage = { data, hasMore: data.length >= PAGE_SIZE };
       // 被 invalidate 过（或被新请求取代）的响应不写缓存：否则刷新会看到旧数据
-      if (!request.stale) entry.pages.set(page, { data, hasMore: result.hasMore, at: Date.now() });
+      if (!request.stale && !controller.signal.aborted) entry.pages.set(page, { data, hasMore: result.hasMore, at: Date.now() });
       return result;
     } finally {
       request.settled = true;

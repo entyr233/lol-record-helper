@@ -18,7 +18,17 @@
 | 对局详情 | 10 人全量：KDA、伤害四系柱状图、装备、符文、召唤师技能与释放次数、评分、补刀/经济；摘要按「当前查看玩家」取英雄/昵称/胜负；**数据来源徽标（WeGame / 掌盟公开数据）与「不可跳转」说明**、**失败原因分类（验证码/登录失效/全部来源失败）与对应操作、来源诊断**；**掌盟缺失字段显示「未提供」，不再用 0/单人冒充**；伤害条悬浮说明、排序名次内联展示、海克斯强化行内悬浮（不再单独占页签）；点名字跳转其战绩页 |
 | 搜索 | 按昵称搜索全大区同名玩家，结果可加入常看玩家 |
 | 收藏/常看玩家 | 按「大区 + 账号类型 + 账号标识」去重，支持备注、分组、拖拽排序；首页「常看玩家」合并收藏与最近搜索，搜索页/详情页/顶栏共用同一份数据（兼容旧版收藏） |
-| 历史段位 | 掌盟 HAR 离线导入 / 官方段位页链接查询；按赛季和模式筛选；近期段位走势与在线刷新 |
+
+## 本人历史段位与胜点走势
+
+在自建面板点击「我的战绩」，展开总览下方的「本人的历史段位与胜点走势」。
+
+1. 开始记录掌盟请求，在掌盟打开本人当前大区的历史段位页，再停止记录并导出 HAR 文件。
+2. 将文件放到电脑，在该区域点击「导入掌盟记录」。不需要找到分享或复制链接入口。
+3. 核对显示的角色、大区和采集时间；文件包含多个角色时，先选择正确记录，再勾选本人确认。
+4. 查看历史赛季／赛段、排位模式、段位、胜点、场次、胜率，以及近期段位和胜点曲线。
+
+导入在浏览器本地完成，不上传 HAR，也不保存 Cookie、scene 或历史数据。在线刷新仅在点击按钮时发起，失效或失败时保留导入快照。掌盟角色与 WeGame 账号尚未自动关联，必须核对来源。文件中没有成功的 `get_rank_trend` 响应时，需要重新打开掌盟历史段位页后导出。
 
 ## 官方助手页增强
 
@@ -38,28 +48,12 @@
 - `src/utils/recentStats.ts`：近期表现的三分类/胜率/KDA/连胜连败/场均/英雄与模式分布/组队分布/累计胜率趋势全部是纯函数，组件只负责展示。
 - `src/composables/useBattleDetail.ts`：详情取数与多来源回退（WeGame → 搜索换口径 → 掌盟），以及来源徽标与失败原因分类；组件只保留展示与排序。
 
-## 历史段位查询（v1.3.0）
-
-在总览下方展开「历史段位查询」：
-
-- 点击「导入掌盟 HAR」，选择打开过掌盟历史段位页的抓包文件。文件在浏览器本地解析，导入时不联网。
-- 或粘贴掌盟官方段位页链接 `https://lol.qq.com/m/zmlolzone/page/tier-detail/?scene=...`，点击「查询」。
-- 可按单双排 / 灵活组排和历史赛季筛选，展开「近期段位走势」查看最近记录。
-- HAR 中的玩家可能与上方正在查看的战绩玩家不同，历史区域单独显示来源昵称和采集时间。包含多个玩家时可选择记录。
-- 点击「刷新查询」才使用该记录的 scene 请求掌盟。失败保留已导入快照；链接过期或权限受限时需更新掌盟链接。
-
-`scene` 由掌盟签发，现有 WeGame UIN/openid 不能直接替代。链接、scene 和 HAR 不会写入本地存储或分发包。
-导入与查询后的内容只保留在当前页面，切换战绩玩家或关闭面板后需重新导入。
-
-v1.3.0 同时移除了上游捐赠、主页和 GitHub 导航，将左侧战绩改为自适应高度，修复文字重叠。
-
 ## 数据源与鉴权（重要）
 
 | 接口 | 用途 | 鉴权 |
 | --- | --- | --- |
 | `wegame.com.cn/api/v1/wegame.pallas.game.LolBattle/*` | 列表/资料/统计/详情 | wegame 登录 cookie（同源自动携带） |
 | `mlol.qt.qq.com/go/battle_info/get_battle_detail_h5` | 详情**回退源** | `.qq.com` 登录 cookie（QQ 侧） |
-| `mlol.qt.qq.com/go/battle_info/get_rank_trend` | 历史段位与近期走势 | 掌盟段位页的 `scene` |
 
 - 2026 现任格式：列表 `GetBattleList`；资料 `GetSummonerInfo`（含 `season` 段位）；统计 `GetBattleReport`（带 `sids:[255]`，返回 `season_list`）
 - 老接口被限制时（8000120 等）：先弹**官方人机验证**（TCaptcha + VerifyRecongnition）后自动重试；详情再失败则回退掌盟接口（postMessage 桥：脚本同时在 lol.qq.com 上运行，替面板做同源请求绕过 CORS）
@@ -69,7 +63,7 @@ v1.3.0 同时移除了上游捐赠、主页和 GitHub 导航，将左侧战绩�
 ## 2026 年的重要变更（相对上游 mscststs/lol-tft）
 
 1. 上游的宿主页 `wegame.com.cn/ioi` 已 404 → 改为任意 WeGame 页面右下角浮动入口 + 全屏面板
-2. 单文件分发：UI 打包内联进 userscript（约 200KB），不再依赖远端 bundle 托管
+2. 单文件分发：UI 打包内联进 userscript，不再依赖远端 bundle 托管
 3. Vue 2（已 EOL）→ Vue 3 + TS + Vite；Shadow DOM 隔离，不污染宿主页样式
 4. 错误码全量映射（来自现任助手前端）+ 界面直接显示错误码，方便排障
 
@@ -93,9 +87,13 @@ npm run build:userscript   # dist/userscript/lol-tft.user.js（单文件，含�
 npm run build:app          # dist/site/（演示页）
 ~~~
 
-安装：把 `dist/userscript/lol-tft.user.js` 拖进浏览器（ScriptCat/Tampermonkey）→ 覆盖安装 → F5。
+**直接安装（推荐）**：打开
+`https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft.user.js`
+ScriptCat/Tampermonkey 会识别为可安装脚本；此后脚本会通过 `@updateURL` 自动更新到仓库里的最新构建。
+
+也可以本地构建后把 `dist/userscript/lol-tft.user.js` 拖进浏览器（ScriptCat/Tampermonkey）→ 覆盖安装 → F5。
+构建时会把同一份产物同步写入 `userscript/lol-tft.user.js`（入库副本，供 raw 直装/自动更新），两者内容必须一致。
 装好后脚本列表菜单里可直接「打开 WeGame 战绩页 / 项目主页 / 反馈」，无需进编辑界面。
-本地定制版已停用上游自动更新地址，后续通过重新构建安装更新，避免被上游脚本覆盖。
 本仓库：https://github.com/entyr233/lol-tft
 原项目来源：https://greasyfork.org/zh-CN/scripts/454184（保留作者与许可证信息）。
 
@@ -110,7 +108,7 @@ src/data/         构建期固化的符文/装备映射（node scripts/sync-stat
 src/styles/       全部样式（仅注入 Shadow DOM）
 userscript/       用户脚本模板（bundle 构建时内联）+ 注入探针
 scripts/          静态数据同步 / userscript 构建
-tests/            契约/策略/生命周期/历史段位/冒烟测试
+tests/            契约/策略/生命周期/登录与组件测试
 docs/             代码审查报告 / HAR 分析 / 迁移说明
 ~~~
 
@@ -133,7 +131,8 @@ docs/             代码审查报告 / HAR 分析 / 迁移说明
 
 ## 相关文档
 
-- 代码审查报告：docs/code-review-2026-10.md
+- 当前审查建议核查与处理：docs/review-resolution-2026-10-28.md
+- 上游 Vue 2 审查归档：docs/code-review-2026-10.md
 - HAR 分析（掌盟接口族逆向）：docs/har-analysis-20261027.md
-- 历史段位接口与验证：docs/har-rank-history-20261027.md
+- 历史段位接口研究归档（不代表当前功能）：docs/har-rank-history-20261027.md
 - Vue2→Vue3 迁移说明：docs/migration-vue2-to-vue3.md

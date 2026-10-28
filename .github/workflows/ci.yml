@@ -24,10 +24,5 @@ jobs:
           node-version: '24.22.1'
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - run: npm run build:all
       - run: npm test
-      - run: npm run typecheck
-      - run: npm run build:userscript
-      - name: Verify built userscript
-        run: |
-          node -e "require('node:fs').accessSync('dist/userscript/lol-tft.user.js')"
-          npm test -- tests/userscriptBundle.test.ts

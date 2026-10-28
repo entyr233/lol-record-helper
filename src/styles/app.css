@@ -560,12 +560,6 @@ button {
   font-size: 13px;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
-.battle-count-hint {
-  margin: 6px 4px 0;
-  color: #6c7683;
-  font-size: 12px;
-  text-align: center;
-}
 .count-total {
   color: #dddddd;
 }
@@ -857,19 +851,6 @@ button {
   background-color: #eeeeee;
 }
 
-.load-more {
-  flex: none;
-  margin-top: 10px;
-  padding: 10px 0;
-  color: #b59758;
-  border: 1px solid #2f3844;
-  border-radius: 4px;
-}
-.load-more:disabled {
-  color: #6c7683;
-  cursor: default;
-}
-
 /* ---------- battle detail ---------- */
 .detail-team {
   margin-bottom: 12px;
@@ -971,12 +952,6 @@ button {
 .stat-value .death {
   color: #ff6b6b;
 }
-.stat-value .sep {
-  color: #56606c;
-  font-size: 11px;
-  font-weight: 400;
-  margin: 0 3px;
-}
 .stat-sub {
   color: #8f99a6;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
@@ -1041,21 +1016,11 @@ button {
   font-style: italic;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
-.dp-runes {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: 2px;
-}
-.dp-spells .game-icon,
-.dp-runes .game-icon {
+.dp-spells .game-icon {
   width: 20px;
   height: 20px;
   border-radius: 4px;
   overflow: hidden;
-}
-.dp-runes .game-icon:first-child {
-  border-radius: 50%;
 }
 .dp-summoner {
   flex: none;
@@ -1107,7 +1072,6 @@ button {
   background-color: #f5e124;
 }
 
-.dp-bars,
 .dp-damage {
   display: flex;
   flex: 1 1 auto;
@@ -1117,60 +1081,6 @@ button {
 }
 .dp-damage {
   gap: 2px;
-}
-.dp-misc {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  width: 92px;
-}
-.dp-misc-line {
-  color: #8f99a6;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-  font-size: 11px;
-}
-.dp-kda {
-  flex: none;
-  width: 118px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  text-align: center;
-}
-.dp-kda-number {
-  font-size: 12px;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-}
-.dp-kda-number .kill {
-  color: #09a95b;
-}
-.dp-kda-number .death {
-  color: #db4c4c;
-}
-.dp-kda-number .assist {
-  color: #b59758;
-}
-.dp-kda-number .sep {
-  margin: 0 2px;
-  color: #6c7683;
-}
-.dp-kda-ratio {
-  font-size: 12px;
-  font-weight: 700;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-}
-.dp-kda-ratio.well {
-  color: #ff8200;
-}
-.dp-kda-ratio.normal {
-  color: #00bba3;
-}
-.dp-kda-ratio.bad {
-  color: #8f99a6;
 }
 .dp-items {
   display: flex;
@@ -1459,68 +1369,6 @@ button {
 .stat-sub--kda.well { color: #e6c37a; }
 .stat-sub--kda.normal { color: #8f99a6; }
 .stat-sub--kda.bad { color: #7d8794; }
-
-.mlol-form {
-  display: flex;
-  gap: 8px;
-  margin: 10px 0;
-}
-.mlol-input {
-  flex: 1;
-  padding: 8px 12px;
-  background-color: #1c232d;
-  border: 1px solid #2f3844;
-  border-radius: 4px;
-  color: #e8edf2;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-}
-.mlol-btn {
-  padding: 8px 18px;
-  background-color: rgba(181, 151, 88, 0.2);
-  border: 1px solid #b59758;
-  border-radius: 4px;
-  color: #e6c37a;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-}
-.mlol-btn:disabled {
-  opacity: 0.5;
-}
-.mlol-players {
-  margin: 8px 0;
-}
-.mlol-player {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 10px;
-  text-align: left;
-}
-.mlol-player:hover {
-  background-color: rgba(255, 255, 255, 0.06);
-}
-.mlol-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  overflow: hidden;
-}
-.mlol-name {
-  color: #e8edf2;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-  font-size: 14px;
-}
-.mlol-desc {
-  color: #56606c;
-  font-size: 12px;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-}
-.mlol-loaded {
-  margin-top: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
 
 /* ---------- 近期表现总览 ---------- */
 .recent-stats {
@@ -2212,3 +2060,26 @@ summary:focus-visible,
   color: #6c7683;
   font-size: 12px;
 }
+
+.personal-rank {
+  margin-top: 18px;
+  padding: 16px 20px;
+  border: 1px solid #2f3844;
+  border-radius: 6px;
+  background: #151b21;
+}
+.personal-rank > summary { cursor: pointer; color: #d8bd7e; }
+.personal-rank p { margin: 10px 0; }
+.personal-rank-hint, .personal-rank-source { color: #99a6b6; font-size: 12px; overflow-wrap: anywhere; }
+.personal-rank label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 12px 8px 0; }
+.personal-rank select { padding: 5px 8px; color: #ddd; background: #19212b; border: 1px solid #3b4757; border-radius: 4px; }
+.personal-rank-import input { max-width: 100%; }
+.personal-rank-table { max-height: 420px; overflow: auto; margin-top: 12px; }
+.personal-rank table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
+.personal-rank th, .personal-rank td { padding: 9px 12px; white-space: nowrap; border-bottom: 1px solid #28313d; }
+.personal-rank th { position: sticky; top: 0; background: #202a36; color: #bec8d5; }
+.personal-rank-chart { display: block; width: 100%; max-height: 240px; margin-top: 12px; }
+.personal-rank-chart text { fill: #99a6b6; font-size: 12px; }
+.rank-chart-axis { stroke: #3b4757; }
+.rank-chart-line { fill: none; stroke: #d8bd7e; stroke-width: 2; }
+.rank-chart-dot { fill: #d8bd7e; }

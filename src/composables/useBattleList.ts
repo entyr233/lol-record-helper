@@ -1,5 +1,5 @@
 import { computed, ref, type Ref } from "vue";
-import { PAGE_SIZE, useBattleFeed, type BattleFeedKey } from "./battleFeed";
+import { PAGE_SIZE, useBattleFeed, type BattleFeedKey, type BattleRefreshOptions } from "./battleFeed";
 import { isAbortError } from "../api/errors";
 import { classifyBattle } from "../const/wins";
 import { matchesBattleMode, type ModeFilter } from "../const/modes";
@@ -56,7 +56,7 @@ export interface BattleListState {
   /** 定位并选中一场对局（筛选不匹配时先重置筛选） */
   focusGame: (game: BattleSummary) => Promise<FocusGameResult>;
   /** 刷新：清掉页缓存、按当前筛选与页码重新拉取；保留当前查看的对局（已不存在时才重新选择） */
-  refresh: () => Promise<boolean>;
+  refresh: (options?: BattleRefreshOptions) => Promise<boolean>;
   /** 组件卸载时中止在途请求 */
   dispose: () => void;
 }
@@ -265,8 +265,6 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
     // 中止在途请求（网络慢时不用等旧请求跑完），并让旧响应作废
     abortRequests();
     generation += 1;
-    // 清掉共享页缓存：旧筛选下发出的响应可能带着旧数据，重新拉取才不会把旧结果展示成新筛选结果
-    feed.invalidate();
     rawBattles.value = [];
     page.value = 1;
     selectedGameId.value = null;
@@ -279,12 +277,12 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   }
 
   /** 刷新：清掉原始页缓存，按当前筛选与页码重新拉取；保留选中项（已不存在时再重新选择） */
-  async function refresh(): Promise<boolean> {
+  async function refresh({ invalidate = true }: BattleRefreshOptions = {}): Promise<boolean> {
     if (disposed || focusing) return false;
     while (inflight) await inflight.catch(() => {});
     abortRequests();
     generation += 1;
-    feed.invalidate();
+    if (invalidate) feed.invalidate();
     rawBattles.value = [];
     rawHasMore.value = true;
     displayedHasMore.value = true;
@@ -294,12 +292,11 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
     return error.value === null && !disposed;
   }
 
-  /** 组件卸载时中止所有在途列表请求，并放弃本实例产生的缓存（共享层随之重置） */
+  /** 组件卸载时只结束本实例的等待，保留其他组件共享的原始页。 */
   function dispose(): void {
     disposed = true;
     requestController?.abort();
     requestController = null;
-    feed.invalidate();
   }
 
   function select(gameId: string): void {

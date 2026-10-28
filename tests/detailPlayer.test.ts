@@ -3,6 +3,7 @@ import { mount } from "@vue/test-utils";
 import { defineComponent, h } from "vue";
 import BattleDetailPlayer from "../src/components/BattleDetailPlayer.vue";
 import type { PlayerDetail } from "../src/api/types";
+import { summarizePlayers } from "../src/utils/battlePlayers";
 
 /** 图标与柱状条全部 stub：只把关心的 prop 落到 DOM 上，避开图标/静态数据依赖 */
 const IconStub = defineComponent({
@@ -112,6 +113,37 @@ function mountPlayer(overrides: MountProps = {}) {
 }
 
 describe("BattleDetailPlayer 组队标签", () => {
+  it("相同装备和空槽更新后仍按七个槽位展示", async () => {
+    const player = makePlayer({ item0: 1001, item1: 1001, item2: 0, item3: 0, item4: 0, item5: 0, item6: 0 });
+    const wrapper = mount(BattleDetailPlayer, {
+      props: { player, players: [player], mode: "概要" }, global: { stubs: STUBS }
+    });
+    const ids = () => wrapper.findAll('.dp-items .icon-stub').map((icon) => icon.attributes("data-id"));
+    expect(ids()).toEqual(["1001", "1001", "0", "0", "0", "0", "0"]);
+    await wrapper.setProps({ player: { ...player, item0: 0, item2: 1001 } });
+    expect(ids()).toEqual(["0", "1001", "1001", "0", "0", "0", "0"]);
+    wrapper.unmount();
+  });
+
+  it("共享统计按全场计算伤害上限，按各队计算击杀与伤害，切换玩家后重新计算", async () => {
+    const own = makePlayer({ teamId: "100", championsKilled: 3, assists: 2, totalDamageToChampions: 100 });
+    const mate = makePlayer({ openid: "mate", teamId: "100", championsKilled: 7, totalDamageToChampions: 300 });
+    const opponent = makePlayer({ openid: "opponent", teamId: "200", championsKilled: 1, totalDamageToChampions: 900 });
+    const statistics = summarizePlayers([own, mate, opponent]);
+    expect(statistics.teams.get("100")).toEqual({ kills: 10, damage: 400 });
+    expect(statistics.teams.get("200")).toEqual({ kills: 1, damage: 900 });
+    expect(statistics.maxDamage.totalDamageToChampions).toBe(900);
+    const wrapper = mount(BattleDetailPlayer, {
+      props: { player: own, players: [own, mate, opponent], statistics, mode: "概要" }, global: { stubs: STUBS }
+    });
+    expect(wrapper.text()).toContain("50%");
+    expect(wrapper.text()).toContain("25%");
+    const updated = { ...own, totalDamageToChampions: 300 };
+    await wrapper.setProps({ player: updated, statistics: summarizePlayers([updated, mate, opponent]) });
+    expect(wrapper.text()).toContain("50%");
+    wrapper.unmount();
+  });
+
   it("组队标签按队列类型区分：排位用双排，其他模式用双人开黑", () => {
     const player = makePlayer({ teamMadeSize: 2 });
     const ranked = mount(BattleDetailPlayer, {

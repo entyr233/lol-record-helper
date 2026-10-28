@@ -48,6 +48,7 @@
           :key="player.openid"
           :player="player"
           :players="detail.player_details"
+          :statistics="playerStatistics"
           :mode="currentMode"
           :partial="detailSource === 'mlol'"
           :hex-aram="isHexAram"
@@ -67,6 +68,7 @@ import GameIcon from "./GameIcon.vue";
 import BattleDetailPlayer from "./BattleDetailPlayer.vue";
 import { toErrorMessage } from "../api/errors";
 import type { PlayerDetail } from "../api/types";
+import { summarizePlayers } from "../utils/battlePlayers";
 import { useBattleDetail } from "../composables/useBattleDetail";
 import { getResultClass, getResultLabel } from "../const/wins";
 import { formatDateTime, formatDuration } from "../utils/format";
@@ -181,6 +183,7 @@ const viewedPlayer = computed<PlayerDetail | null>(() => {
 });
 const viewedChampionId = computed(() => viewedPlayer.value?.championId ?? 0);
 
+const playerStatistics = computed(() => summarizePlayers(detail.value?.player_details ?? []));
 const teams = computed(() => {
   const current = detail.value;
   if (!current) return [];
@@ -188,7 +191,7 @@ const teams = computed(() => {
     const players = current.player_details
       .filter((player) => player.teamId === team.teamId)
       .sort((a, b) => (b.teamMadeSize || 0) - (a.teamMadeSize || 0));
-    const playerKills = players.reduce((sum, player) => sum + (player.championsKilled || 0), 0);
+    const playerKills = playerStatistics.value.teams.get(team.teamId)?.kills ?? 0;
     return {
       teamId: team.teamId,
       totalKills: team.totalKills,

@@ -41,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import Panel from "../components/Panel.vue";
 import GameIcon from "../components/GameIcon.vue";
@@ -51,37 +51,15 @@ import { useAsyncData } from "../composables/useAsyncData";
 import { useFavorites } from "../composables/useFavorites";
 import { getAreaName } from "../const/areas";
 import type { PlayerSearchResult } from "../api/types";
+import { useSearchHistory } from "../composables/useSearchHistory";
 
 const props = defineProps<{ nickname: string }>();
 const router = useRouter();
 
-// 搜索历史：localStorage 记录最近 10 位，点芯片直接查
-const HISTORY_KEY = "lol-tft-search-history";
-const historyNames = ref<string[]>([]);
-try {
-  const saved = localStorage.getItem(HISTORY_KEY);
-  if (saved) historyNames.value = JSON.parse(saved) as string[];
-} catch { historyNames.value = []; }
-
-function rememberName(name: string): void {
-  const next = [name, ...historyNames.value.filter((n) => n !== name)].slice(0, 10);
-  historyNames.value = next;
-  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch { /* 隐私模式等场景忽略 */ }
-}
+const { historyNames, remember: rememberName, remove: removeHistory, clear: clearHistory } = useSearchHistory();
 
 function searchHistory(name: string): void {
   void router.push({ name: "search", params: { nickname: name } });
-}
-
-function removeHistory(name: string): void {
-  const next = historyNames.value.filter((n) => n !== name);
-  historyNames.value = next;
-  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-}
-
-function clearHistory(): void {
-  historyNames.value = [];
-  try { localStorage.removeItem(HISTORY_KEY); } catch { /* ignore */ }
 }
 
 const task = useAsyncData((signal) => lolBattleApi.searchPlayer(props.nickname, { signal }));

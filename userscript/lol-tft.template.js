@@ -2,7 +2,7 @@
 // @name         LOL战绩查询
 // @namespace    mscststs
 // @version      __VERSION__
-// @description  英雄联盟国服战绩查询，支持掌盟历史段位 HAR 导入与段位页链接查询
+// @description  英雄联盟国服战绩查询，支持官方助手登录、大区切换与掌盟详情回退
 // @author       mscststs
 // @homepage     https://github.com/entyr233/lol-tft
 // @homepageURL  https://github.com/entyr233/lol-tft
@@ -23,7 +23,8 @@
 // @connect      www.wegame.com.cn
 // @connect      wegame.com.cn
 // @run-at       document-start
-// @updateURL    none
+// @downloadURL  https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft.user.js
+// @updateURL    https://raw.githubusercontent.com/entyr233/lol-tft/master/userscript/lol-tft.user.js
 // ==/UserScript==
 
 /**
@@ -112,38 +113,21 @@
     return location.hostname === "lol.qq.com" || location.hostname === "mlol.qt.qq.com";
   }
 
-  function isGetIn(data) { return data.method === "GET"; }
-
   function installBridge() {
     var wegameOriginRe = /^https:\/\/(www\.)?wegame\.com\.cn$/;
     globalThis.addEventListener("message", function (event) {
       if (!wegameOriginRe.test(event.origin)) return;
       var data = event.data;
-      if (!data || (data.type !== "lol-tft-detail-request" && data.type !== "lol-tft-mlol-request")) return;
+      if (!data || data.type !== "lol-tft-detail-request") return;
       if (!data.id) return;
 
-      var url;
+      var url = "https://mlol.qt.qq.com/go/battle_info/get_battle_detail_h5";
       var form = new FormData();
-      if (data.type === "lol-tft-detail-request") {
-        url = "https://mlol.qt.qq.com/go/battle_info/get_battle_detail_h5";
-        form.append("uuid", data.uuid || "");
-        form.append("area_id", String(data.areaId || ""));
-        form.append("game_id", String(data.gameId || ""));
-        form.append("start_time", String(data.startTime || ""));
-      } else {
-        // 通用掌盟接口：path 不含 /go 前缀；GET 时 query 参数也放 body 里由桥拼 URL
-        var path = String(data.path || "").replace(/^\/+/, "");
-        var body = data.body || {};
-        var isGet = data.method === "GET";
-        var qs = Object.keys(body).map(function (k) {
-          return encodeURIComponent(k) + "=" + encodeURIComponent(String(body[k]));
-        }).join("&");
-        url = (sameOriginMlol ? "" : "https://mlol.qt.qq.com") + "/go/" + path + (isGet && qs ? "?" + qs : "");
-        if (!isGet) Object.keys(body).forEach(function (k) { form.append(k, String(body[k])); });
-      }
-
-      var opt = { method: isGetIn(data) ? "GET" : "POST", credentials: "include" };
-      if (opt.method === "POST") opt.body = form;
+      form.append("uuid", data.uuid || "");
+      form.append("area_id", String(data.areaId || ""));
+      form.append("game_id", String(data.gameId || ""));
+      form.append("start_time", String(data.startTime || ""));
+      var opt = { method: "POST", credentials: "include", body: form };
       fetch(url, opt).then(function (r) { return r.text().then(function (text) { return { text: text, status: r.status }; }); }).then(function (res) {
         event.source.postMessage({ type: "lol-tft-mlol-response", id: data.id, text: res.text, status: res.status }, event.origin);
       }).catch(function (error) {
@@ -202,38 +186,6 @@
       if (typeof unsafeWindow !== "undefined" && unsafeWindow.LolTft) return unsafeWindow.LolTft;
     } catch (e) { /* ignore */ }
     return window.LolTft || null;
-  }
-
-  var LOGIN_SDK_URL = "https://www.wegame.com.cn/middle/login/login.sdk.js";
-
-  /** WeGame 登录 SDK 不是每个页面都加载，注入一个（旧版脚本同样依赖它） */
-  function ensureLoginSdk() {
-    return new Promise(function (resolve) {
-      try {
-        var host = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
-        if (host.WegameLogin && host.WegameLogin.default) {
-          resolve(true);
-          return;
-        }
-        var script = document.createElement("script");
-        script.src = LOGIN_SDK_URL;
-        script.async = true;
-        script.onload = function () {
-          resolve(!!(host.WegameLogin && host.WegameLogin.default));
-        };
-        script.onerror = function () {
-          warn("登录 SDK 加载失败（不影响搜索别人的战绩）");
-          resolve(false);
-        };
-        (document.head || document.documentElement).appendChild(script);
-        setTimeout(function () {
-          resolve(!!(host.WegameLogin && host.WegameLogin.default));
-        }, 4000);
-      } catch (error) {
-        warn("登录 SDK 注入异常：", error);
-        resolve(false);
-      }
-    });
   }
 
   function injectStyle() {

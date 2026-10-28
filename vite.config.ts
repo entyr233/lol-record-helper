@@ -56,12 +56,6 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       proxy: {
-        "/__lol-tft/rank-history": {
-          target: "https://mlol.qt.qq.com",
-          changeOrigin: true,
-          rewrite: () => "/go/battle_info/get_rank_trend",
-          headers: { origin: "https://lol.qq.com", referer: "https://lol.qq.com/" }
-        },
         "/api": {
           target: "https://www.wegame.com.cn",
           changeOrigin: true,

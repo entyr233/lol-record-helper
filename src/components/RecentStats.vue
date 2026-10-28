@@ -102,7 +102,7 @@
   <p v-if="taskError" class="state-text state-text--error recent-error" title="数据来源：WeGame 战绩接口" role="alert">
     <span v-if="games.length">刷新失败，当前展示上次数据：</span>
     {{ toErrorMessage(taskError) }}
-    <button type="button" class="link-button" @click="reload">重试</button>
+    <button type="button" class="link-button" @click="reload()">重试</button>
   </p>
 </template>
 
@@ -116,7 +116,7 @@ import type { BattleSummary } from "../api/types";
 import { battleResultLabel, classifyBattle } from "../const/wins";
 import { matchesBattleMode, MODE_FILTER_OPTIONS, type ModeFilter } from "../const/modes";
 import type { DaysFilter } from "../composables/useBattleList";
-import { useBattleFeed } from "../composables/battleFeed";
+import { useBattleFeed, type BattleRefreshOptions } from "../composables/battleFeed";
 import { summarizeRecentBattles } from "../utils/recentStats";
 import type { RecentTrendPoint } from "../utils/recentStats";
 import { formatBattleDate } from "../utils/format";
@@ -280,8 +280,8 @@ function trendPointTitle(point: RecentTrendPoint): string {
 }
 
 /** 主动刷新（“刷新战绩”按钮联动）：清共享页缓存后按当前模式重新统计 */
-async function reload(): Promise<boolean> {
-  feed.invalidate();
+async function reload({ invalidate = true }: BattleRefreshOptions = {}): Promise<boolean> {
+  if (invalidate) feed.invalidate();
   await task.run();
   return task.error.value === null;
 }

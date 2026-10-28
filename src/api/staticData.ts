@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { ref, shallowRef } from "vue";
 import { gmGet } from "./transport";
 import runeMap from "../data/runes.json";
 import itemMap from "../data/items.json";
@@ -7,6 +7,7 @@ import type { ChampionSpell } from "./types";
 const CDRAGON_CHAMPION_ICON = "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-icons/";
 const GTIMG_ICON = "https://wegame.gtimg.com/g.26-r.c2d3c/helper/lol/assis/images/resources/";
 const DDDRAGON = "https://ddragon.leagueoflegends.com";
+const RUNE_ICON_BASE = "https://game.gtimg.cn/images/lol/act/img/rune/";
 
 const RUNES = runeMap as Record<string, { name: string; icon: string }>;
 const ITEMS = itemMap as Record<string, string>;
@@ -18,7 +19,12 @@ const VERSION_TTL = 12 * 60 * 60 * 1000;
 export const ddragonVersion = ref<string | null>(null);
 
 export function getRuneInfo(id: number | string): { name: string; icon: string } | undefined {
-  return RUNES[String(id)];
+  const info = RUNES[String(id)];
+  return info ? { ...info, icon: runeIconUrl(info.icon) } : undefined;
+}
+
+export function runeIconUrl(icon: string): string {
+  return /^https?:\/\//.test(icon) ? icon : RUNE_ICON_BASE + icon;
 }
 
 export function getItemName(id: number | string): string | undefined {
@@ -110,33 +116,40 @@ export function getChampionSpells(championId: number): Promise<ChampionSpell[]> 
   return task;
 }
 
-let championNames: Map<number, string> | null = null;
+const championNames = shallowRef<ReadonlyMap<number, string> | null>(null);
+let championNamesRequest: Promise<void> | null = null;
 
 /**
  * 拉一次英雄中文名映射（英雄筛选/近期英雄用）。
  * 沙箱里跨域 fetch 会被网络层拦（HTTP 0），所以走 GM GET 公共 CDN 的 hero_list.js。
  */
-export async function ensureChampionNames(): Promise<void> {
-  if (championNames) return;
-  try {
-    const raw = await gmGet("https://game.gtimg.cn/images/lol/act/img/js/heroList/hero_list.js");
-    // 文件形态：var heroList = [ {...}, ... ];（或带 window.xxx 前缀）
-    const start = raw.indexOf("[");
-    const end = raw.lastIndexOf("]");
-    if (start < 0 || end < 0) throw new Error("shape");
-    const arr = JSON.parse(raw.slice(start, end + 1)) as Array<{ heroId?: string | number; name?: string }>;
-    const entries: Array<[number, string]> = [];
-    for (const h of arr) {
-      const id = Number(h.heroId);
-      if (Number.isFinite(id) && h.name) entries.push([id, h.name]);
+export function ensureChampionNames(): Promise<void> {
+  if (championNames.value) return Promise.resolve();
+  if (championNamesRequest) return championNamesRequest;
+  championNamesRequest = (async () => {
+    try {
+      const raw = await gmGet("https://game.gtimg.cn/images/lol/act/img/js/heroList/hero_list.js");
+      // 文件形态：var heroList = [ {...}, ... ];（或带 window.xxx 前缀）
+      const start = raw.indexOf("[");
+      const end = raw.lastIndexOf("]");
+      if (start < 0 || end < 0) throw new Error("shape");
+      const arr = JSON.parse(raw.slice(start, end + 1)) as Array<{ heroId?: string | number; name?: string }>;
+      const entries: Array<[number, string]> = [];
+      for (const h of arr) {
+        const id = Number(h.heroId);
+        if (Number.isFinite(id) && h.name) entries.push([id, h.name]);
+      }
+      championNames.value = new Map(entries);
+    } catch {
+      // 名称加载失败不阻塞页面，下次调用可以重试。
+    } finally {
+      championNamesRequest = null;
     }
-    championNames = new Map(entries);
-  } catch {
-    championNames = new Map();
-  }
+  })();
+  return championNamesRequest;
 }
 
 /** 英雄数字 id -> 中文名（未加载/未知返回空串） */
 export function championName(id: number): string {
-  return championNames?.get(Number(id)) ?? "";
+  return championNames.value?.get(Number(id)) ?? "";
 }

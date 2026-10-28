@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
 import SummaryView from "../src/views/SummaryView.vue";
 import type { BattleSummary } from "../src/api/types";
+import { clearBattleFeedCache } from "../src/composables/battleFeed";
 
 const api = vi.hoisted(() => ({
   getBattleList: vi.fn(), getSummonerInfo: vi.fn(), getBattleReport: vi.fn()
@@ -48,6 +49,7 @@ function render() {
 }
 
 beforeEach(() => {
+  clearBattleFeedCache();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-27T12:00:00Z"));
   for (const method of Object.values(api)) method.mockReset();
@@ -60,6 +62,17 @@ afterEach(() => {
 });
 
 describe("整页刷新结果", () => {
+  it("同一次整页刷新中，近期统计和列表对原始第 0 页只请求一次", async () => {
+    const wrapper = render();
+    await flushPromises();
+    api.getBattleList.mockClear();
+    await wrapper.get(".summary-refresh").trigger("click");
+    await flushPromises();
+    expect(api.getBattleList.mock.calls.filter((call) => call[1].offset === 0)).toHaveLength(1);
+    expect(wrapper.findAll(".battle-list-item")).toHaveLength(10);
+    expect(wrapper.findAll(".strip-block--btn")).toHaveLength(10);
+  });
+
   it("全部刷新失败时保留成功更新时间，旧近期数据带失败提示；再次成功后清除提示", async () => {
     const wrapper = render();
     await flushPromises();

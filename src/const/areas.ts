@@ -42,7 +42,3 @@ export function getAreaName(id: number | string): string {
   const name = areaNameMap.get(numeric);
   return name || "未知-" + id;
 }
-
-export function getAreaLabel(id: number | string): string {
-  return getAreaName(id).split(/\s+/)[0] || getAreaName(id);
-}

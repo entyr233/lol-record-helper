@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { battleResultLabel, classifyBattle, getResultClass, getResultLabel } from "../src/const/wins";
 

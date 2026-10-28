@@ -47,6 +47,25 @@ beforeEach(() => { vi.useFakeTimers(); delete window.WegameLogin; localStorage.c
 afterEach(() => { wrapper?.unmount(); wrapper = undefined; delete window.WegameLogin; vi.clearAllTimers(); vi.useRealTimers(); });
 
 describe("login navigation with the real SDK adapter", () => {
+  it("查看其他大区玩家不覆盖个人大区，我的战绩返回个人大区；主动选择才保存", async () => {
+    install({ getLoginUser: async () => ({ uin: "12345" }) });
+    const router = await render();
+    await wrapper!.get(".area-select").setValue("1");
+    await flushPromises();
+    expect(localStorage.getItem("lol_tft:last-area")).toBe('"1"');
+    await router.push({ name: "summary", params: { area: "3", accountType: "2", id: "other" } });
+    await flushPromises();
+    expect(localStorage.getItem("lol_tft:last-area")).toBe('"1"');
+    expect(localStorage.getItem("lol_tft:area")).toBe("1");
+    await button("我的战绩").trigger("click");
+    await flushPromises();
+    expect(router.currentRoute.value.params).toMatchObject({ area: "1", accountType: "1", id: "12345" });
+    await wrapper!.get(".area-select").setValue("3");
+    await flushPromises();
+    expect(localStorage.getItem("lol_tft:last-area")).toBe('"3"');
+    expect(router.currentRoute.value.params).toMatchObject({ area: "3", accountType: "1" });
+  });
+
   it("空 SDK fallback 后迟到，立即登录按钮动态出现；点击恢复账号保持旧 account_type=1", async () => {
     const router = await render();
     await enterFallback(router);

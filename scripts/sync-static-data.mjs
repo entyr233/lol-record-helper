@@ -12,7 +12,10 @@ async function syncRunes() {
   const res = await fetch("https://game.gtimg.cn/images/lol/act/img/js/runeList/rune_list.js");
   const raw = await res.json();
   const map = {};
-  for (const [id, v] of Object.entries(raw.rune)) map[id] = { name: v.name, icon: v.icon };
+  const iconBase = "https://game.gtimg.cn/images/lol/act/img/rune/";
+  for (const [id, v] of Object.entries(raw.rune)) {
+    map[id] = { name: v.name, icon: v.icon.startsWith(iconBase) ? v.icon.slice(iconBase.length) : v.icon };
+  }
   writeFileSync(join(outDir, "runes.json"), JSON.stringify(map));
   console.log("runes:", Object.keys(map).length);
 }

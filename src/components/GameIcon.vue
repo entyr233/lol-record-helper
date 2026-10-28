@@ -78,14 +78,18 @@ const title = computed(() => {
 
 watch(
   [() => props.kind, () => props.id, () => props.championId],
-  async () => {
+  async ([kind, id, championId], _previous, onCleanup) => {
+    let active = true;
+    onCleanup(() => { active = false; });
     failed.value = false;
+    userIconFailed.value = false;
     spellIcon.value = null;
     spellTitle.value = null;
-    if (props.kind !== "champion-spell" || !props.championId) return;
+    if (kind !== "champion-spell" || !championId) return;
     try {
-      const spells = await getChampionSpells(props.championId);
-      const target = spells.find((item) => item.spellKey === String(props.id));
+      const spells = await getChampionSpells(championId);
+      if (!active) return;
+      const target = spells.find((item) => item.spellKey === String(id));
       if (target) {
         spellIcon.value = target.abilityIconPath;
         spellTitle.value = "【" + target.name + "】\n" + target.description;

@@ -1,13 +1,12 @@
 <template>
   <header class="app-header">
-    <select v-model="selectedArea" class="area-select" aria-label="选择区服">
+    <select :value="selectedArea" class="area-select" aria-label="选择区服" @change="selectArea">
       <option value="" disabled>选择区服</option>
       <option v-for="area in areas" :key="area.value" :value="area.value">{{ area.label }}</option>
     </select>
 
-    <span class="header-divider"></span>
+    <span v-if="currentArea" class="header-divider"></span>
     <button v-if="currentArea" type="button" class="header-button" :disabled="loggingIn" @click="goSelf">我的战绩</button>
-    <span class="header-divider"></span>
     <span class="header-divider"></span>
     <button v-if="loggedIn" type="button" class="header-button" @click="handleLogout">注销</button>
     <button v-else type="button" class="header-button header-button--login" :disabled="loggingIn" @click="handleLogin">
@@ -96,7 +95,8 @@ const version = __APP_VERSION__;
 const route = useRoute();
 const router = useRouter();
 
-const selectedArea = ref<number | "">(0);
+const selectedArea = ref<number | "">("");
+const preferredArea = ref(String(readStorage<string>("last-area", "") || readStorage<number>("area", 0) || ""));
 const keyword = ref("");
 const loggedIn = ref(false);
 const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
@@ -194,21 +194,14 @@ function removeFavorite(entry: FavoriteEntry): void {
   removeFavoriteEntry(favoriteKey(entry));
 }
 
-watch(selectedArea, (area) => rememberArea(String(area)));
-
-const currentArea = computed(() => {
-  const fromRoute = route.params.area;
-  if (fromRoute) return String(fromRoute);
-  // 掌盟查询等无区服参数的页面：用上次选择过的大区，保证「我的战绩」按钮不消失
-  return readStorage<string>("last-area", "");
-});
+const currentArea = computed(() => preferredArea.value || String(route.params.area || ""));
 
 /**
  * 官方助手页通过地址栏 uin / area_id / account_type 初始化查询对象，
  * 这里带上当前账号和大区，打开后官方页面能直接查这个玩家的战绩。
  */
 const officialHelperUrl = computed(() => {
-  const area = String(selectedArea.value || currentArea.value || "");
+  const area = currentArea.value;
   if (!area) return "https://www.wegame.com.cn/helper/lol/#/info/selection";
   const query = new URLSearchParams();
   const uin = getSelfUinFromCookie();
@@ -222,7 +215,7 @@ onMounted(() => {
   // 登录状态以 cookie 为准。
   loggedIn.value = hasLoginState();
   // 记住过区服且登录态在 → 直接落地自己的战绩页（刷新后不再退回「请先选择区服」）
-  const lastArea = readStorage<string>("last-area", "");
+  const lastArea = preferredArea.value;
   if (lastArea && !route.params.area && hasLoginState()) {
     void router.push({ name: "area", params: { area: lastArea } });
   }
@@ -231,20 +224,21 @@ onMounted(() => {
     selectedArea.value = Number(fromRoute) || 0;
     return;
   }
-  const saved = readStorage<number>("area", 0);
-  if (saved) selectedArea.value = saved;
+  selectedArea.value = Number(preferredArea.value) || "";
 });
 
-watch(selectedArea, (value) => {
-  if (value === "") return;
-  writeStorage("area", value);
-  if (String(value) !== currentArea.value) {
-    void router.replace({ name: "area", params: { area: String(value) } });
-  }
-});
+/** 只有用户主动选择大区时才更新个人常驻大区。 */
+function selectArea(event: Event): void {
+  const area = (event.target as HTMLSelectElement).value;
+  selectedArea.value = Number(area);
+  preferredArea.value = area;
+  writeStorage("area", Number(area));
+  writeStorage("last-area", area);
+  void router.replace({ name: "area", params: { area } });
+}
 
 watch(() => route.params.area, (value) => {
-  if (value) selectedArea.value = Number(value) || 0;
+  selectedArea.value = Number(value || preferredArea.value) || "";
   loggedIn.value = hasLoginState();
 });
 
@@ -256,19 +250,14 @@ function search(): void {
 async function showSelf(user: { uin: string }, signal: AbortSignal): Promise<void> {
   if (signal.aborted) return;
   loggedIn.value = true;
-  if (selectedArea.value) {
-    await router.replace({ name: "summary", params: { area: String(selectedArea.value), accountType: "1", id: user.uin } });
+  if (currentArea.value) {
+    await router.replace({ name: "summary", params: { area: currentArea.value, accountType: "1", id: user.uin } });
   }
 }
 
-function rememberArea(area: string): void {
-  if (area) writeStorage("last-area", area);
-}
-
 function goSelf(): Promise<void> {
-  const area = String(selectedArea.value || currentArea.value || "");
+  const area = currentArea.value;
   if (!area) return Promise.resolve();
-  rememberArea(area);
   // cookie 直达（不碰 SDK）；cookie 缺失才走 SDK 解析（fallback 恢复场景）
   const cookieUin = getSelfUinFromCookie();
   if (cookieUin) {

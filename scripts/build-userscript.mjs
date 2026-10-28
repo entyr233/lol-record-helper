@@ -1,4 +1,6 @@
-// 生成可直接安装的单文件油猴脚本：dist/userscript/lol-tft.user.js
+// 生成可直接安装的单文件油猴脚本：
+// - dist/userscript/lol-tft.user.js（构建产物）
+// - userscript/lol-tft.user.js（入库副本，提供 GitHub raw 直装/自动更新地址）
 // 用法：npm run build:userscript（会先构建 lib bundle）
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
@@ -6,6 +8,7 @@ const BUNDLE = "dist/lol/lol.umd.js";
 const TEMPLATE = "userscript/lol-tft.template.js";
 const OUT_DIR = "dist/userscript";
 const OUT = OUT_DIR + "/lol-tft.user.js";
+const REPO_OUT = "userscript/lol-tft.user.js";
 
 if (!existsSync(BUNDLE)) {
   console.error("找不到 " + BUNDLE + "，请先运行 npm run build");
@@ -49,6 +52,9 @@ if (!output.startsWith("// ==UserScript==") || output.includes("__VERSION__") ||
 
 mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(OUT, output, "utf8");
+// 同时写入入库副本：GitHub raw 地址可直接安装，并由 @updateURL 自动更新
+writeFileSync(REPO_OUT, output, "utf8");
 
 const kb = (Buffer.byteLength(output, "utf8") / 1024).toFixed(1);
 console.log("已生成 " + OUT + "（" + kb + " KB，含内联 bundle，无需任何外部托管）");
+console.log("已同步入库副本 " + REPO_OUT + "（GitHub raw 直装/自动更新）");

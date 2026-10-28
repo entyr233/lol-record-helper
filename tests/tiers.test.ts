@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { tierLabel, tierName, tierOrder } from "../src/const/tiers";
 

@@ -25,12 +25,6 @@ export function getQueueName(id: number | string): string {
   return QUEUES[Number(id)] || "未知";
 }
 
-/** 预组队人数 -> 几黑 */
-export function getTeamMadeName(size: number | string): string | undefined {
-  const map: Record<number, string> = { 2: "双排", 3: "三黑", 4: "四黑", 5: "五黑" };
-  return map[Number(size)];
-}
-
 /** 排位类队列（单双排 / 灵活组排）：只有这些模式才用「单排/双排」的说法 */
 const RANKED_QUEUES = new Set([420, 421, 422, 440, 441, 442, 470]);
 

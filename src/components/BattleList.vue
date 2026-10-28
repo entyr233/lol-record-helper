@@ -101,6 +101,7 @@ import { useBattleList, DEFAULT_FILTER, type FocusGameResult, type ModeFilter, t
 import { MODE_FILTER_OPTIONS } from "../const/modes";
 import { toErrorMessage } from "../api/errors";
 import { championName, ensureChampionNames } from "../api/staticData";
+import type { BattleRefreshOptions } from "../composables/battleFeed";
 
 const props = defineProps<{
   area: string;
@@ -144,12 +145,10 @@ function clearFilters(): void {
   void setFilter({ ...DEFAULT_FILTER });
 }
 
-const nameTick = ref(0);
 onMounted(() => {
-  void ensureChampionNames().then(() => { nameTick.value += 1; });
+  void ensureChampionNames();
 });
 const championOptions = computed(() => {
-  void nameTick.value;
   const options = championPool.value.map((entry) => ({
     id: entry.id,
     count: entry.count,
@@ -310,9 +309,9 @@ function applyChampionFilter(id: number | null): void {
 }
 
 /** 主动刷新：保留筛选条件与当前查看的比赛（只有该场已不在结果里时才重新选择） */
-async function refresh(): Promise<boolean> {
+async function refresh(options?: BattleRefreshOptions): Promise<boolean> {
   focusedBattle.value = null;
-  return refreshList();
+  return refreshList(options);
 }
 
 defineExpose({ focusGame, applyChampionFilter, refresh });

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { barPercent, formatBattleDate, formatDuration, formatGameScore, kdaRatio } from "../src/utils/format";
 

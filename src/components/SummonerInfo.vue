@@ -71,6 +71,7 @@
       <p v-if="loginError" class="state-text state-text--error" role="alert">{{ loginError }}</p>
       <button v-if="loggingIn" type="button" class="link-button" @click="cancel">取消等待</button>
     </Panel>
+    <PersonalRankHistory v-if="accountType === '1'" :key="area + ':' + id" :player-name="summoner?.name ?? ''" :area-name="getAreaName(area)" />
   </div>
 </template>
 
@@ -79,6 +80,8 @@ import { computed, onMounted, ref } from "vue";
 import Panel from "./Panel.vue";
 import GameIcon from "./GameIcon.vue";
 import RecentStats from "./RecentStats.vue";
+import PersonalRankHistory from "./PersonalRankHistory.vue";
+import { getAreaName } from "../const/areas";
 import { lolBattleApi } from "../api/client";
 import type { BattleSummary } from "../api/types";
 import { ApiError, toErrorMessage } from "../api/errors";
@@ -88,6 +91,7 @@ import { triggerLogin, waitForLogin } from "../utils/weGameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
 import { useFavorites } from "../composables/useFavorites";
 import { tierLabel, tierOrder } from "../const/tiers";
+import type { BattleRefreshOptions } from "../composables/battleFeed";
 import type { ModeFilter } from "../const/modes";
 import type { DaysFilter } from "../composables/useBattleList";
 
@@ -225,8 +229,8 @@ const recentRef = ref<InstanceType<typeof RecentStats> | null>(null);
 
 /** 主动刷新：召唤师资料 + 场次统计 + 近期表现一起更新 */
 defineExpose({
-  refresh: async (): Promise<string[]> => {
-    const [, , recentSucceeded] = await Promise.all([summonerTask.run(), reportTask.run(), recentRef.value?.reload()]);
+  refresh: async (options?: BattleRefreshOptions): Promise<string[]> => {
+    const [, , recentSucceeded] = await Promise.all([summonerTask.run(), reportTask.run(), recentRef.value?.reload(options)]);
     const failures: string[] = [];
     if (summonerTask.error.value) failures.push("召唤师资料");
     if (reportTask.error.value) failures.push("场次统计");

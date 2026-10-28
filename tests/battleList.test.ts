@@ -551,7 +551,7 @@ describe("useBattleList 与 battleFeed 共享缓存", () => {
     expect(state.championPool.value).toEqual([{ id: 17, count: PAGE_SIZE }]);
   });
 
-  it("切换筛选会清掉共享缓存，重新拉取当前页", async () => {
+  it("切换本地筛选复用共享原始页，卸载列表不清掉其他组件的缓存", async () => {
     const pageA = Array.from({ length: PAGE_SIZE }, (_, i) => battle("a" + i));
     getBattleList.mockResolvedValue(pageA);
 
@@ -562,8 +562,10 @@ describe("useBattleList 与 battleFeed 共享缓存", () => {
     const state = useBattleList(() => rq);
     await state.setFilter({ champion: 17 });
 
-    // 共享缓存被清掉：需要重新请求原始页
-    expect(getBattleList).toHaveBeenCalledTimes(1);
-    expect(getBattleList.mock.calls[0]![1]).toEqual({ count: PAGE_SIZE, offset: 0 });
+    expect(state.battles.value.map((item) => item.game_id)).toEqual(pageA.map((item) => item.game_id));
+    expect(getBattleList).not.toHaveBeenCalled();
+    state.dispose();
+    expect((await feed.getPage(0)).data).toBe(pageA);
+    expect(getBattleList).not.toHaveBeenCalled();
   });
 });

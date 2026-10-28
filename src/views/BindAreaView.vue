@@ -30,14 +30,12 @@ import { getAreaName } from "../const/areas";
 import { favoriteKey, useFavorites } from "../composables/useFavorites";
 import type { FavoriteEntry } from "../composables/useFavorites";
 import { getSelfUinFromCookie, hasLoginState } from "../utils/weGameLogin";
+import { useSearchHistory } from "../composables/useSearchHistory";
 
 const router = useRouter();
 const lastArea = ref(readStorage<string>("last-area", ""));
 const { favorites } = useFavorites();
-const recentSearches = ref<string[]>([]);
-try {
-  recentSearches.value = JSON.parse(localStorage.getItem("lol-tft-search-history") ?? "[]") as string[];
-} catch { /* ignore */ }
+const { historyNames: recentSearches } = useSearchHistory();
 
 /** 常看玩家 = 收藏（带 ★）+ 不在收藏里的最近搜索名字 */
 const recentNames = computed(() => {
@@ -51,12 +49,13 @@ function hasLogin(): boolean {
 }
 
 function goSelf(): void {
+  if (!lastArea.value) return;
   const cookieUin = getSelfUinFromCookie();
   if (lastArea.value && cookieUin) {
     void router.push({ name: "summary", params: { area: lastArea.value, accountType: "1", id: cookieUin } });
     return;
   }
-  void router.push({ name: "area", params: { area: lastArea.value || "1" } });
+  void router.push({ name: "area", params: { area: lastArea.value } });
 }
 
 function openFavorite(f: FavoriteEntry): void {

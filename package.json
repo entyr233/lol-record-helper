@@ -1,6 +1,6 @@
 {
   "name": "lol-tft",
-  "version": "2.11.5",
+  "version": "2.11.6",
   "private": true,
   "type": "module",
   "description": "英雄联盟国服战绩查询（WeGame 页面注入版）",
@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "preview": "vite preview",
     "build:userscript": "npm run build && node scripts/build-userscript.mjs",
-    "build:all": "npm run build:userscript && npm run build:app"
+    "build:all": "npm run typecheck && vite build --mode lib && node scripts/build-userscript.mjs && vite build"
   },
   "engines": {
     "node": ">=20.19.0"

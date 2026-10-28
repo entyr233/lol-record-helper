@@ -3,6 +3,7 @@ import type { Router } from "vue-router";
 import App from "./App.vue";
 import { createLolRouter } from "./router";
 import cssText from "./styles/app.css?inline";
+import { lastPayloads } from "./api/contracts";
 
 export interface MountOptions {
   /** 挂载宿主节点；不传则自己创建并附加到 body */
@@ -50,18 +51,16 @@ export function mountLolTft(options: MountOptions = {}): MountedInstance {
 
   // 诊断：控制台执行 __LOL_TFT_DUMP__() 把最近被拒的接口响应复制到剪贴板
   // 必须同时挂到页面上下文（unsafeWindow）——DevTools 控制台默认跑在页面环境
-  void import("./api/contracts").then((mod) => {
-    const dump = () => {
-      const text = JSON.stringify(mod.lastPayloads, null, 2);
-      try { void navigator.clipboard?.writeText(text).catch(() => undefined); } catch { /* ignore */ }
-      return text;
-    };
-    try {
-      const uw = (globalThis as unknown as { unsafeWindow?: Record<string, unknown> }).unsafeWindow;
-      if (uw) uw.__LOL_TFT_DUMP__ = dump;
-    } catch { /* ignore */ }
-    (globalThis as unknown as Record<string, unknown>).__LOL_TFT_DUMP__ = dump;
-  }).catch(() => undefined);
+  const dump = () => {
+    const text = JSON.stringify(lastPayloads, null, 2);
+    try { void navigator.clipboard?.writeText(text).catch(() => undefined); } catch { /* ignore */ }
+    return text;
+  };
+  try {
+    const uw = (globalThis as unknown as { unsafeWindow?: Record<string, unknown> }).unsafeWindow;
+    if (uw) uw.__LOL_TFT_DUMP__ = dump;
+  } catch { /* ignore */ }
+  (globalThis as unknown as Record<string, unknown>).__LOL_TFT_DUMP__ = dump;
 
   return {
     app,
