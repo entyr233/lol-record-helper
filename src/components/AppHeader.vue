@@ -28,7 +28,7 @@
     <details ref="favoritesDetails" class="header-favorites">
       <summary>收藏 {{ favorites.length }}</summary>
       <div class="favorites-pop">
-        <p v-if="!favorites.length" class="favorites-empty">还没有常看玩家</p>
+        <p v-if="!favorites.length" class="favorites-empty">还没有收藏玩家</p>
         <template v-else>
           <div v-for="group in favoriteGroups" :key="group.name" class="favorite-group">
             <p class="favorite-group-title">{{ group.name }}</p>
@@ -45,7 +45,10 @@
             >
               <button type="button" class="favorite-open" @click="openFavorite(f)">
                 <span class="favorite-name">{{ f.name }}</span>
-                <span class="favorite-area">{{ getAreaName(f.area) }}</span>
+                <span class="favorite-area">
+                  {{ getAreaName(f.area) }}
+                  <template v-if="f.lastRank"> · {{ f.lastRank }}</template>
+                </span>
                 <span v-if="f.note" class="favorite-note">{{ f.note }}</span>
               </button>
               <input
@@ -64,6 +67,7 @@
             </div>
           </div>
         </template>
+        <button type="button" class="favorites-manage-button" @click="openManager">管理收藏…</button>
       </div>
     </details>
 
@@ -77,6 +81,8 @@
     <router-link class="header-link" :to="{ name: 'aram' }" title="海克斯大乱斗数据（ARAMGG）">海克斯数据</router-link>
     <a class="header-link" :href="officialHelperUrl" target="_blank" rel="noopener noreferrer" title="官方 LOL 助手（同一账号与大区）">官方助手 ↗</a>
     <span class="header-version" title="脚本版本">v{{ version }}</span>
+
+    <FavoritesManager v-if="managerOpen" @close="managerOpen = false" />
   </header>
 </template>
 
@@ -86,6 +92,7 @@ import { useRoute, useRouter } from "vue-router";
 import { areas, getAreaName } from "../const/areas";
 import { favoriteKey, useFavorites } from "../composables/useFavorites";
 import type { FavoriteEntry } from "../composables/useFavorites";
+import FavoritesManager from "./FavoritesManager.vue";
 import { readStorage, writeStorage } from "../utils/storage";
 import { getLoginUser, getSelfUinFromCookie, hasLoginState, logout, triggerLogin, waitForLogin } from "../utils/wegameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
@@ -105,6 +112,7 @@ const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
 
 // 常驻收藏入口：与各页面共用同一份 useFavorites 单例数据
 const favoritesDetails = ref<HTMLDetailsElement | null>(null);
+const managerOpen = ref(false);
 const { favorites, remove: removeFavoriteEntry, update: updateFavorite, move: moveFavorite } = useFavorites();
 
 /** 未设置 group 的条目统一落在这个分组里，并排在所有自定义分组之后 */
@@ -131,6 +139,9 @@ const favoriteGroups = computed<FavoriteGroup[]>(() => {
   }
   const groups: FavoriteGroup[] = Array.from(named, ([name, entries]) => ({ name, entries }));
   if (ungrouped.length) groups.push({ name: UNGROUPED_LABEL, entries: ungrouped });
+  for (const group of groups) {
+    group.entries.sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)));
+  }
   return groups;
 });
 
@@ -184,8 +195,14 @@ function closeFavorites(): void {
   if (favoritesDetails.value) favoritesDetails.value.open = false;
 }
 
+function openManager(): void {
+  closeFavorites();
+  managerOpen.value = true;
+}
+
 function openFavorite(entry: FavoriteEntry): void {
   closeFavorites();
+  updateFavorite(favoriteKey(entry), { lastSeenAt: Date.now() });
   void router.push({
     name: "summary",
     params: { area: String(entry.area), accountType: entry.accountType || "2", id: entry.id }

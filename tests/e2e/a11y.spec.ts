@@ -38,7 +38,11 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
     await page.locator(".favorite-note-edit").click();
     await expectNoAxeViolations(page);
     await page.locator(".favorite-note-input").press("Enter");
-    await page.locator(".header-favorites summary").click();
+    await page.locator(".favorites-manage-button").click();
+    await expect(page.locator(".favorites-manager")).toBeVisible();
+    await expectNoAxeViolations(page);
+    await page.locator(".favorites-manager-close").click();
+    await expect(page.locator(".favorites-manager")).toHaveCount(0);
     await page.getByRole("searchbox", { name: "搜索召唤师" }).fill("测试玩家");
     await page.getByRole("searchbox", { name: "搜索召唤师" }).press("Enter");
     await expect(page.locator(".search-item")).toHaveCount(3);

@@ -31,6 +31,7 @@
                 {{ isFavorite ? "★" : "☆" }}
               </button>
             </p>
+            <p v-if="favoriteNotice" class="list-notice favorite-notice" role="status">{{ favoriteNotice }}</p>
             <p v-if="tierText" class="count-row count-row--tier">
               <span class="count-label">段位：</span>
               <span class="count-tier">{{ tierText }}</span>
@@ -75,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import Panel from "./Panel.vue";
 import GameIcon from "./GameIcon.vue";
 import RecentStats from "./RecentStats.vue";
@@ -86,7 +87,8 @@ import { useAsyncData } from "../composables/useAsyncData";
 import { toPlayerQueryParams } from "../composables/usePlayerParams";
 import { triggerLogin, waitForLogin } from "../utils/wegameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
-import { useFavorites } from "../composables/useFavorites";
+import { MAX_FAVORITES, favoriteKey, useFavorites } from "../composables/useFavorites";
+import { useRecentPlayers } from "../composables/useRecentPlayers";
 import { tierLabel, tierOrder } from "../const/tiers";
 import type { BattleRefreshOptions } from "../composables/useBattleFeed";
 import type { ModeFilter } from "../const/modes";
@@ -110,18 +112,23 @@ const emit = defineEmits<{
   modeChange: [mode: ModeFilter];
 }>();
 
-const { isFavorite: isFavoriteEntry, toggle: toggleFavoriteEntry } = useFavorites();
+const { isFavorite: isFavoriteEntry, toggle: toggleFavoriteEntry, update: updateFavoriteEntry } = useFavorites();
+const { remember: rememberRecentPlayer } = useRecentPlayers();
 const favoriteTarget = computed(() => ({ area: props.area, accountType: props.accountType, id: props.id }));
 const isFavorite = computed(() => isFavoriteEntry(favoriteTarget.value));
+const favoriteNotice = ref("");
 
 function toggleFavorite(): void {
-  toggleFavoriteEntry({
+  const result = toggleFavoriteEntry({
     name: summoner.value?.name ?? props.id,
     area: Number(props.area) || 0,
     accountType: props.accountType,
     id: props.id,
     level: summoner.value?.level
   });
+  favoriteNotice.value = result === "full"
+    ? `收藏已满（${MAX_FAVORITES} 位），请先在「管理收藏」中清理`
+    : "";
 }
 
 const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
@@ -175,6 +182,29 @@ const tierText = computed(() => {
   if (label === "未定级") return label;
   const lp = best.win_point !== undefined && best.win_point !== "" ? " · " + best.win_point + " LP" : "";
   return label + lp;
+});
+
+/** 资料加载成功后：写入最近查看，并刷新已收藏玩家的昵称/等级/段位。 */
+watch(summoner, (value) => {
+  if (!value) return;
+  rememberRecentPlayer({
+    name: value.name,
+    area: Number(props.area) || 0,
+    accountType: props.accountType,
+    id: props.id
+  });
+  if (!isFavoriteEntry(favoriteTarget.value)) return;
+  updateFavoriteEntry(favoriteKey(favoriteTarget.value), {
+    name: value.name,
+    level: value.level,
+    lastRank: tierText.value,
+    lastSeenAt: Date.now()
+  });
+});
+
+watch(tierText, (value) => {
+  if (!summoner.value || !isFavoriteEntry(favoriteTarget.value)) return;
+  updateFavoriteEntry(favoriteKey(favoriteTarget.value), { lastRank: value });
 });
 
 /** 修正旧版「匹配/排位」标签取反的问题：match = 匹配, rank = 排位 */

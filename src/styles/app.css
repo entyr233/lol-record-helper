@@ -2423,3 +2423,319 @@ summary:focus-visible,
   color: #b59758;
   font-size: 11px;
 }
+
+/* ---------- 收藏管理 ---------- */
+.favorites-manage-button {
+  width: calc(100% - 12px);
+  margin: 6px 6px 2px;
+  padding: 6px 8px;
+  color: #b59758;
+  background-color: rgba(181, 151, 88, 0.08);
+  border: 1px solid rgba(181, 151, 88, 0.24);
+  border-radius: 4px;
+  font-size: 12px;
+  text-align: center;
+}
+.favorites-manage-button:hover {
+  background-color: rgba(181, 151, 88, 0.16);
+}
+.favorite-notice {
+  margin-top: 4px;
+}
+.favorites-manager-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background-color: rgba(0, 0, 0, 0.68);
+}
+.favorites-manager {
+  display: flex;
+  flex-direction: column;
+  width: min(900px, 100%);
+  max-height: min(760px, calc(100vh - 40px));
+  color: #c6cfda;
+  background-color: #151b22;
+  border: 1px solid #33404d;
+  border-radius: 8px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+}
+.favorites-manager-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid #26313c;
+}
+.favorites-manager-head h2 {
+  margin: 0;
+  color: #e8edf2;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 20px;
+  font-weight: 400;
+}
+.favorites-manager-count {
+  margin: 4px 0 0;
+  color: #8f99a6;
+  font-size: 12px;
+}
+.favorites-manager-hint {
+  margin-left: 8px;
+  color: #56606c;
+}
+.favorites-manager-close {
+  flex: none;
+  padding: 1px 7px;
+  color: #8f99a6;
+  font-size: 20px;
+  line-height: 1.2;
+  border-radius: 4px;
+}
+.favorites-manager-close:hover {
+  color: #e8edf2;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+.favorites-manager-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-bottom: 1px solid #26313c;
+}
+.favorites-manager-search {
+  flex: 1 1 220px;
+  min-width: 160px;
+  height: 30px;
+  padding: 0 10px;
+  color: #dddddd;
+  background-color: #0d1217;
+  border: 1px solid #33404d;
+  border-radius: 4px;
+  outline: none;
+}
+.favorites-manager-search::placeholder {
+  color: #6c7683;
+}
+.favorites-manager-select {
+  height: 30px;
+  padding: 0 6px;
+  color: #c6cfda;
+  background-color: #0d1217;
+  border: 1px solid #33404d;
+  border-radius: 4px;
+}
+.favorites-manager-file {
+  display: none;
+}
+.favorites-manager-action,
+.favorites-manager-mini {
+  padding: 5px 9px;
+  color: #c6cfda;
+  background-color: #202a34;
+  border: 1px solid #33404d;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.favorites-manager-action:hover,
+.favorites-manager-mini:hover {
+  background-color: #293542;
+}
+.favorites-manager-action:disabled,
+.favorites-manager-mini:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.favorites-manager-mini {
+  padding: 3px 6px;
+}
+.favorites-manager-danger {
+  color: #e07070;
+  border-color: rgba(224, 112, 112, 0.35);
+}
+.favorites-manager-notice {
+  margin: 0;
+  padding: 7px 18px;
+  color: #e6c37a;
+  background-color: rgba(181, 151, 88, 0.1);
+  font-size: 12px;
+}
+.favorites-manager-body {
+  flex: 1 1 auto;
+  min-height: 120px;
+  padding: 4px 10px 8px;
+  overflow: auto;
+}
+.favorites-manager-empty {
+  margin: 0;
+  padding: 16px 8px;
+  color: #6c7683;
+  font-size: 13px;
+}
+.favorites-manager-group + .favorites-manager-group {
+  margin-top: 6px;
+}
+.favorites-manager-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-bottom: 1px solid #222d38;
+}
+.favorites-manager-group-toggle {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 5px;
+  color: #b59758;
+  font-size: 12px;
+  text-align: left;
+}
+.favorites-manager-caret {
+  width: 12px;
+  color: #6c7683;
+}
+.favorites-manager-group-count {
+  color: #56606c;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 11px;
+}
+.favorites-manager-list {
+  margin: 0;
+  padding: 2px 0;
+  list-style: none;
+}
+.favorites-manager-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+.favorites-manager-row:hover {
+  background-color: rgba(255, 255, 255, 0.035);
+}
+.favorites-manager-row--dragging {
+  opacity: 0.45;
+}
+.favorites-manager-check {
+  flex: none;
+  accent-color: #b59758;
+}
+.favorites-manager-open {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 120px;
+  padding: 2px 4px;
+  text-align: left;
+}
+.favorites-manager-name {
+  color: #e8edf2;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.favorites-manager-pin {
+  color: #e6c37a;
+  font-size: 10px;
+}
+.favorites-manager-meta {
+  color: #6c7683;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.favorites-manager-note {
+  overflow: hidden;
+  color: #8f99a6;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.favorites-manager-row-action {
+  flex: none;
+  padding: 3px 5px;
+  color: #8f99a6;
+  font-size: 11px;
+  border-radius: 3px;
+}
+.favorites-manager-row-action:hover {
+  color: #e6c37a;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.favorites-manager-row-action:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.favorites-manager-row-remove:hover {
+  color: #e07070;
+  background-color: rgba(224, 112, 112, 0.12);
+}
+.favorites-manager-inline-input {
+  flex: 0 1 150px;
+  min-width: 80px;
+  height: 26px;
+  padding: 0 6px;
+  color: #c6cfda;
+  background-color: #0d1217;
+  border: 1px solid #4a3f2b;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.favorites-manager-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-top: 1px solid #26313c;
+}
+.favorites-manager-select-all {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #8f99a6;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.favorites-manager-select-all input {
+  accent-color: #b59758;
+}
+.favorites-manager-foot-spacer {
+  flex: 1 1 auto;
+}
+.favorites-manager-tip {
+  color: #56606c;
+  font-size: 11px;
+}
+@media (max-width: 760px) {
+  .favorites-manager-backdrop {
+    padding: 8px;
+  }
+  .favorites-manager {
+    max-height: calc(100vh - 16px);
+  }
+  .favorites-manager-head,
+  .favorites-manager-toolbar,
+  .favorites-manager-foot {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+  .favorites-manager-row {
+    flex-wrap: wrap;
+  }
+  .favorites-manager-open {
+    flex-basis: 100%;
+  }
+  .favorites-manager-tip {
+    display: none;
+  }
+}

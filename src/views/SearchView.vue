@@ -9,6 +9,7 @@
         </span>
         <button type="button" class="history-clear" @click="clearHistory">清空记录</button>
       </div>
+      <p v-if="favoriteNotice" class="list-notice" role="status">{{ favoriteNotice }}</p>
       <p v-if="loading" class="state-text">搜索中…</p>
       <template v-else-if="error">
         <p class="state-text state-text--error">{{ toErrorMessage(error) }}</p>
@@ -42,14 +43,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import Panel from "../components/Panel.vue";
 import GameIcon from "../components/GameIcon.vue";
 import { lolBattleApi } from "../api/client";
 import { toErrorMessage } from "../api/errors";
 import { useAsyncData } from "../composables/useAsyncData";
-import { useFavorites } from "../composables/useFavorites";
+import { MAX_FAVORITES, useFavorites } from "../composables/useFavorites";
 import { getAreaName } from "../const/areas";
 import type { PlayerSearchResult } from "../api/types";
 import { useSearchHistory } from "../composables/useSearchHistory";
@@ -82,19 +83,23 @@ const isPrivacyError = computed(() => {
 
 
 const { isFavorite: isFavoriteEntry, toggle: toggleFavoriteEntry } = useFavorites();
+const favoriteNotice = ref("");
 
 function isFavorite(player: PlayerSearchResult): boolean {
   return isFavoriteEntry({ area: player.area, accountType: "2", id: player.openid });
 }
 
 function toggleFavorite(player: PlayerSearchResult): void {
-  toggleFavoriteEntry({
+  const result = toggleFavoriteEntry({
     name: props.nickname,
     area: player.area,
     accountType: "2",
     id: player.openid,
     level: player.level
   });
+  favoriteNotice.value = result === "full"
+    ? `收藏已满（${MAX_FAVORITES} 位），请先在「管理收藏」中清理`
+    : "";
 }
 
 function openPlayer(player: PlayerSearchResult): void {

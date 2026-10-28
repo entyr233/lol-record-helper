@@ -90,23 +90,23 @@ describe("useFavorites 三元组收藏", () => {
     expect(favorites.value[0]).toMatchObject({ name: "旧", area: 1, accountType: "2", id: "10", savedAt: 1 });
   });
 
-  it("最多 20 条：读取截断，新增插到最前并挤出末尾", async () => {
-    const many = Array.from({ length: 25 }, (_, index) => ({
+  it("支持 100 条：读取保留前 100；满员时返回 full 而不是静默淘汰", async () => {
+    const many = Array.from({ length: 105 }, (_, index) => ({
       name: "玩家" + index, area: 1, accountType: "2", id: String(index), savedAt: index
     }));
     localStorage.setItem(FAV_KEY, JSON.stringify(many));
 
-    const { useFavorites } = await loadFavoritesModule();
+    const { MAX_FAVORITES, useFavorites } = await loadFavoritesModule();
     const { favorites, toggle } = useFavorites();
-    expect(favorites.value).toHaveLength(20);
+    expect(MAX_FAVORITES).toBe(100);
+    expect(favorites.value).toHaveLength(100);
     expect(favorites.value[0]!.id).toBe("0");
-    expect(favorites.value[19]!.id).toBe("19");
+    expect(favorites.value[99]!.id).toBe("99");
 
-    toggle({ name: "新玩家", area: 1, accountType: "2", id: "999" });
-    expect(favorites.value).toHaveLength(20);
-    expect(favorites.value[0]!.id).toBe("999");
-    expect(favorites.value.some((entry) => entry.id === "19")).toBe(false);
-    expect(JSON.parse(localStorage.getItem(FAV_KEY) as string)).toHaveLength(20);
+    expect(toggle({ name: "新玩家", area: 1, accountType: "2", id: "999" })).toBe("full");
+    expect(favorites.value).toHaveLength(100);
+    expect(favorites.value.some((entry) => entry.id === "999")).toBe(false);
+    expect(JSON.parse(localStorage.getItem(FAV_KEY) as string).some((entry: { id: string }) => entry.id === "999")).toBe(false);
   });
 
   it("isFavorite 在 computed 中保持响应式", async () => {
@@ -241,5 +241,110 @@ describe("useFavorites 备注/分组与排序", () => {
     move("9:9:9", keyOf("12"));
     move(keyOf("12"), "9:9:9");
     expect(favorites.value.map((entry) => entry.id)).toEqual(["12", "10", "11"]);
+  });
+
+  it("toggle 返回 added/removed/full，并支持写回昵称、等级、段位、最近查看和置顶", async () => {
+    const { favoriteKey, useFavorites } = await loadFavoritesModule();
+    const { favorites, toggle, update } = useFavorites();
+    const input = { name: "甲", area: 1, accountType: "2", id: "10" };
+
+    expect(toggle(input)).toBe("added");
+    const key = favoriteKey(input);
+    update(key, {
+      name: "甲改名",
+      level: 321,
+      lastRank: "翡翠 · 59 LP",
+      lastSeenAt: 123456,
+      pinned: true
+    });
+    expect(favorites.value[0]).toMatchObject({
+      name: "甲改名", level: 321, lastRank: "翡翠 · 59 LP", lastSeenAt: 123456, pinned: true
+    });
+
+    update(key, { level: 0, lastRank: "", lastSeenAt: 0, pinned: false });
+    expect(favorites.value[0]).toMatchObject({ level: 0 });
+    expect("lastRank" in favorites.value[0]!).toBe(false);
+    expect("lastSeenAt" in favorites.value[0]!).toBe(false);
+    expect("pinned" in favorites.value[0]!).toBe(false);
+
+    expect(toggle(input)).toBe("removed");
+  });
+
+  it("setGroup / renameGroup / deleteGroup 只调整分组，不删除收藏", async () => {
+    const { favoriteKey, useFavorites } = await loadFavoritesModule();
+    const { favorites, toggle, setGroup, renameGroup, deleteGroup } = useFavorites();
+    toggle({ name: "甲", area: 1, accountType: "2", id: "10" });
+    toggle({ name: "乙", area: 1, accountType: "2", id: "11" });
+    toggle({ name: "丙", area: 1, accountType: "2", id: "12" });
+    const keyOf = (id: string): string => favoriteKey({ area: 1, accountType: "2", id });
+
+    setGroup([keyOf("10"), keyOf("11")], " 车队 ");
+    expect(favorites.value.find((entry) => entry.id === "10")!.group).toBe("车队");
+    expect(favorites.value.find((entry) => entry.id === "11")!.group).toBe("车队");
+
+    renameGroup("车队", "双排");
+    expect(favorites.value.filter((entry) => entry.group === "双排")).toHaveLength(2);
+
+    deleteGroup("双排");
+    expect(favorites.value).toHaveLength(3);
+    expect(favorites.value.every((entry) => entry.group === undefined)).toBe(true);
+  });
+
+  it("moveBy 在手动顺序中上移/下移，边界时保持不动", async () => {
+    const { favoriteKey, useFavorites } = await loadFavoritesModule();
+    const { favorites, toggle, moveBy } = useFavorites();
+    const keyOf = (id: string): string => favoriteKey({ area: 1, accountType: "2", id });
+    toggle({ name: "甲", area: 1, accountType: "2", id: "10" });
+    toggle({ name: "乙", area: 1, accountType: "2", id: "11" });
+    toggle({ name: "丙", area: 1, accountType: "2", id: "12" });
+    expect(favorites.value.map((entry) => entry.id)).toEqual(["12", "11", "10"]);
+
+    moveBy(keyOf("10"), -1);
+    expect(favorites.value.map((entry) => entry.id)).toEqual(["12", "10", "11"]);
+    moveBy(keyOf("10"), -1);
+    expect(favorites.value.map((entry) => entry.id)).toEqual(["10", "12", "11"]);
+    moveBy(keyOf("10"), -1);
+    expect(favorites.value.map((entry) => entry.id)).toEqual(["10", "12", "11"]);
+    moveBy(keyOf("11"), 1);
+    expect(favorites.value.map((entry) => entry.id)).toEqual(["10", "12", "11"]);
+    expect(JSON.parse(localStorage.getItem(FAV_KEY) as string).map((entry: { id: string }) => entry.id))
+      .toEqual(["10", "12", "11"]);
+  });
+
+  it("导入/导出：合并去重、覆盖、非法 JSON 和旧数组格式", async () => {
+    const { favoriteKey, useFavorites } = await loadFavoritesModule();
+    const { favorites, toggle, clear, exportData, importData } = useFavorites();
+    toggle({ name: "甲", area: 1, accountType: "2", id: "10" });
+    const exported = exportData();
+    expect(JSON.parse(exported)).toMatchObject({ version: 1 });
+    expect(JSON.parse(exported).favorites).toHaveLength(1);
+
+    clear();
+    expect(importData(exported, "merge")).toEqual({ added: 1, skipped: 0 });
+    expect(favorites.value).toHaveLength(1);
+    expect(importData(exported, "merge")).toEqual({ added: 0, skipped: 1 });
+
+    // 旧版裸数组也接受；覆盖模式只保留导入内容
+    const bare = JSON.stringify([{ name: "乙", area: 2, accountType: "1", id: "11" }]);
+    expect(importData(bare, "replace")).toEqual({ added: 1, skipped: 0 });
+    expect(favorites.value.map((entry) => entry.name)).toEqual(["乙"]);
+    expect(favorites.value[0]!.savedAt).toBe(0);
+
+    expect(importData("{oops", "merge").error).toBeTruthy();
+    expect(importData('{"foo":[]}', "merge").error).toBeTruthy();
+    expect(favorites.value.map((entry) => favoriteKey(entry))).toEqual([favoriteKey({ area: 2, accountType: "1", id: "11" })]);
+  });
+
+  it("读取时规整最近查看/段位/置顶字段，并丢弃非法时间戳", async () => {
+    localStorage.setItem(FAV_KEY, JSON.stringify([
+      { name: "甲", area: 1, accountType: "2", id: "10", lastSeenAt: 456, lastRank: " 钻石 · 12 LP ", pinned: true },
+      { name: "乙", area: 1, accountType: "2", id: "11", lastSeenAt: -1, lastRank: "  ", pinned: "yes" }
+    ]));
+    const { useFavorites } = await loadFavoritesModule();
+    const { favorites } = useFavorites();
+    expect(favorites.value[0]).toMatchObject({ lastSeenAt: 456, lastRank: "钻石 · 12 LP", pinned: true });
+    expect("lastSeenAt" in favorites.value[1]!).toBe(false);
+    expect("lastRank" in favorites.value[1]!).toBe(false);
+    expect("pinned" in favorites.value[1]!).toBe(false);
   });
 });
