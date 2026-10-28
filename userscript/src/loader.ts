@@ -16,8 +16,8 @@ export function normalizeUiText(text: unknown): string {
 export function buildUiUrls(repo: string, version: string): string[] {
   return [
     "https://github.com/" + repo + "/releases/download/" + version + "/lol-tft-ui.js",
-    "https://cdn.jsdelivr.net/gh/" + repo + "@ui/lol-tft-ui.js?v=" + version,
-    "https://fastly.jsdelivr.net/gh/" + repo + "@ui/lol-tft-ui.js?v=" + version
+    "https://cdn.jsdelivr.net/gh/" + repo + "@ui/versions/" + version + "/lol-tft-ui.js",
+    "https://fastly.jsdelivr.net/gh/" + repo + "@ui/versions/" + version + "/lol-tft-ui.js"
   ];
 }
 

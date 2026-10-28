@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import katarina from "./fixtures/aramgg-katarina.json";
+import descriptions from "./fixtures/aramgg-descriptions.json";
 import {
   AramggError,
   clearAramggApiKey,
@@ -60,6 +62,32 @@ function jsonResponse(payload: unknown, status = 200): Response {
 }
 
 describe("ARAMGG 数据解析", () => {
+  it("真实卡特琳娜数组按排名而非 ID 取推荐，保留统计来源", () => {
+    const detail = parseChampionDetail(katarina);
+    expect(detail.augments.map(item => item.name)).toEqual(["虚幻武器", "尖端发明家", "泰坦的坚决"]);
+    expect(detail.augments[0].stats).toMatchObject({ rank: 1, games: 34126, winRateSource: "aramgg-client-upload", winRateRegion: "WORLD" });
+    expect(detail.builds[0]).toMatchObject({ queueId: 450, tags: ["AP"] });
+    expect(detail.builds[0].coreItems.map(item => item.id)).toEqual([3146, 3020, 4645]);
+  });
+
+  it("缺失数值不会被 Number(null) 转换为 0，缺失排名按胜率排在已排名项之后", () => {
+    const detail = parseChampionDetail({ data: { augments: [
+      { id: 1, name: "无排名", stats: { rank: null, games: null, winRate: 0.9 } },
+      { id: 2, name: "有排名", stats: { rank: 1, games: 100, winRate: 0.5 } }
+    ] } });
+    expect(detail.augments.map(item => item.id)).toEqual([2, 1]);
+    expect(detail.augments[1].stats).toMatchObject({ rank: null, games: null, tier: null });
+  });
+
+  it("公开描述中的问号明确标记缺失，移除图标语法并保留已有数值", () => {
+    for (const raw of descriptions.data) {
+      const item = parseAugment(raw)!;
+      expect(item.descriptionIncomplete).toBe(true);
+      expect(item.description).toContain("〔未提供〕");
+      expect(item.description).not.toMatch(/%i:|\?|<[^>]+>/);
+    }
+    expect(stripHtml("获得%i:scaleAP%<scaleAP>@Amount@</scaleAP>法术强度，冷却7秒。&#37; &#xFFFD;")).toBe("获得〔未提供〕法术强度，冷却7秒。% 〔未提供〕");
+  });
   it("解析强化：去 HTML、比例转数字、保留 topChampions", () => {
     const item = parseAugment(augments.data[0]);
     expect(item).not.toBeNull();
@@ -172,6 +200,20 @@ describe("ARAMGG 请求与缓存", () => {
 
     await fetchAramggChampionDetail(17);
     expect(calls).toHaveLength(1); // 内存缓存
+  });
+
+  it("英雄内存缓存满 12 小时后重新请求", async () => {
+    let now = Date.now();
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    setAramggApiKey("test-key");
+    const fetchMock = vi.fn(async () => jsonResponse(katarina));
+    vi.stubGlobal("fetch", fetchMock);
+    await fetchAramggChampionDetail(55);
+    await fetchAramggChampionDetail(55);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    now += 12 * 60 * 60 * 1000;
+    await fetchAramggChampionDetail(55);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("401/429 响应转换为可读错误", async () => {

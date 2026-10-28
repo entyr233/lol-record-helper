@@ -54,14 +54,22 @@ jobs:
           git ls-remote origin refs/heads/ui
           sha256sum dist/userscript/lol-tft-ui.js
           cp dist/userscript/lol-tft-ui.js /tmp/lol-tft-ui.js
-          git checkout --orphan ui
-          git rm -rf . >/dev/null 2>&1 || true
-          cp /tmp/lol-tft-ui.js ./lol-tft-ui.js
+          cp scripts/stage-ui-fallback.mjs /tmp/stage-ui-fallback.mjs
+          if git ls-remote --exit-code --heads origin ui > /dev/null; then
+            git fetch origin ui
+            git checkout -B ui FETCH_HEAD
+          else
+            git checkout --orphan ui
+            git rm -rf .
+          fi
+          node /tmp/stage-ui-fallback.mjs "$GITHUB_REF_NAME" /tmp/lol-tft-ui.js
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lol-tft-ui.js
-          git commit -m "ui: ${GITHUB_REF_NAME}"
-          git push --force origin HEAD:ui
+          git add lol-tft-ui.js versions
+          if ! git diff --cached --quiet; then
+            git commit -m "ui: ${GITHUB_REF_NAME}"
+          fi
+          git push origin HEAD:ui
       - name: Publish prepared release
         env:
           GH_TOKEN: ${{ github.token }}

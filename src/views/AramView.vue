@@ -141,8 +141,9 @@
             </div>
           </header>
           <p v-if="selectedAugment.description" class="aram-detail-text">{{ selectedAugment.description }}</p>
+          <p v-if="selectedAugment.descriptionIncomplete" class="aram-note">数据源未提供部分具体数值，已标注为“未提供”。</p>
           <template v-if="selectedAugment.topChampions.length">
-            <p class="aram-section-label">该强化胜率最高的英雄</p>
+            <p class="aram-section-label">数据源推荐英雄</p>
             <div class="aram-chips">
               <span v-for="champ in selectedAugment.topChampions.slice(0, 8)" :key="champ.id" class="aram-chip" :title="champ.name">
                 <img v-if="champ.iconUrl" :src="champ.iconUrl" :alt="champ.name" loading="lazy" referrerpolicy="no-referrer" />
@@ -166,32 +167,35 @@
           </p>
           <template v-else-if="detail">
             <p class="aram-section-label">推荐海克斯</p>
+            <p class="aram-note">按数据源排名展示，缺少排名时按胜率排序。排名与胜率可能使用不同统计口径。</p>
             <div class="aram-aug-list">
               <span v-for="aug in detail.augments.slice(0, 9)" :key="aug.id" class="aram-aug" :title="aug.description || aug.name">
                 <img v-if="aug.iconUrl" :src="aug.iconUrl" :alt="aug.name" loading="lazy" referrerpolicy="no-referrer" />
-                <span class="aram-aug-name">{{ aug.name }}</span>
-                <small>{{ pct(aug.stats?.winRate) }}</small>
+                <span class="aram-aug-name">{{ aug.stats?.rank ? aug.stats.rank + '. ' : '' }}{{ aug.name }}</span>
+                <small :title="augmentStatsText(aug)">{{ pct(aug.stats?.winRate) }}</small>
+                <span class="aram-aug-meta">{{ augmentStatsText(aug) }}</span>
               </span>
             </div>
-            <template v-if="detail.builds.length">
-              <p class="aram-section-label">推荐出装 · {{ detail.builds[0].tags.join(" / ") || "主流" }}</p>
+            <template v-if="recommendedBuild">
+              <p class="aram-section-label">{{ recommendedBuild.queueId === 2400 ? '海克斯出装' : '数据源出装（模式未注明）' }} · {{ recommendedBuild.tags.join(" / ") || "主流" }}</p>
               <div class="aram-build-row">
                 <span class="aram-build-label">核心</span>
-                <span v-for="item in detail.builds[0].coreItems" :key="item.id" class="aram-item" :title="item.name || String(item.id)">
+                <span v-for="item in recommendedBuild.coreItems" :key="item.id" class="aram-item" :title="item.name || String(item.id)">
                   <img :src="item.iconUrl || itemIcon(item.id)" :alt="item.name || String(item.id)" loading="lazy" referrerpolicy="no-referrer" />
                 </span>
-                <template v-if="detail.builds[0].startingItems.length">
+                <template v-if="recommendedBuild.startingItems.length">
                   <span class="aram-build-label">出门</span>
-                  <span v-for="item in detail.builds[0].startingItems" :key="'s' + item.id" class="aram-item" :title="item.name || String(item.id)">
+                  <span v-for="item in recommendedBuild.startingItems" :key="'s' + item.id" class="aram-item" :title="item.name || String(item.id)">
                     <img :src="item.iconUrl || itemIcon(item.id)" :alt="item.name || String(item.id)" loading="lazy" referrerpolicy="no-referrer" />
                   </span>
                 </template>
               </div>
-              <div v-if="detail.builds[0].skillOrders.length" class="aram-build-row">
+              <div v-if="recommendedBuild.skillOrders.length" class="aram-build-row">
                 <span class="aram-build-label">加点</span>
-                <span class="aram-skills">{{ detail.builds[0].skillOrders[0].skillKeys.join(" ") }}</span>
+                <span class="aram-skills">{{ recommendedBuild.skillOrders[0].skillKeys.join(" ") }}</span>
               </div>
             </template>
+            <p v-else-if="detail.builds.length" class="aram-note">数据源仅返回其他模式的出装，未作为海克斯出装展示。</p>
           </template>
         </section>
 
@@ -201,7 +205,7 @@
 
     <p class="aram-note">
       数据来源：<a href="https://aramgg.com/" target="_blank" rel="noopener noreferrer">ARAMGG</a>
-      （腾讯国服公开统计，仅供参考）；API Key 仅保存在本机 localStorage。
+      （各条目可能使用国服统计或用户上报样本，以条目标注为准，仅供参考）；API Key 仅保存在本机。
     </p>
   </div>
 </template>
@@ -231,6 +235,7 @@ const query = ref("");
 const selectedAugmentId = ref<number | null>(null);
 const selectedChampionId = ref<number | null>(null);
 const detail = ref<AramggChampionDetail | null>(null);
+const recommendedBuild = computed(() => detail.value?.builds.find((build) => build.queueId === 2400 || build.queueId == null));
 const detailLoading = ref(false);
 const detailError = ref<string | null>(null);
 
@@ -243,8 +248,19 @@ onMounted(() => {
   void ensure();
 });
 
-function refresh(): void {
-  void ensure(true);
+async function refresh(): Promise<void> {
+  await ensure(true);
+  if (selectedChampionId.value !== null) await selectChampion(selectedChampionId.value, true);
+}
+
+function augmentStatsText(augment: AramggAugment): string {
+  const stats = augment.stats;
+  const region = stats?.winRateRegion ?? stats?.region;
+  return [stats?.winRateSource === "aramgg-client-upload" ? "用户上报胜率" : "数据源胜率",
+    region === "WORLD" ? "全球" : region === "CN" ? "国服" : region,
+    stats?.winRateGamePatch ?? stats?.gamePatch,
+    stats?.games == null ? "样本量未提供" : stats.games + " 场",
+    stats?.winRateDate ?? stats?.date].filter(Boolean).join(" · ");
 }
 
 function pct(value: number | null | undefined): string {
@@ -312,7 +328,9 @@ function select(id: number): void {
   void selectChampion(id);
 }
 
-async function selectChampion(id: number): Promise<void> {
+let detailSequence = 0;
+async function selectChampion(id: number, force = false): Promise<void> {
+  const sequence = ++detailSequence;
   selectedChampionId.value = id;
   detail.value = null;
   detailError.value = null;
@@ -322,11 +340,14 @@ async function selectChampion(id: number): Promise<void> {
   }
   detailLoading.value = true;
   try {
-    detail.value = await fetchAramggChampionDetail(id);
+    const loaded = await fetchAramggChampionDetail(id, { force });
+    if (sequence !== detailSequence) return;
+    if (loaded.champion && loaded.champion.id !== id) throw new AramggError(500, "数据源返回的英雄不匹配，请刷新重试");
+    detail.value = loaded;
   } catch (cause) {
-    detailError.value = cause instanceof AramggError ? cause.message : "读取英雄推荐失败";
+    if (sequence === detailSequence) detailError.value = cause instanceof AramggError ? cause.message : "读取英雄推荐失败";
   } finally {
-    detailLoading.value = false;
+    if (sequence === detailSequence) detailLoading.value = false;
   }
 }
 
@@ -339,6 +360,8 @@ function saveKey(): void {
 }
 
 function removeKey(): void {
+  detailSequence += 1;
+  detailLoading.value = false;
   clearAramggApiKey();
   hasKey.value = false;
   keySessionOnly.value = false;

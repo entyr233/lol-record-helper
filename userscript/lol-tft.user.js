@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LOL 战绩助手
 // @namespace    mscststs
-// @version      2.17.0
+// @version      2.17.1
 // @description  LOL 战绩助手：英雄联盟国服战绩查询，支持官方助手登录、大区切换与掌盟详情回退
 // @author       mscststs
 // @homepage     https://github.com/entyr233/lol-record-helper
@@ -20,7 +20,7 @@
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
-// @resource     lol-tft-ui https://github.com/entyr233/lol-record-helper/releases/download/v2.17.0/lol-tft-ui.js
+// @resource     lol-tft-ui https://github.com/entyr233/lol-record-helper/releases/download/v2.17.1/lol-tft-ui.js
 // @connect      mlol.qt.qq.com
 // @connect      lol.qq.com
 // @connect      game.gtimg.cn
@@ -179,8 +179,8 @@
   function buildUiUrls(repo, version) {
     return [
       "https://github.com/" + repo + "/releases/download/" + version + "/lol-tft-ui.js",
-      "https://cdn.jsdelivr.net/gh/" + repo + "@ui/lol-tft-ui.js?v=" + version,
-      "https://fastly.jsdelivr.net/gh/" + repo + "@ui/lol-tft-ui.js?v=" + version
+      "https://cdn.jsdelivr.net/gh/" + repo + "@ui/versions/" + version + "/lol-tft-ui.js",
+      "https://fastly.jsdelivr.net/gh/" + repo + "@ui/versions/" + version + "/lol-tft-ui.js"
     ];
   }
   function sha256Hex(text) {
@@ -208,10 +208,10 @@
   }
   function createUiLoader(warn) {
     const UI_RESOURCE = "lol-tft-ui";
-    const UI_TAG = "v2.17.0";
+    const UI_TAG = "v2.17.1";
     const UI_URLS = buildUiUrls("entyr233/lol-record-helper", UI_TAG);
     const UI_URL = UI_URLS[0];
-    const UI_SHA256 = "1878a3828fdc312bcec48ad3fd8870e7da49b01fcb16c2bfd5d91d66230451a7";
+    const UI_SHA256 = "8abe3898f197fb5dfb91cf85b0009b9640e1676f74128e3191050c1569f945a4";
     let libCache = null;
     let libPromise = null;
     function verifyAndEvaluate(text) {
@@ -341,7 +341,7 @@
 
   // userscript/src/overlay.ts
   function createPanel(log, warn) {
-    const VERSION = "2.17.0";
+    const VERSION = "2.17.1";
     const Z = "2147483000";
     const STYLE_ID = "lol-tft-entry-style";
     let mounted = null;
@@ -648,7 +648,7 @@
 
   // userscript/src/shell.ts
   function startShell() {
-    const VERSION = "2.17.0";
+    const VERSION = "2.17.1";
     registerMenuCommands(() => openPanel());
     installHelperTgpBridge();
     if (isLolQqBridgeHost()) {

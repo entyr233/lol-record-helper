@@ -151,10 +151,11 @@ export function createLolBattleApi(): LolBattleApi {
       // 人机验证门槛（8000022 现任确认 / 8000120 搜索与详情实测）：验证后重试一次
       if (error instanceof ApiError && needsCaptcha(error.code) && captchaAllowed() && !(options.signal?.aborted)) {
         try {
-          await runCaptchaVerification();
+          await runCaptchaVerification(options.signal);
           const retried = await post<T>(method, body, options, acquire);
           return retried;
         } catch (cause) {
+          if (options.signal?.aborted) throw new DOMException("aborted", "AbortError");
           // 验证环节本身失败（SDK 加载失败/用户取消）：原因附到最终错误里，界面可见
           if (cause instanceof ApiError && String(cause.code).startsWith("CAPTCHA")) {
             throw new ApiError(error.code, error.method, error.displayMessage + "；验证环节：" + cause.message);

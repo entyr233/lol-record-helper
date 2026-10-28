@@ -13,8 +13,9 @@ describe("userscript loader", () => {
     const urls = buildUiUrls("owner/repo", "v1.2.3");
     expect(urls).toHaveLength(3);
     expect(urls[0]).toBe("https://github.com/owner/repo/releases/download/v1.2.3/lol-tft-ui.js");
-    expect(urls[1]).toContain("cdn.jsdelivr.net/gh/owner/repo@ui/lol-tft-ui.js?v=v1.2.3");
-    expect(urls[2]).toContain("fastly.jsdelivr.net/gh/owner/repo@ui/lol-tft-ui.js?v=v1.2.3");
+    expect(urls[1]).toBe("https://cdn.jsdelivr.net/gh/owner/repo@ui/versions/v1.2.3/lol-tft-ui.js");
+    expect(urls[2]).toBe("https://fastly.jsdelivr.net/gh/owner/repo@ui/versions/v1.2.3/lol-tft-ui.js");
+    expect(buildUiUrls("owner/repo", "v1.2.4")[1]).not.toBe(urls[1]);
   });
 
   it("诊断信息不包含 cookie 字段", () => {

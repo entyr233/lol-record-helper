@@ -2346,6 +2346,11 @@ summary:focus-visible,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.aram-aug-meta {
+  grid-column: 2 / -1;
+  color: #9aa4b2;
+  font-size: 10px;
+}
 .aram-aug small {
   color: #e6c37a;
   text-align: right;

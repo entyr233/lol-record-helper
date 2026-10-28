@@ -14,8 +14,8 @@ const DATA_API = ORIGIN + "/api/v1/zh-CN";
 const API_KEY_STORAGE = "aramgg-api-key";
 const API_KEY_SESSION_STORAGE = "aramgg-api-key-session";
 const API_KEY_SESSION_ONLY_STORAGE = "aramgg-api-key-session-only";
-const OVERVIEW_CACHE_STORAGE = "aramgg-overview";
-const CHAMPION_CACHE_PREFIX = "aramgg-champion:";
+const OVERVIEW_CACHE_STORAGE = "aramgg-overview-v2";
+const CHAMPION_CACHE_PREFIX = "aramgg-champion-v2:";
 const OVERVIEW_TTL_MS = 6 * 60 * 60 * 1000;
 const CHAMPION_TTL_MS = 12 * 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15000;
@@ -42,6 +42,10 @@ export interface AramggStats {
   /** 单英雄推荐顺序（仅 /champions/{id}.json 的 augments 返回） */
   rank?: number | null;
   total?: number | null;
+  winRateSource?: string | null;
+  winRateRegion?: string | null;
+  winRateGamePatch?: string | null;
+  winRateDate?: string | null;
 }
 
 export interface AramggTopChampion {
@@ -61,6 +65,7 @@ export interface AramggAugment {
   iconUrl: string | null;
   description: string | null;
   tooltip: string | null;
+  descriptionIncomplete?: boolean;
   stats: AramggStats | null;
   topChampions: AramggTopChampion[];
 }
@@ -90,6 +95,8 @@ export interface AramggItemRef {
 }
 
 export interface AramggBuild {
+  queueId?: number | null;
+  patch?: string | null;
   tags: string[];
   games: number | null;
   wins: number | null;
@@ -175,6 +182,8 @@ export function clearAramggApiKey(): void {
 /* ------------------------------ 数据解析 ------------------------------ */
 
 function num(value: unknown): number | null {
+  if ((typeof value !== "number" && typeof value !== "string") || value === "") return null;
+  if (typeof value === "string" && !value.trim()) return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
@@ -193,6 +202,12 @@ export function stripHtml(value: string | null | undefined): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
+    .replace(/&#(x[0-9a-f]+|\d+);/gi, (_entity, digits: string) => {
+      const code = digits[0].toLowerCase() === "x" ? parseInt(digits.slice(1), 16) : Number(digits);
+      return code > 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff) ? String.fromCodePoint(code) : "〔未提供〕";
+    })
+    .replace(/%i:[^%]+%/g, "")
+    .replace(/@[^@\s]+@|\{\{[^}]+\}\}|[?\uFFFD]+/g, "〔未提供〕")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -211,7 +226,11 @@ function parseStats(raw: unknown): AramggStats | null {
     source: str(v.source),
     region: str(v.region),
     rank: num(v.rank),
-    total: num(v.total)
+    total: num(v.total),
+    winRateSource: str(v.winRateSource),
+    winRateRegion: str(v.winRateRegion),
+    winRateGamePatch: str(v.winRateGamePatch),
+    winRateDate: str(v.winRateDate)
   };
 }
 
@@ -225,7 +244,7 @@ function parseTopChampions(raw: unknown): AramggTopChampion[] {
     if (id === null || !name) continue;
     list.push({ id, name, iconUrl: str(v.iconUrl), rank: num(v.rank), stats: parseStats(v.stats) });
   }
-  return list;
+  return list.sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
 }
 
 export function parseAugment(raw: unknown): AramggAugment | null {
@@ -243,6 +262,7 @@ export function parseAugment(raw: unknown): AramggAugment | null {
     iconUrl: str(v.iconUrl),
     description: stripHtml(str(v.description)),
     tooltip: stripHtml(str(v.tooltip)),
+    descriptionIncomplete: stripHtml(str(v.description)).includes("〔未提供〕"),
     stats: parseStats(v.stats),
     topChampions: parseTopChampions(v.topChampions)
   };
@@ -296,13 +316,18 @@ function parseItemRef(raw: unknown): AramggItemRef | null {
 
 function parseItemRefs(raw: unknown): AramggItemRef[] {
   if (!Array.isArray(raw)) return [];
+  if (raw.length && Array.isArray(raw[0]?.itemIds)) {
+    const group = [...raw].sort((a, b) => (num(b.games) ?? 0) - (num(a.games) ?? 0))[0];
+    return group.itemIds.map((id: unknown) => parseItemRef({ id })).filter((entry: AramggItemRef | null): entry is AramggItemRef => entry !== null);
+  }
   return raw.map(parseItemRef).filter((entry): entry is AramggItemRef => entry !== null);
 }
 
 function parseBuild(raw: unknown): AramggBuild | null {
   if (!raw || typeof raw !== "object") return null;
   const v = raw as Record<string, unknown>;
-  const tags = Array.isArray(v.tags) ? v.tags.filter((tag): tag is string => typeof tag === "string") : [];
+  const tagValues = Array.isArray(v.tags) ? v.tags : v.tags && typeof v.tags === "object" ? Object.values(v.tags) : [];
+  const tags = tagValues.filter((tag): tag is string => typeof tag === "string");
   const spells = Array.isArray(v.summonerSpells)
     ? v.summonerSpells
         .map((entry) => {
@@ -325,6 +350,8 @@ function parseBuild(raw: unknown): AramggBuild | null {
     : [];
   return {
     tags,
+    queueId: num(v.queueId),
+    patch: str(v.patch),
     games: num(v.games),
     wins: num(v.wins),
     pickRate: num(v.pickRate),
@@ -347,6 +374,12 @@ export function parseChampionDetail(raw: unknown): AramggChampionDetail {
   const builds = Array.isArray(data.builds)
     ? data.builds.map(parseBuild).filter((entry): entry is AramggBuild => entry !== null)
     : [];
+  augments.sort((a, b) => {
+    const rankA = a.stats?.rank;
+    const rankB = b.stats?.rank;
+    return (rankA && rankA > 0 ? rankA : Infinity) - (rankB && rankB > 0 ? rankB : Infinity) ||
+      (b.stats?.winRate ?? -1) - (a.stats?.winRate ?? -1) || a.id - b.id;
+  });
   return { champion, augments, builds };
 }
 
@@ -423,7 +456,7 @@ async function getJson(url: string, headers: Record<string, string> = {}, useGm 
 
 let memoryOverview: AramggOverviewCache | null = null;
 let overviewInflight: Promise<AramggOverview> | null = null;
-const memoryChampions = new Map<number, AramggChampionDetail>();
+const memoryChampions = new Map<string, { savedAt: number; detail: AramggChampionDetail }>();
 
 function readOverviewCache(): AramggOverviewCache | null {
   if (memoryOverview) return memoryOverview;
@@ -475,19 +508,20 @@ export async function fetchAramggChampionDetail(championId: number, options: { f
   if (!key) throw new AramggError(401, "未配置 ARAMGG API Key：请先在「海克斯数据」里填写");
   const version = readOverviewCache()?.dataVersion ?? "";
   const cacheKey = CHAMPION_CACHE_PREFIX + version + ":" + championId;
-  const memory = memoryChampions.get(championId);
-  if (memory && !options.force) return memory;
+  const memory = memoryChampions.get(cacheKey);
+  if (memory && Date.now() - memory.savedAt < CHAMPION_TTL_MS && !options.force) return memory.detail;
   if (!options.force) {
     const cached = readStorage<{ savedAt: number; detail: AramggChampionDetail } | null>(cacheKey, null);
     if (cached && Date.now() - cached.savedAt < CHAMPION_TTL_MS) {
-      memoryChampions.set(championId, cached.detail);
+      memoryChampions.set(cacheKey, cached);
       return cached.detail;
     }
   }
   const raw = await getJson(DATA_API + "/champions/" + championId + ".json", { Authorization: "Bearer " + key }, true);
   const detail = parseChampionDetail(raw);
-  memoryChampions.set(championId, detail);
-  writeStorage(cacheKey, { savedAt: Date.now(), detail });
+  const cached = { savedAt: Date.now(), detail };
+  memoryChampions.set(cacheKey, cached);
+  writeStorage(cacheKey, cached);
   return detail;
 }
 

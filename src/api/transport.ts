@@ -5,11 +5,13 @@ export interface MinimalResponse {
   status: number;
   headers: { get: (name: string) => string | null };
   json: () => Promise<unknown>;
+  body?: ReadableStream<Uint8Array> | null;
 }
 
 interface GMResponseLike {
   status: number;
-  responseText: string;
+  responseText?: string;
+  response?: string;
   responseHeaders?: string | Record<string, string>;
 }
 
@@ -24,7 +26,7 @@ interface GMRequestDetails {
   ontimeout?: () => void;
 }
 
-type GMXmlhttpRequest = (details: GMRequestDetails) => unknown;
+type GMXmlhttpRequest = (details: GMRequestDetails) => { abort?: () => void } | void;
 
 function gm(): GMXmlhttpRequest | null {
   const candidate = (globalThis as unknown as { GM_xmlhttpRequest?: GMXmlhttpRequest }).GM_xmlhttpRequest;
@@ -78,22 +80,42 @@ function responseFrom(text: string, status: number, rawHeaders: GMResponseLike["
   return { ok: status >= 200 && status < 300, status, headers: parseHeaders(rawHeaders), json: async () => JSON.parse(text) as unknown };
 }
 
-function gmRequest(url: string, data: FormData | string, headers: Record<string, string> | undefined, timeout: number, signal?: AbortSignal): Promise<MinimalResponse> {
+function gmRequest(impl: GMXmlhttpRequest, method: "GET" | "POST", url: string, data: FormData | string | undefined, headers: Record<string, string> | undefined, timeout: number, signal?: AbortSignal): Promise<GMResponseLike> {
+  if (signal?.aborted) return Promise.reject(new DOMException("aborted", "AbortError"));
   return new Promise((resolve, reject) => {
     let settled = false;
-    const done = (fn: () => void) => { if (settled) return; settled = true; fn(); };
-    const timer = setTimeout(() => done(() => reject(new ApiError("TIMEOUT", url, "请求超时"))), timeout);
-    signal?.addEventListener("abort", () => { done(() => reject(new DOMException("aborted", "AbortError"))); }, { once: true });
-    gm()!({
-      method: "POST",
-      url,
-      headers,
-      data,
-      timeout,
-      onload: (response) => done(() => { clearTimeout(timer); resolve(responseFrom(String(response.responseText ?? ""), Number(response.status) || 200, response.responseHeaders)); }),
-      onerror: () => done(() => { clearTimeout(timer); reject(new ApiError("NETWORK", url, "网络请求失败")); }),
-      ontimeout: () => done(() => { clearTimeout(timer); reject(new ApiError("TIMEOUT", url, "请求超时")); })
+    let handle: ReturnType<GMXmlhttpRequest>;
+    const done = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      fn();
+    };
+    const onAbort = () => done(() => {
+      reject(new DOMException("aborted", "AbortError"));
+      handle?.abort?.();
     });
+    const onTimeout = () => done(() => {
+      reject(new ApiError("TIMEOUT", url, "请求超时"));
+      handle?.abort?.();
+    });
+    const timer = setTimeout(onTimeout, timeout);
+    signal?.addEventListener("abort", onAbort, { once: true });
+    try {
+      handle = impl({
+        method,
+        url,
+        headers,
+        data,
+        timeout,
+        onload: (response) => done(() => resolve(response)),
+        onerror: () => done(() => reject(new ApiError("NETWORK", url, "网络请求失败"))),
+        ontimeout: onTimeout
+      });
+    } catch (error) {
+      done(() => reject(error));
+    }
   });
 }
 
@@ -109,21 +131,40 @@ async function send(url: string, body: FormData | string, headers: Record<string
   if (pf) {
     return viaFetch(pf, url, body, headers, timeout, signal);
   }
-  if (gm()) {
-    return gmRequest(url, body, headers, timeout, signal);
+  const impl = gm();
+  if (impl) {
+    const response = await gmRequest(impl, "POST", url, body, headers, timeout, signal);
+    return responseFrom(response.responseText ?? response.response ?? "", response.status, response.responseHeaders);
   }
   return viaFetch(globalThis.fetch.bind(globalThis), url, body, headers, timeout, signal);
 }
 
 async function viaFetch(fetchImpl: typeof fetch, url: string, body: FormData | string, headers: Record<string, string> | undefined, timeout: number, signal?: AbortSignal): Promise<MinimalResponse> {
+  if (signal?.aborted) throw new DOMException("aborted", "AbortError");
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(new DOMException("timeout", "TimeoutError")), timeout);
-  signal?.addEventListener("abort", () => { controller.abort(signal?.reason); }, { once: true });
+  const dispose = () => {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", onAbort);
+  };
+  const timer = setTimeout(() => {
+    controller.abort(new DOMException("timeout", "TimeoutError"));
+    dispose();
+  }, timeout);
+  const onAbort = () => { controller.abort(signal?.reason); dispose(); };
+  signal?.addEventListener("abort", onAbort, { once: true });
   // 注意：不能用 fetch(...).finally —— 测试环境里 fetch 可能返回非 Promise 的 Response-like
   try {
-    return await fetchImpl(url, { method: "POST", body, credentials: "include", headers, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
+    const response = await fetchImpl(url, { method: "POST", body, credentials: "include", headers, signal: controller.signal });
+    if (!response.ok) { dispose(); return response; }
+    return {
+      ok: response.ok, status: response.status, headers: response.headers, body: response.body,
+      json: async () => {
+        try { return await response.json(); } finally { dispose(); }
+      }
+    };
+  } catch (error) {
+    dispose();
+    throw error;
   }
 }
 
@@ -140,17 +181,12 @@ export async function postForm(url: string, form: FormData, options: TransportOp
 }
 
 /** GM GET 请求：跨域搜索类接口（不需要登录 cookie，但被 CORS 挡在浏览器 fetch 外） */
-export function gmGet(url: string, timeoutMs = 15000): Promise<string> {
+export async function gmGet(url: string, timeoutMs = 15000, signal?: AbortSignal): Promise<string> {
   const impl = gm();
-  if (!impl) return Promise.reject(new Error("GM 传输不可用"));
-  return new Promise((resolve, reject) => {
-    impl({
-      method: "GET",
-      url,
-      timeout: timeoutMs,
-      onload: (response: { response?: string; status?: number }) => resolve(String(response.response ?? "")),
-      onerror: () => reject(new Error("GM 请求失败")),
-      ontimeout: () => reject(new Error("GM 请求超时"))
-    });
-  });
+  if (!impl) throw new Error("GM 传输不可用");
+  const response = await gmRequest(impl, "GET", url, undefined, undefined, timeoutMs, signal);
+  if (!(response.status >= 200 && response.status < 300)) {
+    throw new ApiError(String(response.status), url, "HTTP " + response.status);
+  }
+  return response.responseText ?? response.response ?? "";
 }

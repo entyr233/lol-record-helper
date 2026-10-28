@@ -1,0 +1,29 @@
+{
+  "source": "https://data.dtodo.cn/api/client/v1/data/16.21.3/augments.json",
+  "data": [
+    {
+      "id": 1048,
+      "name": "珠光护手",
+      "description": "你的技能可以造成<crit>暴击</crit>。<br><br>获得<crit>%i:scaleCrit% ?暴击几率</crit>。",
+      "tooltip": "你的技能可以造成<crit>暴击</crit>，造成145%总伤害。<br><br>获得<crit>%i:scaleCrit% ?暴击几率</crit>。<br><br>额外伤害：?"
+    },
+    {
+      "id": 1097,
+      "name": "巫师式思考",
+      "description": "获得%i:scaleAP%<scaleAP>?法术强度</scaleAP>。",
+      "tooltip": "获得%i:scaleAP%<scaleAP>?法术强度</scaleAP>。"
+    },
+    {
+      "id": 1103,
+      "name": "面包和黄油",
+      "description": "你的【<font color='#F0C200'>?</font>】技能获得100技能急速。",
+      "tooltip": "你的【<font color='#F0C200'>?</font>】技能获得100技能急速。"
+    },
+    {
+      "id": 2132,
+      "name": "术士果汁盒",
+      "description": "获得<lifeSteal>?全能吸血</lifeSteal>。",
+      "tooltip": "获得<lifeSteal>?全能吸血</lifeSteal>。"
+    }
+  ]
+}

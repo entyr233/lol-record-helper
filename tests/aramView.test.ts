@@ -4,6 +4,8 @@ import AramView from "../src/views/AramView.vue";
 import { __setAramggOverviewForTest } from "../src/composables/useAramgg";
 import { clearAramggApiKey, clearAramggMemoryCache, setAramggApiKey } from "../src/api/aramgg";
 import type { AramggOverview } from "../src/api/aramgg";
+import katarina from "./fixtures/aramgg-katarina.json";
+import descriptions from "./fixtures/aramgg-descriptions.json";
 
 const overview: AramggOverview = {
   dataVersion: "16.21.2",
@@ -74,6 +76,50 @@ afterEach(() => {
 });
 
 describe("海克斯数据视图", () => {
+  it("卡特琳娜先展示排名第一的虚幻武器，显示样本口径并排除普通大乱斗出装", async () => {
+    __setAramggOverviewForTest({ ...overview, champions: [{ ...overview.champions[0], id: 55, name: "卡特琳娜" }] });
+    setAramggApiKey("test-key");
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(katarina)));
+    const wrapper = mount(AramView);
+    await wrapper.findAll("button").find(item => item.text() === "英雄榜")!.trigger("click");
+    await wrapper.get(".aram-row").trigger("click");
+    await flushPromises();
+    expect(wrapper.findAll(".aram-aug-name")[0].text()).toBe("1. 虚幻武器");
+    expect(wrapper.text()).toContain("用户上报胜率 · 全球 · 16.21 · 34126 场");
+    expect(wrapper.text()).toContain("数据源仅返回其他模式的出装");
+    expect(wrapper.find(".aram-item").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("缺失的吸血数值明确显示未提供，不展示问号或虚构数字", async () => {
+    const { parseAugment } = await import("../src/api/aramgg");
+    const item = parseAugment(descriptions.data.find(item => item.id === 2132))!;
+    __setAramggOverviewForTest({ ...overview, augments: [item] });
+    const wrapper = mount(AramView);
+    await wrapper.get(".aram-row").trigger("click");
+    expect(wrapper.get(".aram-detail-text").text()).toBe("获得〔未提供〕全能吸血。");
+    expect(wrapper.text()).toContain("数据源未提供部分具体数值");
+    wrapper.unmount();
+  });
+
+  it("快速切换英雄时，迟到响应不会覆盖当前英雄的推荐", async () => {
+    setAramggApiKey("test-key");
+    const resolves: Array<(value: Response) => void> = [];
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(resolve => resolves.push(resolve))));
+    const wrapper = mount(AramView);
+    await wrapper.findAll("button").find(item => item.text() === "英雄榜")!.trigger("click");
+    const rows = wrapper.findAll(".aram-row");
+    await rows[0].trigger("click");
+    await rows[1].trigger("click");
+    resolves[1](jsonResponse({ data: { champion: overview.champions[1], augments: [{ id: 2, name: "当前英雄强化" }] } }));
+    await flushPromises();
+    resolves[0](jsonResponse({ data: { champion: overview.champions[0], augments: [{ id: 1, name: "迟到英雄强化" }] } }));
+    await flushPromises();
+    expect(wrapper.get(".aram-detail-title").text()).toBe("亚索");
+    expect(wrapper.text()).toContain("当前英雄强化");
+    expect(wrapper.text()).not.toContain("迟到英雄强化");
+    wrapper.unmount();
+  });
   it("展示强化榜并按胜率排序，显示数据来源与补丁", () => {
     const wrapper = mount(AramView);
     const text = wrapper.text();
