@@ -2319,6 +2319,13 @@ summary:focus-visible,
   height: 18px;
   border-radius: 50%;
 }
+.aram-chip:hover {
+  background-color: #29364b;
+}
+.aram-chip:focus-visible {
+  outline: 2px solid #e6c37a;
+  outline-offset: 2px;
+}
 .aram-aug-list {
   display: flex;
   flex-direction: column;

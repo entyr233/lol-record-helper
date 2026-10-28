@@ -76,6 +76,48 @@ afterEach(() => {
 });
 
 describe("海克斯数据视图", () => {
+  it("中文输入法组合期间即可按输入框文本筛选，不必等待选字结束", async () => {
+    const wrapper = mount(AramView);
+    const input = wrapper.get<HTMLInputElement>(".aram-search");
+    await input.trigger("compositionstart");
+    input.element.value = "泰坦";
+    await input.trigger("input", { isComposing: true });
+    expect(wrapper.findAll(".aram-row")).toHaveLength(1);
+    expect(wrapper.get(".aram-row").text()).toContain("泰坦的坚决");
+    await input.trigger("compositionend");
+    expect(input.element.value).toBe("泰坦");
+    wrapper.unmount();
+  });
+  it("点击推荐英雄会清除强化搜索并展示对应英雄的海克斯", async () => {
+    __setAramggOverviewForTest({ ...overview, augments: [{ ...overview.augments[1], topChampions: [{ id: 17, name: "提莫", iconUrl: null }] }] });
+    setAramggApiKey("test-key");
+    const fetchMock = vi.fn(async () => jsonResponse({ data: { champion: overview.champions[0], augments: [{ id: 2001, name: "提莫适配强化", stats: { rank: 1 } }] } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(AramView);
+    await wrapper.get(".aram-search").setValue("泰坦");
+    await wrapper.get(".aram-row").trigger("click");
+    await wrapper.get("button.aram-chip").trigger("click");
+    await flushPromises();
+    expect(wrapper.get(".aram-detail-title").text()).toBe("提莫");
+    expect(wrapper.get(".aram-aug-name").text()).toBe("1. 提莫适配强化");
+    expect((wrapper.get(".aram-search").element as HTMLInputElement).value).toBe("");
+    expect(wrapper.get(".aram-row--cur").text()).toContain("提莫");
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/champions/17.json"), expect.anything());
+    wrapper.unmount();
+  });
+
+  it("未配置 Key 时也能跳转并读取公开英雄推荐", async () => {
+    __setAramggOverviewForTest({ ...overview, augments: [{ ...overview.augments[0], topChampions: [{ id: 157, name: "亚索", iconUrl: null }] }] });
+    const fetchMock = vi.fn(async () => jsonResponse({ data: { champion: overview.champions[1], augments: [{ id: 3001, name: "亚索适配强化" }] } })); vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(AramView);
+    await wrapper.get(".aram-row").trigger("click");
+    await wrapper.get("button.aram-chip").trigger("click");
+    await flushPromises();
+    expect(wrapper.get(".aram-detail-title").text()).toBe("亚索");
+    expect(wrapper.text()).toContain("亚索适配强化");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
+  });
   it("卡特琳娜先展示排名第一的虚幻武器，显示样本口径并排除普通大乱斗出装", async () => {
     __setAramggOverviewForTest({ ...overview, champions: [{ ...overview.champions[0], id: 55, name: "卡特琳娜" }] });
     setAramggApiKey("test-key");
@@ -151,13 +193,15 @@ describe("海克斯数据视图", () => {
     expect(text).toContain("54.4%");
   });
 
-  it("未配置 API Key 时点击英雄给出提示，不发起请求", async () => {
+  it("未配置 API Key 时点击英雄可使用公开版本数据", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ champion: overview.champions[0], augments: [{ id: 3002, name: "公开推荐" }] })));
     const wrapper = mount(AramView);
     const tab = wrapper.findAll("button").find((item) => item.text() === "英雄榜");
     await tab!.trigger("click");
     const row = wrapper.findAll(".aram-row").find((item) => item.text().includes("提莫"));
     await row!.trigger("click");
-    expect(wrapper.text()).toContain("未配置 ARAMGG API Key");
+    await flushPromises();
+    expect(wrapper.text()).toContain("公开推荐");
   });
 
   it("配置 API Key 后展示推荐海克斯与出装", async () => {

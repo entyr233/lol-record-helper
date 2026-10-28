@@ -18,7 +18,7 @@
     <Panel title="ARAMGG 数据源" class="aram-source">
       <div class="aram-source-body">
         <p class="aram-source-text">
-          榜单数据来自 ARAMGG（免 API Key）；填写 API Key 后可查看单英雄推荐强化/出装，每次 2 credits、缓存 12 小时。Key 只保存在本机，不会上传。
+          榜单和英雄推荐优先读取 ARAMGG 公开版本数据，免 API Key，缓存 12 小时。公开英雄数据不可用时，已配置的 Key 可用于开发者接口回退（每次 2 credits）。
         </p>
         <p v-if="hasKey && !editingKey" class="aram-source-key">
           已配置：<code>{{ maskedKey }}</code>
@@ -74,7 +74,8 @@
       </div>
       <div class="aram-controls-right">
         <input
-          v-model.trim="query"
+          :value="query"
+          @input="query = ($event.target as HTMLInputElement).value"
           type="search"
           class="aram-search"
           :placeholder="tab === 'augments' ? '搜索强化' : '搜索英雄'"
@@ -145,10 +146,12 @@
           <template v-if="selectedAugment.topChampions.length">
             <p class="aram-section-label">数据源推荐英雄</p>
             <div class="aram-chips">
-              <span v-for="champ in selectedAugment.topChampions.slice(0, 8)" :key="champ.id" class="aram-chip" :title="champ.name">
-                <img v-if="champ.iconUrl" :src="champ.iconUrl" :alt="champ.name" loading="lazy" referrerpolicy="no-referrer" />
+              <button v-for="champ in selectedAugment.topChampions.slice(0, 8)" :key="champ.id" type="button" class="aram-chip"
+                :title="'查看' + champ.name + '的海克斯推荐'" :aria-label="'查看' + champ.name + '的海克斯推荐'"
+                @click="openRecommendedChampion(champ.id)">
+                <img v-if="champ.iconUrl" :src="champ.iconUrl" alt="" loading="lazy" referrerpolicy="no-referrer" />
                 <span>{{ champ.name }}</span>
-              </span>
+              </button>
             </div>
           </template>
         </section>
@@ -156,7 +159,7 @@
         <section v-else-if="tab === 'champions' && selectedChampionId !== null" aria-label="英雄详情">
           <header class="aram-detail-head">
             <div>
-              <p class="aram-detail-title">{{ selectedChampion?.name || "英雄 " + selectedChampionId }}</p>
+              <h3 ref="championHeading" class="aram-detail-title" tabindex="-1">{{ selectedChampion?.name || "英雄 " + selectedChampionId }}</h3>
               <p class="aram-detail-sub">{{ selectedChampion?.title || "" }} · 海克斯大乱斗推荐</p>
             </div>
           </header>
@@ -211,7 +214,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 import Panel from "../components/Panel.vue";
 import {
   AramggError,
@@ -234,6 +237,7 @@ const rarityFilter = ref<"all" | "prismatic" | "gold" | "silver">("all");
 const query = ref("");
 const selectedAugmentId = ref<number | null>(null);
 const selectedChampionId = ref<number | null>(null);
+const championHeading = ref<HTMLElement | null>(null);
 const detail = ref<AramggChampionDetail | null>(null);
 const recommendedBuild = computed(() => detail.value?.builds.find((build) => build.queueId === 2400 || build.queueId == null));
 const detailLoading = ref(false);
@@ -282,23 +286,17 @@ const statsDate = computed(() => {
   return first?.stats?.date ?? "";
 });
 
-const augmentRows = computed(() => {
-  let list = [...(overview.value?.augments ?? [])];
-  if (rarityFilter.value !== "all") list = list.filter((item) => item.rarityName === rarityFilter.value);
-  if (query.value) list = list.filter((item) => item.name.includes(query.value));
-  return list.sort(
-    (a, b) =>
-      (b.stats?.winRate ?? -1) - (a.stats?.winRate ?? -1) ||
-      (a.stats?.tier ?? 99) - (b.stats?.tier ?? 99) ||
-      a.name.localeCompare(b.name, "zh-CN")
-  );
-});
-
-const championRows = computed(() => {
-  let list = [...(overview.value?.champions ?? [])];
-  if (query.value) list = list.filter((item) => item.name.includes(query.value) || (item.title ?? "").includes(query.value));
-  return list.sort((a, b) => (b.stats?.winRate ?? -1) - (a.stats?.winRate ?? -1));
-});
+// 排序只依赖榜单，输入时仅筛选已排序结果。
+const sortedAugments = computed(() => [...(overview.value?.augments ?? [])].sort((a, b) =>
+  (b.stats?.winRate ?? -1) - (a.stats?.winRate ?? -1) ||
+  (a.stats?.tier ?? 99) - (b.stats?.tier ?? 99) || a.name.localeCompare(b.name, "zh-CN")));
+const sortedChampions = computed(() => [...(overview.value?.champions ?? [])].sort((a, b) =>
+  (b.stats?.winRate ?? -1) - (a.stats?.winRate ?? -1)));
+const searchText = computed(() => query.value.trim().toLowerCase());
+const augmentRows = computed(() => sortedAugments.value.filter(item =>
+  (rarityFilter.value === "all" || item.rarityName === rarityFilter.value) && item.name.toLowerCase().includes(searchText.value)));
+const championRows = computed(() => sortedChampions.value.filter(item =>
+  item.name.toLowerCase().includes(searchText.value) || (item.title ?? "").toLowerCase().includes(searchText.value)));
 
 const rows = computed<Array<AramggAugment | AramggChampion>>(() => (tab.value === "augments" ? augmentRows.value : championRows.value));
 
@@ -328,19 +326,22 @@ function select(id: number): void {
   void selectChampion(id);
 }
 
+function openRecommendedChampion(id: number): void {
+  tab.value = "champions";
+  query.value = "";
+  void selectChampion(id);
+  void nextTick(() => championHeading.value?.focus());
+}
+
 let detailSequence = 0;
 async function selectChampion(id: number, force = false): Promise<void> {
   const sequence = ++detailSequence;
   selectedChampionId.value = id;
   detail.value = null;
   detailError.value = null;
-  if (!hasKey.value) {
-    detailError.value = "未配置 ARAMGG API Key，无法读取该英雄的推荐强化/出装。";
-    return;
-  }
   detailLoading.value = true;
   try {
-    const loaded = await fetchAramggChampionDetail(id, { force });
+    const loaded = await fetchAramggChampionDetail(id, { force, dataVersion: overview.value?.dataVersion });
     if (sequence !== detailSequence) return;
     if (loaded.champion && loaded.champion.id !== id) throw new AramggError(500, "数据源返回的英雄不匹配，请刷新重试");
     detail.value = loaded;

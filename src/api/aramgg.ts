@@ -2,8 +2,7 @@
  * ARAMGG（aramgg.com / data.dtodo.cn）海克斯大乱斗数据接入。
  *
  * - 榜单数据走公开客户端接口 /api/client/v1/*（无需 API Key，限流）；
- * - 单英雄推荐强化/出装走开发者接口 /api/v1/zh-CN/champions/{id}.json（需要 API Key，
- *   每次 2 credits，见 developer.html）；Key 只存本机 localStorage，不写进代码或仓库。
+ * - 单英雄推荐优先使用公开版本文件；已配置 Key 时可回退到开发者接口。
  * - 数据比例字段均为 0-1 小数。
  */
 import { readStorage, removeStorage, writeStorage } from "../utils/storage";
@@ -365,8 +364,8 @@ function parseBuild(raw: unknown): AramggBuild | null {
 }
 
 export function parseChampionDetail(raw: unknown): AramggChampionDetail {
-  const payload = (raw ?? {}) as { data?: Record<string, unknown> };
-  const data = (payload.data ?? {}) as Record<string, unknown>;
+  const payload = (raw ?? {}) as Record<string, unknown>;
+  const data = (payload.data ?? payload) as Record<string, unknown>;
   const champion = parseChampion(data.champion);
   const augments = Array.isArray(data.augments)
     ? data.augments.map(parseAugment).filter((entry): entry is AramggAugment => entry !== null)
@@ -457,6 +456,7 @@ async function getJson(url: string, headers: Record<string, string> = {}, useGm 
 let memoryOverview: AramggOverviewCache | null = null;
 let overviewInflight: Promise<AramggOverview> | null = null;
 const memoryChampions = new Map<string, { savedAt: number; detail: AramggChampionDetail }>();
+const championInflight = new Map<string, Promise<AramggChampionDetail>>();
 
 function readOverviewCache(): AramggOverviewCache | null {
   if (memoryOverview) return memoryOverview;
@@ -502,11 +502,11 @@ export async function fetchAramggOverview(force = false): Promise<AramggOverview
   }
 }
 
-/** 单英雄推荐强化/出装：需要 API Key，按 dataVersion + 英雄缓存 */
-export async function fetchAramggChampionDetail(championId: number, options: { force?: boolean } = {}): Promise<AramggChampionDetail> {
+/** 单英雄推荐：公开版本文件优先，按 dataVersion + 英雄缓存并合并在途请求。 */
+export async function fetchAramggChampionDetail(championId: number, options: { force?: boolean; dataVersion?: string } = {}): Promise<AramggChampionDetail> {
   const key = getAramggApiKey();
-  if (!key) throw new AramggError(401, "未配置 ARAMGG API Key：请先在「海克斯数据」里填写");
-  const version = readOverviewCache()?.dataVersion ?? "";
+  const version = options.dataVersion ?? readOverviewCache()?.dataVersion ?? "";
+  if (!version && !key) throw new AramggError(401, "请先加载榜单，或配置 ARAMGG API Key");
   const cacheKey = CHAMPION_CACHE_PREFIX + version + ":" + championId;
   const memory = memoryChampions.get(cacheKey);
   if (memory && Date.now() - memory.savedAt < CHAMPION_TTL_MS && !options.force) return memory.detail;
@@ -517,12 +517,37 @@ export async function fetchAramggChampionDetail(championId: number, options: { f
       return cached.detail;
     }
   }
-  const raw = await getJson(DATA_API + "/champions/" + championId + ".json", { Authorization: "Bearer " + key }, true);
-  const detail = parseChampionDetail(raw);
-  const cached = { savedAt: Date.now(), detail };
-  memoryChampions.set(cacheKey, cached);
-  writeStorage(cacheKey, cached);
-  return detail;
+  const pending = championInflight.get(cacheKey);
+  if (pending) return pending;
+  const task = (async () => {
+    let detail: AramggChampionDetail | undefined;
+    if (version) {
+      try {
+        const raw = await getJson(CLIENT_API + "/data/" + encodeURIComponent(version) + "/champions/" + championId + ".json");
+        detail = parseChampionDetail(raw);
+        if (detail.champion?.id !== championId) throw new AramggError(502, "公开英雄数据不匹配");
+      } catch (error) {
+        if (!key) throw error;
+        detail = undefined;
+      }
+    }
+    if (!detail) {
+      const raw = await getJson(DATA_API + "/champions/" + championId + ".json", { Authorization: "Bearer " + key }, true);
+      detail = parseChampionDetail(raw);
+    }
+    return detail;
+  })();
+  championInflight.set(cacheKey, task);
+  try {
+    const detail = await task;
+    if (championInflight.get(cacheKey) === task) {
+      const cached = { savedAt: Date.now(), detail };
+      memoryChampions.set(cacheKey, cached);
+      writeStorage(cacheKey, cached);
+    }
+    return detail;
+  }
+  finally { if (championInflight.get(cacheKey) === task) championInflight.delete(cacheKey); }
 }
 
 /** 测试/调试用：清空内存缓存（localStorage 不动） */
@@ -530,4 +555,5 @@ export function clearAramggMemoryCache(): void {
   memoryOverview = null;
   overviewInflight = null;
   memoryChampions.clear();
+  championInflight.clear();
 }

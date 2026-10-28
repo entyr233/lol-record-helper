@@ -216,6 +216,32 @@ describe("ARAMGG 请求与缓存", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("已知数据版本时无需 Key，优先读取公开英雄文件并合并同时查询", async () => {
+    let resolve!: (value: Response) => void;
+    const fetchMock = vi.fn((_url: string, _init: RequestInit) => new Promise<Response>(done => { resolve = done; }));
+    vi.stubGlobal("fetch", fetchMock);
+    const first = fetchAramggChampionDetail(55, { dataVersion: "16.21.3" });
+    const second = fetchAramggChampionDetail(55, { dataVersion: "16.21.3" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    resolve(jsonResponse(katarina.data));
+    expect((await first).augments[0].name).toBe("虚幻武器");
+    expect(await second).toEqual(await first);
+    await fetchAramggChampionDetail(55, { dataVersion: "16.21.3" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("https://data.dtodo.cn/api/client/v1/data/16.21.3/champions/55.json", expect.objectContaining({ headers: { Accept: "application/json" } }));
+  });
+
+  it("公开文件失败才使用配置的 Key 回退；失败结果不缓存", async () => {
+    setAramggApiKey("test-key");
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({}, 404)).mockResolvedValueOnce(jsonResponse({}, 503));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(fetchAramggChampionDetail(55, { dataVersion: "16.21.3" })).rejects.toMatchObject({ status: 503 });
+    fetchMock.mockResolvedValueOnce(jsonResponse(katarina.data));
+    await fetchAramggChampionDetail(55, { dataVersion: "16.21.3" });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe("Bearer test-key");
+  });
+
   it("401/429 响应转换为可读错误", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({}, 401)));
     await expect(fetchAramggOverview(true)).rejects.toMatchObject({ status: 401 });

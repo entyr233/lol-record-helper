@@ -100,10 +100,10 @@
 顶栏「海克斯数据」进入 `aram` 路由：
 
 - **强化榜**：230 个强化的胜率/选取率/强度排序，可按品质（棱彩/黄金/白银）筛选、按名称搜索；点开显示描述与该强化胜率最高的英雄。
-- **英雄榜**：173 个英雄的海克斯大乱斗胜率/选取率排序；点开需要 ARAMGG API Key，展示推荐强化、核心装/出门装和技能加点。
+- **英雄榜**：173 个英雄的海克斯大乱斗胜率/选取率排序；点开优先读取公开版本文件，展示推荐强化和数据源提供的出装/技能加点。
 - 对局详情里的强化图标悬浮提示会显示「名称 · 品质 · 胜率 · 选取率 · 描述」。
 
-数据来自 [ARAMGG](https://aramgg.com/)（`data.dtodo.cn`）：榜单走公开客户端接口，免 Key；单英雄推荐走开发者接口，每次 2 credits，结果缓存 12 小时。API Key 在「海克斯数据」页填写，可勾选「仅本次会话保存」；默认只保存在本机 `localStorage`，不会写进代码、仓库或上传；额度每天 200 credits（北京时间 08:00 重置）。榜单按需加载，打开战绩页不会自动请求。
+数据来自 [ARAMGG](https://aramgg.com/)（`data.dtodo.cn`）：榜单和英雄推荐优先使用公开版本文件，免 Key；英雄结果缓存 12 小时，同一英雄的并发请求合并。公开英雄文件不可用时，可使用本机配置的 API Key 回退到开发者接口（每次 2 credits）。API Key 可选择仅本次会话保存，不写入代码或仓库。榜单按需加载，打开战绩页不会自动请求。
 
 ## 数据源与鉴权
 
@@ -112,7 +112,8 @@
 | `wegame.com.cn/api/v1/wegame.pallas.game.LolBattle/*` | 列表 / 资料 / 统计 / 详情 | WeGame 登录 cookie（同源自动携带） |
 | `mlol.qt.qq.com/go/battle_info/get_battle_detail_h5` | 详情**回退源** | `.qq.com` 登录 cookie（QQ 侧） |
 | `data.dtodo.cn/api/client/v1/*` | 海克斯强化榜 / 英雄榜 | 公开，无需 Key（限流） |
-| `data.dtodo.cn/api/v1/zh-CN/champions/{id}.json` | 单英雄推荐强化 / 出装 | 本机填写的 ARAMGG API Key（2 credits/次） |
+| `data.dtodo.cn/api/client/v1/data/{version}/champions/{id}.json` | 版本化英雄推荐 | 无需 Key，优先使用 |
+| `data.dtodo.cn/api/v1/zh-CN/champions/{id}.json` | 公开文件不可用时回退 | 本机填写的 ARAMGG API Key（2 credits/次） |
 
 - 2026 现任格式：列表 `GetBattleList`；资料 `GetSummonerInfo`（含 `season` 段位）；统计 `GetBattleReport`
 - 老接口被限制时（8000120 等）：先弹**官方人机验证**（TCaptcha + VerifyRecongnition）后自动重试；详情再失败则回退掌盟接口（`postMessage` 桥：脚本同时在 lol.qq.com 上运行，替面板做同源请求绕过 CORS）
