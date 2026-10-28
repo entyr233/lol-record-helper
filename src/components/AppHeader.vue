@@ -63,12 +63,14 @@
       </div>
     </details>
 
+    <span class="header-spacer"></span>
+
     <button v-if="loggedIn" type="button" class="header-link" @click="handleLogout">注销</button>
     <button v-else type="button" class="header-button header-button--login" :disabled="loggingIn" @click="handleLogin">
       {{ loggingIn ? "等待登录…" : "登录" }}
     </button>
     <details class="header-more">
-      <summary>更多</summary>
+      <summary><span class="header-more-caret" aria-hidden="true">▸</span>更多</summary>
       <div class="header-more-pop">
         <a class="header-link" :href="GITHUB_URL" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
         <a class="header-link" :href="officialHelperUrl" target="_blank" rel="noopener noreferrer" title="官方 LOL 助手（同一账号与大区）">官方助手 ↗</a>

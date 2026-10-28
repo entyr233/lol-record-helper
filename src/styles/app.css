@@ -101,7 +101,7 @@ button {
   align-items: center;
   min-width: 0;
   max-width: 520px;
-  margin: 0 auto;
+  margin: 0;
   padding: 3px;
   background-color: var(--bg-page);
   border: 1px solid var(--border-subtle);
@@ -129,10 +129,25 @@ button {
   position: relative;
 }
 .header-more > summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   padding: 8px;
   color: var(--text-muted);
   cursor: pointer;
+  list-style: none;
   white-space: nowrap;
+}
+.header-more > summary::-webkit-details-marker {
+  display: none;
+}
+.header-more-caret {
+  display: inline-block;
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
+.header-more[open] .header-more-caret {
+  transform: rotate(90deg);
 }
 .header-more-pop {
   position: absolute;
@@ -582,7 +597,7 @@ button {
 .summoner-stats-title {
   color: var(--text-muted);
   font-size: 13px;
-  cursor: pointer;
+  cursor: default;
 }
 .summoner-stats:not([open]) {
   flex: 0 1 auto;
@@ -1553,14 +1568,19 @@ button {
 .recent-wr b {
   color: var(--accent);
 }
-.recent-expanded > summary,
+.recent-expanded-title,
 .aram-source > summary {
   padding: 4px 0;
   color: var(--text-primary);
   font-size: 13px;
+}
+.recent-expanded-title {
+  cursor: default;
+}
+.aram-source > summary {
   cursor: pointer;
 }
-.recent-expanded > summary span,
+.recent-expanded-title span,
 .aram-source > summary span {
   margin-left: 8px;
   color: var(--text-muted);
@@ -3095,7 +3115,7 @@ summary:focus-visible,
   .recent-analysis-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-  .recent-expanded > summary span,
+  .recent-expanded-title span,
   .aram-source > summary span {
     display: block;
     margin: 4px 0 0 16px;

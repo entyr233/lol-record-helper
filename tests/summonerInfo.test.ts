@@ -29,15 +29,14 @@ beforeEach(() => {
 afterEach(() => { delete window.WegameLogin; vi.useRealTimers(); });
 
 describe("SummonerInfo independent statistics state", () => {
-  it("资料条保留等级，场次统计与其他资料默认折叠并带分类胜率", async () => {
+  it("场次统计与资料始终展开，并带分类胜率", async () => {
     const wrapper = render();
     try {
       await flushPromises();
       const stats = wrapper.get(".summoner-stats");
       expect(stats.findAll(".count-row")).toHaveLength(4);
       expect(stats.get(".count-rate").text()).toContain("胜率");
-      expect(stats.element.tagName).toBe("DETAILS");
-      expect(stats.attributes("open")).toBeUndefined();
+      expect(stats.element.tagName).toBe("DIV");
       expect(wrapper.get(".summoner-base").text()).toContain("等级");
       expect(stats.text()).toContain("赞");
     } finally { wrapper.unmount(); }

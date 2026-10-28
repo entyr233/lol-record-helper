@@ -30,8 +30,8 @@
       {{ emptyText }}
       <button v-if="selectedMode !== 'all'" type="button" class="link-button" @click="selectMode('all')">查看全部模式</button>
     </p>
-    <details v-if="sample.length" class="recent-expanded">
-      <summary>详细统计 <span>对局走势、常用英雄与场均数据</span></summary>
+    <div v-if="sample.length" class="recent-expanded">
+      <p class="recent-expanded-title">详细统计 <span>对局走势、常用英雄与场均数据</span></p>
       <div class="recent-strip-wrap">
         <span class="strip-end">最早 {{ stripOldestLabel }}</span>
         <div class="recent-strip" :title="stripTitle">
@@ -104,7 +104,7 @@
           </div>
         </div>
       </div>
-    </details>
+    </div>
   </div>
   <p v-if="taskError" class="state-text state-text--error recent-error" title="数据来源：WeGame 战绩接口" role="alert">
     <span v-if="games.length">刷新失败，当前展示上次数据：</span>

@@ -101,7 +101,7 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
   });
 }
 
-test("共享筛选、统计折叠与数据源设置保持可用", async ({ page }, testInfo) => {
+test("共享筛选、统计常开与数据源设置保持可用", async ({ page }, testInfo) => {
   await bootPanel(page);
   await openSummary(page);
   const modes = page.getByRole("group", { name: "筛选统计与对局模式" });
@@ -114,12 +114,10 @@ test("共享筛选、统计折叠与数据源设置保持可用", async ({ page 
   await page.getByRole("button", { name: "重置", exact: true }).click();
   await expect(modes.getByRole("button", { name: "全部", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("combobox", { name: "筛选统计与对局时间范围" })).toHaveValue("0");
-  await page.locator(".summoner-stats > summary").click();
   await expect(page.locator(".summoner-stat-grid")).toBeVisible();
-  await page.locator(".recent-expanded > summary").click();
   await expect(page.locator(".recent-analysis-grid")).toBeVisible();
   await expectNoAxeViolations(page);
-  await page.locator("#lol-tft-overlay").screenshot({ path: testInfo.outputPath("summary-expanded.png") });
+  await page.locator("#lol-tft-overlay").screenshot({ path: testInfo.outputPath("summary-stats-visible.png") });
   await page.getByRole("link", { name: "海克斯数据" }).click();
   await expect(page.locator(".aram-source-body")).toBeHidden();
   await page.locator(".aram-source > summary").click();
@@ -139,7 +137,12 @@ test("浮层焦点跨 Shadow DOM 循环，Esc 关闭后回到入口", async ({ p
   await page.keyboard.press("Tab");
   await expect(close).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "海克斯数据" })).toBeFocused();
+  // 不同浏览器对 select 的 Tab 行为不同：下一焦点可能是区服下拉或导航链接。
+  await expect.poll(async () => page.evaluate(() => {
+    let active = document.activeElement as HTMLElement | null;
+    while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement as HTMLElement;
+    return Boolean(active && (active.classList.contains("area-select") || active.textContent?.trim() === "海克斯数据"));
+  })).toBe(true);
   await page.keyboard.press("Escape");
   await expect(page.locator("#lol-tft-overlay")).toHaveCount(0);
   await expect(page.locator("#lol-tft-launcher")).toBeFocused();
