@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LOL 战绩助手
 // @namespace    mscststs
-// @version      2.22.2
+// @version      2.22.3
 // @description  LOL 战绩助手：英雄联盟国服战绩查询，支持官方助手登录、大区切换与掌盟详情回退
 // @author       mscststs
 // @homepage     https://github.com/entyr233/lol-record-helper
@@ -20,7 +20,7 @@
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
-// @resource     lol-tft-ui https://github.com/entyr233/lol-record-helper/releases/download/v2.22.2/lol-tft-ui.js
+// @resource     lol-tft-ui https://github.com/entyr233/lol-record-helper/releases/download/v2.22.3/lol-tft-ui.js
 // @connect      mlol.qt.qq.com
 // @connect      lol.qq.com
 // @connect      game.gtimg.cn
@@ -208,10 +208,10 @@
   }
   function createUiLoader(warn) {
     const UI_RESOURCE = "lol-tft-ui";
-    const UI_TAG = "v2.22.2";
+    const UI_TAG = "v2.22.3";
     const UI_URLS = buildUiUrls("entyr233/lol-record-helper", UI_TAG);
     const UI_URL = UI_URLS[0];
-    const UI_SHA256 = "0e5b6dd52ae75a2238a26a807859fc6a98ab0c9bb1c2cccb658fc80b1fd620d9";
+    const UI_SHA256 = "a1cda2a56b94ec4391448d658f4d706c502728de1ecf603560cf7487887bb250";
     let libCache = null;
     let libPromise = null;
     function verifyAndEvaluate(text) {
@@ -341,7 +341,7 @@
 
   // userscript/src/overlay.ts
   function createPanel(log, warn) {
-    const VERSION = "2.22.2";
+    const VERSION = "2.22.3";
     const Z = "2147483000";
     const STYLE_ID = "lol-tft-entry-style";
     function officialHelperUrl() {
@@ -691,7 +691,7 @@
 
   // userscript/src/shell.ts
   function startShell() {
-    const VERSION = "2.22.2";
+    const VERSION = "2.22.3";
     registerMenuCommands(() => openPanel());
     installHelperTgpBridge();
     if (isLolQqBridgeHost()) {

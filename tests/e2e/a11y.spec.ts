@@ -104,6 +104,8 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
 test("共享筛选、统计常开与数据源设置保持可用", async ({ page }, testInfo) => {
   await bootPanel(page);
   await openSummary(page);
+  await expect(page.locator(".summoner-kpis .recent-kpi")).toHaveCount(4);
+  await expect(page.locator(".recent-stats > .recent-kpis")).toHaveCount(0);
   const modes = page.getByRole("group", { name: "筛选统计与对局模式" });
   await expect(page.locator(".recent-modes")).toHaveCount(0);
   await modes.getByRole("button", { name: "大乱斗", exact: true }).click();

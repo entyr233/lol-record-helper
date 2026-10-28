@@ -39,6 +39,7 @@
             <p class="summoner-line">{{ getAreaName(Number(area)) }} · 等级 {{ summoner.level }}</p>
           </div>
         </div>
+        <div ref="kpiHost" class="summoner-kpis"></div>
         <div class="summoner-stats">
           <p class="summoner-stats-title">场次统计与资料 <span v-if="reportError" class="state-text--error">· 加载失败</span></p>
           <p class="summoner-line summoner-extra">经验 {{ summoner.experience }} · 赞 {{ summoner.praise }} · 黑 {{ summoner.discredit }}</p>
@@ -62,7 +63,7 @@
       </div>
       <div class="summoner-recent">
         <RecentStats ref="recentRef" :area="area" :account-type="accountType" :id="id" :active-champion="activeChampion"
-          :active-game-id="activeGameId" :mode="activeMode" :days="activeDays"
+          :active-game-id="activeGameId" :mode="activeMode" :days="activeDays" :kpi-target="kpiHost"
           @focus-game="(g: BattleSummary) => emit('focusGame', g)" @filter-champion="(id: number | null) => emit('filterChampion', id)"
           @mode-change="(mode: ModeFilter) => emit('modeChange', mode)" />
       </div>
@@ -151,6 +152,7 @@ const needsCaptcha = computed(() => {
   return err instanceof ApiError && err.needsCaptcha;
 });
 const copied = ref(false);
+const kpiHost = ref<HTMLElement | null>(null);
 let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 async function copyName(): Promise<void> {
   const name = summoner.value?.name;

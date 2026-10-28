@@ -507,6 +507,38 @@ button {
   gap: 14px;
   min-width: 0;
 }
+/* 四个近期指标：宽屏放入身份与场次卡之间，空间不足时换行 */
+.summoner-kpis {
+  flex: 1 1 360px;
+  min-width: 0;
+  align-self: center;
+}
+.summoner-kpis:empty {
+  display: none;
+}
+.summoner-kpis .recent-kpis {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.summoner-kpis .recent-kpi {
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+.summoner-kpis .recent-wr b,
+.summoner-kpis .recent-kda b {
+  font-size: 20px;
+}
+.summoner-kpis .recent-wl .w,
+.summoner-kpis .recent-wl .l {
+  font-size: 20px;
+}
+.summoner-kpis .recent-kpi-label {
+  font-size: 11px;
+}
+.summoner-kpis .recent-streak {
+  font-size: 14px;
+}
 .summoner-avatar {
   flex: none;
   width: 72px;
@@ -2892,8 +2924,7 @@ summary:focus-visible,
 }
 .settings-panel {
   width: min(760px, 100%);
-}
-.settings-body {
+}.settings-body {
   flex: 1 1 auto;
   min-height: 160px;
   padding: 14px 18px 18px;
@@ -3145,5 +3176,24 @@ summary:focus-visible,
   }
   .strip-bar {
     transition: none;
+  }
+}
+@media (max-width: 1500px) {
+  .summoner-kpis .recent-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1100px) {
+  .summoner-kpis {
+    flex-basis: 100%;
+    width: 100%;
+  }
+  .summoner-kpis .recent-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .summoner-kpis .recent-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
