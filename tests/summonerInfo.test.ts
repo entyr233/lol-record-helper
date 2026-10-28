@@ -153,41 +153,4 @@ describe("SummonerInfo independent statistics state", () => {
     } finally { wrapper.unmount(); }
     expect(vi.getTimerCount()).toBe(0);
   });
-
-  it("展示任意查询玩家的历史赛季段位", async () => {
-    api.getBattleReport.mockResolvedValue({
-      ...counts,
-      season_list: [
-        { sid: 16, total: 35, wins: 20, losses: 15, tier: 4, win_point: 50, queue: 0 },
-        { sid: 15, total: 40, wins: 20, losses: 20, tier: 3, win_point: 0, queue: 2 },
-        { sid: 14, tier: 0, queue: 0 }
-      ]
-    });
-    const wrapper = render();
-    try {
-      await flushPromises();
-      const history = wrapper.get(".season-history");
-      expect(history.text()).toContain("历史赛季段位（2）");
-      expect(history.text()).toContain("S16");
-      expect(history.text()).toContain("白银Ⅰ");
-      expect(history.text()).toContain("50 LP");
-      expect(history.text()).toContain("35 场");
-      expect(history.text()).toContain("57%");
-      expect(history.text()).toContain("S15");
-      expect(history.text()).not.toContain("S14"); // 未定级（tier 0）不展示
-      expect(wrapper.text()).not.toContain("本人的历史段位与胜点走势");
-    } finally { wrapper.unmount(); }
-  });
-
-  it("只有一条有效赛季记录时不重复展示历史段位", async () => {
-    api.getBattleReport.mockResolvedValue({
-      ...counts,
-      season_list: [{ sid: 16, total: 10, wins: 6, losses: 4, tier: 4, win_point: 30, queue: 420 }]
-    });
-    const wrapper = render();
-    try {
-      await flushPromises();
-      expect(wrapper.find(".season-history").exists()).toBe(false);
-    } finally { wrapper.unmount(); }
-  });
 });

@@ -168,17 +168,8 @@ export interface Summoner {
 
 export interface BattleCount {
   total_games: number;
-  /** 赛季段位信息（现行接口带 sids:[255] 请求时返回，含历史赛季与各排位模式） */
-  season_list?: Array<{
-    sid?: number;
-    total?: number;
-    wins?: number;
-    losses?: number;
-    tier?: number;
-    win_point?: number | string;
-    queue?: number;
-    [key: string]: unknown;
-  }>;
+  /** 赛季段位信息（现行接口带 sids:[255] 请求时返回；历史赛季已于 v1.10.1 确认被服务端下线） */
+  season_list?: Array<{ sid?: number; tier?: number; win_point?: number | string; [key: string]: unknown }>;
   total_wins: number;
   total_losts: number;
   total_arm_games: number;

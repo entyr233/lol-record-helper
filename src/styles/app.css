@@ -2061,53 +2061,6 @@ summary:focus-visible,
   font-size: 12px;
 }
 
-/* 历史赛季段位（GetBattleReport.season_list，任意查询玩家） */
-.season-history {
-  margin-top: 14px;
-  padding-top: 10px;
-  border-top: 1px solid #202831;
-}
-.season-history > summary {
-  cursor: pointer;
-  color: #b59758;
-  font-size: 12px;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-}
-.season-list {
-  max-height: 220px;
-  margin: 8px 0 0;
-  padding: 0;
-  overflow: auto;
-  list-style: none;
-}
-.season-list li {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  padding: 5px 2px;
-  border-bottom: 1px solid #202831;
-  font-size: 12px;
-}
-.season-list li:last-child {
-  border-bottom: 0;
-}
-.season-name {
-  color: #e6c37a;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-}
-.season-queue {
-  color: #8f99a6;
-}
-.season-tier {
-  color: #cfd6df;
-}
-.season-record {
-  color: #6c7683;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-  text-align: right;
-}
-
 /* ---------- aram data (ARAMGG) ---------- */
 .aram-page {
   display: flex;
