@@ -19,18 +19,29 @@ jobs:
     env:
       LOL_TFT_COOKIE: ''
       LOL_TFT_MOCK: '1'
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.22.2', '24.x']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          # jsdom 30 / undici 8 需要 Node 22.22+ 或 24.15+，CI 固定用 24.x
-          node-version: '24.x'
+          # jsdom 30 / undici 8 需要 Node 22.22+；22.22.2 与 24 各跑一遍
+          node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
       - run: npm run build:all
       # 构建后的入库产物必须与源码一致，防止提交旧脚本/旧 UI
       - run: git diff --exit-code -- userscript
-      - run: npm run test:coverage
+      - if: matrix.node == '24.x'
+        run: npx playwright install --with-deps chromium
+      - if: matrix.node == '24.x'
+        run: npm run test:e2e
+      - if: matrix.node == '22.22.2'
+        run: npm test
+      - if: matrix.node == '24.x'
+        run: npm run test:coverage

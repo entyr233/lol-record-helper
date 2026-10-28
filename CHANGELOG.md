@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-10-28
+
+### Added
+
+- UI CDN 回退：jsDelivr 主源 → fastly → raw，每源都做 SHA-256 校验。
+- Playwright 端到端测试：任意网站仅菜单、WeGame 懒加载、助手面板、CDN 回退、篡改拒绝。
+- 错误提示支持复制诊断信息（版本 / UI 哈希 / URL / UA / 错误）。
+- 对局详情 60 秒内存缓存 + 同 key 请求合并。
+- 浮层焦点移入/焦点陷阱/关闭后焦点恢复，加载区域 aria-live。
+- Dependabot、Actions SHA 固定、`.gitattributes`、UI 体积预算。
+
+### Changed
+
+- CI 增加 Node 22.22.2 与 Node 24 矩阵；Node 24 跑 Playwright 与覆盖率。
 ## [2.14.1] - 2026-10-28
 
 ### Fixed

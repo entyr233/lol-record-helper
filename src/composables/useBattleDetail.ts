@@ -38,11 +38,37 @@ interface GetBattleDetailLike {
  * wegame 同源详情 → 搜索换口径重试（仅 self 场景）→ 掌盟公开详情，并保留失败轨迹。
  * 同时给出数据来源徽标、错误分类提示、诊断信息与登录相关操作。
  */
+const DETAIL_CACHE_TTL_MS = 60_000;
+const DETAIL_CACHE_MAX = 20;
+const detailCache = new Map<string, { at: number; value: GetBattleDetailLike }>();
+const detailInflight = new Map<string, Promise<GetBattleDetailLike>>();
+
+function rememberDetail(key: string, value: GetBattleDetailLike): void {
+  detailCache.set(key, { at: Date.now(), value });
+  while (detailCache.size > DETAIL_CACHE_MAX) {
+    const oldest = detailCache.keys().next().value;
+    if (oldest === undefined) break;
+    detailCache.delete(oldest);
+  }
+}
+
+/** 测试/调试用：清空详情短期缓存 */
+export function clearBattleDetailCache(): void {
+  detailCache.clear();
+  detailInflight.clear();
+}
 export function useBattleDetail(options: { props: BattleDetailRequestProps }) {
   const props = options.props;
   const diag = lastCaptchaAttempt;
 
   const request = useAsyncData(async (signal) => {
+    const cacheKey = [props.area, props.accountType, props.id, props.gameId ?? "", props.startTime ?? ""].join("|");
+    const cached = detailCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < DETAIL_CACHE_TTL_MS) return cached.value;
+    const pending = detailInflight.get(cacheKey);
+    if (pending) return pending;
+
+    const task = (async () => {
     const rq = toRqOptions({ area: props.area, accountType: props.accountType, id: props.id });
     const trail: string[] = [];
     const codeOf = (error: unknown): string => {
@@ -94,6 +120,16 @@ export function useBattleDetail(options: { props: BattleDetailRequestProps }) {
         trail.push("掌盟:" + codeOf(error));
       }
       throw new ApiError("DETAIL_ALL_FAILED", "GetBattleDetail", "全部详情来源失败 [" + trail.join(" | ") + "]");
+    }
+    })();
+
+    detailInflight.set(cacheKey, task);
+    try {
+      const value = await task;
+      if (!signal.aborted) rememberDetail(cacheKey, value);
+      return value;
+    } finally {
+      detailInflight.delete(cacheKey);
     }
   });
 

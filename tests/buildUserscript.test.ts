@@ -49,7 +49,8 @@ describe("userscript packaging CLI", () => {
     expect(output).toContain("// @version      1.2.3-beta.1+test");
     expect(output).toContain('var VERSION = "1.2.3-beta.1+test";');
     expect(output).toContain("@resource     lol-tft-ui");
-    expect(output).toContain("/v1.2.3-beta.1+test/userscript/lol-tft-ui.js");
+    expect(output).toContain("https://cdn.jsdelivr.net/gh/entyr233/lol-record-helper@v1.2.3-beta.1+test/userscript/lol-tft-ui.js");
+    expect(output).toContain('"https://raw.githubusercontent.com/entyr233/lol-record-helper/" + UI_TAG + "/userscript/lol-tft-ui.js"');
     expect(output).toContain('var UI_SHA256 = "' + uiHash + '";');
     expect(output).not.toContain(bundle);
     expect(output).not.toContain("__VERSION__");

@@ -20,7 +20,7 @@ describe.skipIf(!available)("轻量油猴脚本与按需加载 UI", () => {
     expect(code).toContain("__LOL_TFT__");
 
     // UI 不再内联，改由 @resource 按需加载
-    expect(metadata).toMatch(/^\/\/ @resource[ \t]+lol-tft-ui[ \t]+https:\/\/raw\.githubusercontent\.com\/entyr233\/lol-record-helper\/v[^/]+\/userscript\/lol-tft-ui\.js\r?$/m);
+    expect(metadata).toMatch(/^\/\/ @resource[ \t]+lol-tft-ui[ \t]+https:\/\/cdn\.jsdelivr\.net\/gh\/entyr233\/lol-record-helper@v[^/]+\/userscript\/lol-tft-ui\.js\r?$/m);
     expect(metadata).toMatch(/^\/\/ @grant[ \t]+GM_getResourceText\r?$/m);
     expect(code).not.toContain("var LolTft=");
     expect(Buffer.byteLength(code, "utf8")).toBeLessThan(64 * 1024);

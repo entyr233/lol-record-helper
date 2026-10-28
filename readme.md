@@ -45,7 +45,7 @@
 
 > **不用安装第二个脚本。** `lol-tft-ui.js` 是脚本的 `@resource` UI 资源，安装/更新时会自动下载；请勿把它当作用户脚本单独安装。
 >
-> 脚本壳约 **25KB**，在任意网站只注册菜单；UI 约 **305KB**，只在进入官方助手页或点击「LOL 战绩助手」时才加载。
+> 脚本壳约 **25KB**，在任意网站只注册菜单；UI 约 **305KB**，只在进入官方助手页或点击「LOL 战绩助手」时才加载。UI 从 jsDelivr 固定 tag 加载，失败回退 fastly / raw，并在执行前做 SHA-256 校验。
 
 **更新**：脚本会通过 `@updateURL` 自动检查更新，也可以重新打开上面的安装链接覆盖安装。
 ### 权限说明
@@ -131,6 +131,7 @@ npm install
 npm run dev          # 本地演示站（mock 数据），http://localhost:5173
 npm run typecheck    # vue-tsc
 npm test             # vitest
+npm run test:e2e     # Playwright：懒加载/助手面板/篡改拒绝（需先 build）
 npm run build:all    # typecheck + lib 构建 + userscript 打包 + 演示站
 ```
 

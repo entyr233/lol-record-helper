@@ -8,3 +8,6 @@ cookies
 .review-tmp-*
 
 coverage
+
+test-results
+playwright-report

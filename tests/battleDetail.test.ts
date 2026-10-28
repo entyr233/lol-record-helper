@@ -5,6 +5,7 @@ import BattleDetailView from "../src/components/BattleDetail.vue";
 import { ApiError } from "../src/api/errors";
 import { lolBattleApi } from "../src/api/client";
 import { fetchMlolBattleDetail } from "../src/api/mlolDetail";
+import { clearBattleDetailCache } from "../src/composables/useBattleDetail";
 import type { BattleDetail as BattleDetailData, GetBattleDetailResponse, PlayerDetail, TeamDetail } from "../src/api/types";
 
 // 接口层全部 mock：详情/召唤师信息走 wegame，掌盟源兜底
@@ -154,6 +155,7 @@ function selfFlags(wrapper: Awaited<ReturnType<typeof mountDetail>>): Record<str
 }
 
 beforeEach(() => {
+  clearBattleDetailCache();
   getBattleDetailMock.mockReset();
   getSummonerInfoMock.mockReset();
   getSummonerInfoMock.mockRejectedValue(new Error("需要登录"));

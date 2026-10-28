@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LOL 战绩助手
 // @namespace    mscststs
-// @version      2.14.1
+// @version      2.15.0
 // @description  LOL 战绩助手：英雄联盟国服战绩查询，支持官方助手登录、大区切换与掌盟详情回退
 // @author       mscststs
 // @homepage     https://github.com/entyr233/lol-record-helper
@@ -20,13 +20,15 @@
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
-// @resource     lol-tft-ui https://raw.githubusercontent.com/entyr233/lol-record-helper/v2.14.1/userscript/lol-tft-ui.js
+// @resource     lol-tft-ui https://cdn.jsdelivr.net/gh/entyr233/lol-record-helper@v2.15.0/userscript/lol-tft-ui.js
 // @connect      mlol.qt.qq.com
 // @connect      lol.qq.com
 // @connect      game.gtimg.cn
 // @connect      www.wegame.com.cn
 // @connect      wegame.com.cn
 // @connect      data.dtodo.cn
+// @connect      cdn.jsdelivr.net
+// @connect      fastly.jsdelivr.net
 // @connect      raw.githubusercontent.com
 // @run-at       document-start
 // @downloadURL  https://raw.githubusercontent.com/entyr233/lol-record-helper/master/userscript/lol-tft.user.js
@@ -49,7 +51,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "2.14.1";
+  var VERSION = "2.15.0";
 
   /** 只有 WeGame / lol.qq.com 页面才挂载悬浮按钮和面板 */
   function isWegameHost() {
@@ -208,11 +210,18 @@
   var overlay = null;
   var loading = false;
   var generation = 0;
+  var lastFocused = null;
 
   var UI_RESOURCE = "lol-tft-ui";
   // 固定到 tag（不可变）而不是 master；UI 内容再用 SHA-256 二次校验
-  var UI_URL = "https://raw.githubusercontent.com/entyr233/lol-record-helper/v2.14.1/userscript/lol-tft-ui.js";
-  var UI_SHA256 = "a577933d24be139f07b1466b31762d3679862159934b7a2e54c9a46f2afb8632";
+  var UI_TAG = "v2.15.0";
+  var UI_URLS = [
+    "https://cdn.jsdelivr.net/gh/entyr233/lol-record-helper@" + UI_TAG + "/userscript/lol-tft-ui.js",
+    "https://fastly.jsdelivr.net/gh/entyr233/lol-record-helper@" + UI_TAG + "/userscript/lol-tft-ui.js",
+    "https://raw.githubusercontent.com/entyr233/lol-record-helper/" + UI_TAG + "/userscript/lol-tft-ui.js"
+  ];
+  var UI_URL = UI_URLS[0];
+  var UI_SHA256 = "26c6ddb6e0868bbd78924a25e4bfb64a37e245f933387212d433dae4a075b3a3";
   var libCache = null;
   var libPromise = null;
 
@@ -275,31 +284,48 @@
     throw new Error("UI bundle 无法执行（可能被页面 CSP 拦截）");
   }
 
-  function requestUiText() {
+  function requestUiTextFrom(url) {
     return new Promise(function (resolve, reject) {
       if (typeof GM_xmlhttpRequest === "function") {
         GM_xmlhttpRequest({
           method: "GET",
-          url: UI_URL,
+          url: url,
           timeout: 30000,
           onload: function (response) {
             if (response.status >= 200 && response.status < 300 && response.responseText) resolve(response.responseText);
-            else reject(new Error("加载 UI 失败：HTTP " + response.status));
+            else reject(new Error("HTTP " + response.status + "：" + url));
           },
-          onerror: function () { reject(new Error("加载 UI 网络错误")); },
-          ontimeout: function () { reject(new Error("加载 UI 超时")); }
+          onerror: function () { reject(new Error("网络错误：" + url)); },
+          ontimeout: function () { reject(new Error("请求超时：" + url)); }
         });
         return;
       }
       if (typeof fetch === "function") {
-        fetch(UI_URL, { credentials: "omit" }).then(function (response) {
-          if (!response.ok) throw new Error("加载 UI 失败：HTTP " + response.status);
+        fetch(url, { credentials: "omit" }).then(function (response) {
+          if (!response.ok) throw new Error("HTTP " + response.status + "：" + url);
           return response.text();
-        }).then(resolve, reject);
+        }).then(resolve, function (error) {
+          reject(error && error.message ? error : new Error("网络错误：" + url));
+        });
         return;
       }
       reject(new Error("当前环境无法加载 UI bundle"));
     });
+  }
+
+  /** 依次尝试 jsDelivr / fastly / raw，任一源通过 SHA-256 校验即可执行 */
+  function requestUiText() {
+    var failures = [];
+    function tryAt(index) {
+      if (index >= UI_URLS.length) {
+        return Promise.reject(new Error("全部 UI 源加载失败：" + failures.join("；")));
+      }
+      return requestUiTextFrom(UI_URLS[index]).then(verifyAndEvaluate).catch(function (error) {
+        failures.push(error && error.message ? error.message : String(error));
+        return tryAt(index + 1);
+      });
+    }
+    return tryAt(0);
   }
 
   /**
@@ -321,15 +347,15 @@
     var task;
     if (resourceText) {
       task = verifyAndEvaluate(resourceText).catch(function (error) {
-        warn("内置 UI 校验/解析失败，尝试从固定 tag 重新下载：", error);
-        return requestUiText().then(verifyAndEvaluate).catch(function (remoteError) {
+        warn("内置 UI 校验/解析失败，尝试从固定 tag 的 CDN 重新下载：", error);
+        return requestUiText().catch(function (remoteError) {
           var first = error && error.message ? error.message : String(error);
           var second = remoteError && remoteError.message ? remoteError.message : String(remoteError);
           throw new Error("内置 UI 校验失败：" + first + "；远端重试失败：" + second);
         });
       });
     } else {
-      task = requestUiText().then(verifyAndEvaluate);
+      task = requestUiText();
     }
 
     libPromise = task.then(function (loaded) {
@@ -380,6 +406,7 @@
     link.style.color = "#b59758";
     row.appendChild(retry);
     row.appendChild(link);
+    row.appendChild(createCopyDiagnosticsButton(error));
     box.appendChild(title);
     box.appendChild(detail);
     box.appendChild(row);
@@ -440,11 +467,65 @@
     document.documentElement.style.overflow = "";
     var launcher = document.getElementById("lol-tft-launcher");
     if (launcher) launcher.style.display = "";
+    if (lastFocused && lastFocused.isConnected && typeof lastFocused.focus === "function") {
+      try { lastFocused.focus(); } catch (e) { /* ignore */ }
+    }
+    lastFocused = null;
+  }
+
+  function diagnosticsText(error) {
+    var message = error && error.message ? error.message : String(error || "");
+    return [
+      "LOL 战绩助手 v" + VERSION,
+      "UI SHA-256: " + UI_SHA256,
+      "URL: " + location.href,
+      "UA: " + navigator.userAgent,
+      "错误: " + message
+    ].join("\n");
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      try {
+        var area = document.createElement("textarea");
+        area.value = text;
+        area.style.cssText = "position:fixed;left:-9999px;top:0;";
+        (document.body || document.documentElement).appendChild(area);
+        area.select();
+        var ok = document.execCommand("copy");
+        area.remove();
+        if (ok) resolve();
+        else reject(new Error("copy failed"));
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  function createCopyDiagnosticsButton(error) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "复制诊断信息";
+    button.style.cssText = "margin-top:6px;padding:4px 10px;color:#d8bd7e;background:#242c37;border:1px solid #4c463d;border-radius:4px;cursor:pointer;font:12px/1.5 inherit;";
+    button.addEventListener("click", function () {
+      copyText(diagnosticsText(error)).then(function () {
+        button.textContent = "已复制";
+        setTimeout(function () { button.textContent = "复制诊断信息"; }, 1500);
+      }, function () {
+        button.textContent = "复制失败";
+        setTimeout(function () { button.textContent = "复制诊断信息"; }, 1500);
+      });
+    });
+    return button;
   }
 
   async function openPanel() {
     if (loading || overlay) return;
     loading = true;
+    lastFocused = document.activeElement;
     var currentGeneration = ++generation;
     injectStyle();
 
@@ -465,7 +546,7 @@
     var closeBtn = document.createElement("button");
     closeBtn.type = "button";
     closeBtn.className = "lol-tft-overlay-close";
-    closeBtn.setAttribute("aria-label", "关闭走势面板");
+    closeBtn.setAttribute("aria-label", "关闭战绩面板");
     closeBtn.textContent = "✕ 关闭 (Esc)";
     closeBtn.addEventListener("click", closePanel);
     head.appendChild(title);
@@ -473,11 +554,14 @@
 
     var host = document.createElement("div");
     host.id = "lol-tft-overlay-host";
+    host.setAttribute("role", "status");
+    host.setAttribute("aria-live", "polite");
     overlay.appendChild(head);
     overlay.appendChild(host);
     document.body.appendChild(overlay);
     document.documentElement.style.overflow = "hidden";
     host.textContent = "正在加载战绩界面…";
+    try { closeBtn.focus(); } catch (e) { /* ignore */ }
 
     var lib;
     try {
@@ -485,6 +569,7 @@
     } catch (error) {
       if (currentGeneration !== generation || overlay !== currentOverlay || !host.isConnected) return;
       host.textContent = "战绩界面加载失败：" + (error && error.message ? error.message : String(error));
+      host.appendChild(createCopyDiagnosticsButton(error));
       console.error("[lol-tft]", error);
       if (currentGeneration === generation) loading = false;
       return;
@@ -500,6 +585,7 @@
     } catch (error) {
       if (currentGeneration !== generation || overlay !== currentOverlay || !host.isConnected) return;
       host.textContent = "加载失败：" + (error && error.message ? error.message : String(error));
+      host.appendChild(createCopyDiagnosticsButton(error));
       console.error("[lol-tft]", error);
     } finally {
       if (currentGeneration === generation) loading = false;
@@ -552,8 +638,36 @@
     try { window.__LOL_TFT__ = api; } catch (e) { /* ignore */ }
   }
 
+  function collectFocusable(root) {
+    var selector = "button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex='-1'])";
+    var result = Array.prototype.slice.call(root.querySelectorAll(selector));
+    var all = root.querySelectorAll("*");
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].shadowRoot) result = result.concat(collectFocusable(all[i].shadowRoot));
+    }
+    return result.filter(function (el) { return el.getClientRects().length > 0; });
+  }
+
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape" && overlay) closePanel();
+    if (event.key !== "Tab" || !overlay) return;
+    var items = collectFocusable(overlay);
+    if (!items.length) return;
+    var first = items[0];
+    var last = items[items.length - 1];
+    var active = document.activeElement;
+    if (!overlay.contains(active)) {
+      event.preventDefault();
+      first.focus();
+      return;
+    }
+    if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
   });
 
   /** 从菜单在其它网站打开时带 ?lol_tft_panel=1，进入 WeGame 后自动弹面板并从地址栏移除 */

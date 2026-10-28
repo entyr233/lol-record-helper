@@ -1,0 +1,5 @@
+# 构建产物固定 LF，避免 Windows 本地构建后因 CRLF 显示为 modified
+userscript/*.js text eol=lf
+userscript/*.template.js text eol=lf
+docs/assets/*.png binary
+docs/assets/*.jpg binary

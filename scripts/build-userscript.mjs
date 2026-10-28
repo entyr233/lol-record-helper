@@ -5,6 +5,7 @@
 // 用法：npm run build:userscript（会先构建 lib bundle）
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { gzipSync } from "node:zlib";
 
 const BUNDLE = "dist/lol/lol.umd.js";
 const TEMPLATE = "userscript/lol-tft.template.js";
@@ -14,6 +15,7 @@ const OUT_UI = OUT_DIR + "/lol-tft-ui.js";
 const REPO_OUT = "userscript/lol-tft.user.js";
 const REPO_UI = "userscript/lol-tft-ui.js";
 const MAX_SHELL_BYTES = 64 * 1024;
+const MAX_UI_BYTES = 340 * 1024;
 
 if (!existsSync(BUNDLE)) {
   console.error("找不到 " + BUNDLE + "，请先运行 npm run build");
@@ -73,6 +75,11 @@ if (!output.startsWith("// ==UserScript==") || output.includes("__VERSION__") ||
   process.exit(1);
 }
 
+if (Buffer.byteLength(rawBundle, "utf8") > MAX_UI_BYTES) {
+  console.error("UI bundle 超过 " + MAX_UI_BYTES + " 字节，请检查是否引入重复依赖");
+  process.exit(1);
+}
+
 if (Buffer.byteLength(output, "utf8") > MAX_SHELL_BYTES) {
   console.error("用户脚本壳超过 " + MAX_SHELL_BYTES + " 字节，UI bundle 可能又被内联进来了");
   process.exit(1);
@@ -88,5 +95,5 @@ writeFileSync(REPO_UI, rawBundle, "utf8");
 const shellKb = (Buffer.byteLength(output, "utf8") / 1024).toFixed(1);
 const uiKb = (Buffer.byteLength(rawBundle, "utf8") / 1024).toFixed(1);
 console.log("已生成 " + OUT + "（" + shellKb + " KB，轻量壳，任意网站只注册菜单）");
-console.log("已生成 " + OUT_UI + "（" + uiKb + " KB，@resource 按需加载，SHA-256 " + uiSha256.slice(0, 16) + "…）");
+console.log("已生成 " + OUT_UI + "（" + uiKb + " KB，gzip " + (gzipSync(rawBundle).length / 1024).toFixed(1) + " KB，@resource 按需加载，SHA-256 " + uiSha256.slice(0, 16) + "…）");
 console.log("已同步入库副本 " + REPO_OUT + " / " + REPO_UI + "（GitHub raw 直装/自动更新）");
