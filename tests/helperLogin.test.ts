@@ -215,6 +215,9 @@ describe("官方助手登录入口", () => {
     select.dispatchEvent(new Event("change"));
     await nextTick();
 
+    // 两个入口同一行，自建面板在前、官方战绩在后
+    const openButtons = Array.from(root().querySelectorAll<HTMLButtonElement>(".open-row button"));
+    expect(openButtons.map((button) => button.className)).toEqual(["open-self", "open-official"]);
     root().querySelector<HTMLButtonElement>(".open-official")!.click();
     expect((location as unknown as { href?: string }).href).toBe("https://www.wegame.com.cn/helper/lol/#/life/overview");
     expect(localStorage.getItem("lol_tft:lol-tft-helper-area")).toBe("1");

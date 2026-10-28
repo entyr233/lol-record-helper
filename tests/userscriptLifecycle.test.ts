@@ -88,6 +88,31 @@ describe("userscript panel lifecycle", () => {
     expect(page.__LOL_TFT__).toBeDefined();
   });
 
+  it("脚本菜单提供自建面板与官方助手两个入口", () => {
+    const commands: Record<string, () => void> = {};
+    vi.stubGlobal("GM_registerMenuCommand", (title: string, run: () => void) => { commands[title] = run; });
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    try {
+      new Function("LolTft", "console", source)(
+        { mountLolTft: mount, mountHelperLogin: mountHelper },
+        { log: vi.fn(), warn: vi.fn(), error: vi.fn() }
+      );
+      expect(commands["打开自建战绩面板"]).toBeTypeOf("function");
+      expect(commands["打开官方助手页"]).toBeTypeOf("function");
+
+      commands["打开自建战绩面板"]();
+      expect(document.querySelectorAll("#lol-tft-overlay")).toHaveLength(1);
+
+      commands["打开官方助手页"]();
+      expect(open).toHaveBeenCalledWith("https://www.wegame.com.cn/helper/lol/", "_blank", "noopener");
+    } finally {
+      open.mockRestore();
+      vi.unstubAllGlobals();
+      document.getElementById("lol-tft-overlay")?.remove();
+      document.documentElement.style.overflow = "";
+    }
+  });
+
   it("官方助手页只保留内嵌助手面板，不再显示悬浮 LOL 战绩按钮", () => {
     document.getElementById("lol-tft-launcher")?.remove();
     document.getElementById("lol-tft-entry-style")?.remove();

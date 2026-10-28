@@ -102,7 +102,7 @@ ScriptCat/Tampermonkey 会识别为可安装脚本；此后脚本会通过 `@upd
 
 也可以本地构建后把 `dist/userscript/lol-tft.user.js` 拖进浏览器（ScriptCat/Tampermonkey）→ 覆盖安装 → F5。
 构建时会把同一份产物同步写入 `userscript/lol-tft.user.js`（入库副本，供 raw 直装/自动更新），两者内容必须一致。
-装好后脚本列表菜单里可直接「打开 WeGame 战绩页 / 项目主页 / 反馈」，无需进编辑界面。
+装好后脚本列表菜单里可直接「打开自建战绩面板 / 打开官方助手页 / 项目主页 / 反馈」，无需进编辑界面。
 本仓库：https://github.com/entyr233/lol-tft
 原项目来源：https://greasyfork.org/zh-CN/scripts/454184（保留作者与许可证信息）。
 

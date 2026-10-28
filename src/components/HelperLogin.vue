@@ -38,9 +38,9 @@
           </select>
         </div>
         <div class="open-row">
+          <button type="button" class="open-self" @click="openSelfPanel">打开自建战绩面板</button>
           <button type="button" class="open-official" :disabled="!areaId" @click="openOfficialCareer">打开官方战绩</button>
         </div>
-        <button type="button" class="open-self" @click="openSelfPanel">打开自建战绩面板</button>
         <p class="hint">
           <template v-if="uin">
             官方助手页依赖登录态与 TGP 大区。脚本会在页面加载时补 TGP 桥；地址里没有参数时官方页面按当前登录用户展示全部模式战绩。

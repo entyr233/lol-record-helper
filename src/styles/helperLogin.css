@@ -99,7 +99,6 @@ button {
 button:disabled { opacity: .6; cursor: default; }
 a { color: #d8bd7e; }
 .refresh { margin-top: 8px; }
-.open-self { margin-top: 8px; }
 .hint {
   color: #6c7683;
   font-size: 11px;
