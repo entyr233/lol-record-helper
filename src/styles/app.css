@@ -2621,6 +2621,17 @@ summary:focus-visible,
 .favorites-manager-row:hover {
   background-color: rgba(255, 255, 255, 0.035);
 }
+.favorites-manager-drag {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  cursor: grab;
+}
+.favorites-manager-drag:active {
+  cursor: grabbing;
+}
 .favorites-manager-row--dragging {
   opacity: 0.45;
 }
@@ -2731,6 +2742,9 @@ summary:focus-visible,
   }
   .favorites-manager-row {
     flex-wrap: wrap;
+  }
+  .favorites-manager-drag {
+    flex-basis: 100%;
   }
   .favorites-manager-open {
     flex-basis: 100%;

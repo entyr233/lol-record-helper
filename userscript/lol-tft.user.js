@@ -211,7 +211,7 @@
     const UI_TAG = "v2.20.0";
     const UI_URLS = buildUiUrls("entyr233/lol-record-helper", UI_TAG);
     const UI_URL = UI_URLS[0];
-    const UI_SHA256 = "c67a0f0067efde4f159195a907161909923772f9c78bbcd1ad6cc18fb0b8c560";
+    const UI_SHA256 = "086218037f873831b3abe37ea7322078062bfd88ced821b5379131b46a545b86";
     let libCache = null;
     let libPromise = null;
     function verifyAndEvaluate(text) {

@@ -80,32 +80,37 @@
               :key="favoriteKey(entry)"
               class="favorites-manager-row"
               :class="{ 'favorites-manager-row--dragging': draggingKey === favoriteKey(entry) }"
-              draggable="true"
-              @dragstart="startRowDrag(entry, $event)"
-              @dragend="endRowDrag"
               @dragover.prevent
               @drop.stop="dropOnRow(entry)"
             >
-              <input
-                type="checkbox"
-                class="favorites-manager-check"
-                :checked="selectedKeys.includes(favoriteKey(entry))"
-                :aria-label="'选择 ' + entry.name"
-                @change="toggleSelected(favoriteKey(entry))"
-              />
-              <button type="button" class="favorites-manager-open" @click="openFavorite(entry)">
-                <span class="favorites-manager-name">
-                  {{ entry.name }}
-                  <span v-if="entry.pinned" class="favorites-manager-pin" title="已置顶">★</span>
-                </span>
-                <span class="favorites-manager-meta">
-                  {{ getAreaName(entry.area) }}
-                  <template v-if="entry.lastRank"> · {{ entry.lastRank }}</template>
-                  <template v-if="entry.level"> · Lv.{{ entry.level }}</template>
-                  <template v-if="entry.lastSeenAt"> · {{ formatLastSeen(entry.lastSeenAt) }}</template>
-                </span>
-                <span v-if="entry.note" class="favorites-manager-note">{{ entry.note }}</span>
-              </button>
+              <div
+                class="favorites-manager-drag"
+                draggable="true"
+                title="拖动排序"
+                @dragstart="startRowDrag(entry, $event)"
+                @dragend="endRowDrag"
+              >
+                <input
+                  type="checkbox"
+                  class="favorites-manager-check"
+                  :checked="selectedKeys.includes(favoriteKey(entry))"
+                  :aria-label="'选择 ' + entry.name"
+                  @change="toggleSelected(favoriteKey(entry))"
+                />
+                <button type="button" class="favorites-manager-open" @click="openFavorite(entry)">
+                  <span class="favorites-manager-name">
+                    {{ entry.name }}
+                    <span v-if="entry.pinned" class="favorites-manager-pin" title="已置顶">★</span>
+                  </span>
+                  <span class="favorites-manager-meta">
+                    {{ getAreaName(entry.area) }}
+                    <template v-if="entry.lastRank"> · {{ entry.lastRank }}</template>
+                    <template v-if="entry.level"> · Lv.{{ entry.level }}</template>
+                    <template v-if="entry.lastSeenAt"> · {{ formatLastSeen(entry.lastSeenAt) }}</template>
+                  </span>
+                  <span v-if="entry.note" class="favorites-manager-note">{{ entry.note }}</span>
+                </button>
+              </div>
 
               <template v-if="editingGroupKey === favoriteKey(entry)">
                 <input

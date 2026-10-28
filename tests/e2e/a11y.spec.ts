@@ -40,6 +40,9 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
     await page.locator(".favorite-note-input").press("Enter");
     await page.locator(".favorites-manage-button").click();
     await expect(page.locator(".favorites-manager")).toBeVisible();
+    await expect(page.locator(".favorites-manager-row").first()).not.toHaveAttribute("draggable", "true");
+    await expect(page.locator(".favorites-manager-drag").first()).toHaveAttribute("draggable", "true");
+    await expect(page.locator(".favorites-manager-row-action").first()).not.toHaveAttribute("draggable", "true");
     await expectNoAxeViolations(page);
     await page.locator(".favorites-manager-close").click();
     await expect(page.locator(".favorites-manager")).toHaveCount(0);
