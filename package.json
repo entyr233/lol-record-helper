@@ -1,6 +1,6 @@
 {
   "name": "lol-tft",
-  "version": "2.12.0",
+  "version": "2.12.1",
   "private": true,
   "type": "module",
   "description": "英雄联盟国服战绩查询（WeGame 页面注入版）",

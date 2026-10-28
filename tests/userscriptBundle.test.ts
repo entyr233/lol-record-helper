@@ -17,8 +17,9 @@ describe.skipIf(!available)("单文件油猴脚本（构建产物）", () => {
     expect(code).toContain("__LOL_TFT__"); // Runtime debugging API is not a build placeholder.
     expect(metadata).toMatch(/^\/\/ @downloadURL[ \t]+https:\/\/raw\.githubusercontent\.com\/entyr233\/lol-tft\/master\/userscript\/lol-tft\.user\.js\r?$/m);
     expect(metadata).toMatch(/^\/\/ @updateURL[ \t]+https:\/\/raw\.githubusercontent\.com\/entyr233\/lol-tft\/master\/userscript\/lol-tft\.user\.js\r?$/m);
-    // 入库副本与原构建产物完全一致，raw 直装/自动更新才能拿到同一份代码
-    expect(readFileSync("userscript/lol-tft.user.js", "utf8")).toBe(readFileSync(FILE, "utf8"));
+    // 入库副本与原构建产物内容一致（忽略 Git 工作区 CRLF 转换），raw 直装/自动更新才能拿到同一份代码
+    const normalizeEol = (text: string): string => text.replace(/\r\n/g, "\n");
+    expect(normalizeEol(readFileSync("userscript/lol-tft.user.js", "utf8"))).toBe(normalizeEol(readFileSync(FILE, "utf8")));
     // 脚本管理器里能直接看到项目主页/支持入口（无需进编辑界面）
     expect(metadata).toMatch(/^\/\/ @homepageURL[ \t]+https:\/\/github\.com\/entyr233\/lol-tft\r?$/m);
     expect(metadata).toMatch(/^\/\/ @supportURL[ \t]+https:\/\/github\.com\/entyr233\/lol-tft\/issues\r?$/m);

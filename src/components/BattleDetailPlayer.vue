@@ -19,7 +19,7 @@
           <GameIcon kind="rune" :id="player.perkSubStyle ?? 0" />
         </template>
       </span>
-      <span v-else class="dp-mini-col dp-mini-col--hex" title="海克斯强化">
+      <span v-else class="dp-mini-col dp-mini-col--hex" title="海克斯强化" @mouseenter="warmAugments" @focusin="warmAugments">
         <template v-for="slot in augmentSlots.slice(0, 3)" :key="slot.id">
           <GameIcon v-if="slot.icon" kind="url" :id="String(slot.id)" :src="slot.icon" :title="slot.title" />
           <span v-else class="dp-augment-empty" :data-level="slot.level" />
@@ -145,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed } from "vue";
 import GameIcon from "./GameIcon.vue";
 import Histogram from "./Histogram.vue";
 import type { PlayerDetail } from "../api/types";
@@ -198,9 +198,11 @@ const maxValues = computed(() => statistics.value.maxDamage);
 
 const AUGMENTS = augmentMap as Record<string, { name: string; icon: string; level: string }>;
 const { augmentOf: aramggAugmentOf, ensure: ensureAramgg } = useAramgg();
-onMounted(() => {
-  void ensureAramgg();
-});
+
+/** 悬停强化图标时才加载 ARAMGG 数据，避免战绩页首屏请求/解析 300KB+ 榜单造成卡顿 */
+function warmAugments(): void {
+  if (props.hexAram) void ensureAramgg();
+}
 
 function augmentRarityLabel(level: string): string {
   return level === "kPrismatic" ? "棱彩" : level === "kGold" ? "黄金" : level === "kSilver" ? "白银" : "";
