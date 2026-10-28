@@ -1,29 +1,21 @@
 <template>
   <header class="app-header">
-    <select :value="selectedArea" class="area-select" aria-label="选择区服" @change="selectArea">
-      <option value="" disabled>选择区服</option>
-      <option v-for="area in areas" :key="area.value" :value="area.value">{{ area.label }}</option>
-    </select>
-
-    <span v-if="currentArea" class="header-divider"></span>
-    <button v-if="currentArea" type="button" class="header-button" :disabled="loggingIn" @click="goSelf">我的战绩</button>
-    <span class="header-divider"></span>
-    <button v-if="loggedIn" type="button" class="header-button" @click="handleLogout">注销</button>
-    <button v-else type="button" class="header-button header-button--login" :disabled="loggingIn" @click="handleLogin">
-      {{ loggingIn ? "等待登录…" : "登录" }}
-    </button>
-    <button v-if="loggingIn" type="button" class="header-button" @click="cancel">取消等待</button>
-    <span v-if="loginError" role="alert" class="login-error">{{ loginError }}</span>
-    <button
-      v-if="loginError || loggingIn"
-      type="button"
-      class="header-button"
-      @click="openLink(LOGIN_PAGE_URL)"
-    >
-      去官网登录页 ↗
-    </button>
-
-    <span class="header-spacer"></span>
+    <span class="header-brand"><span aria-hidden="true" class="header-brand-mark">L</span> 战绩助手</span>
+    <nav class="header-nav" aria-label="主要页面">
+      <button type="button" class="header-button" :class="{ 'header-button--active': route.name === 'summary' }"
+        :disabled="!currentArea || loggingIn" @click="goSelf">我的战绩</button>
+      <router-link class="header-button" :to="{ name: 'aram' }" title="海克斯大乱斗数据（ARAMGG）">海克斯数据</router-link>
+    </nav>
+    <form class="header-search" @submit.prevent="search">
+      <select :value="selectedArea" class="area-select" aria-label="选择区服" @change="selectArea">
+        <option value="" disabled>选择区服</option>
+        <option v-for="area in areas" :key="area.value" :value="area.value">{{ area.label }}</option>
+      </select>
+      <input v-model.trim="keyword" type="search" placeholder="搜索召唤师" aria-label="搜索召唤师" />
+      <button type="submit" class="header-search-submit" aria-label="提交召唤师搜索" title="搜索">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
+      </button>
+    </form>
 
     <details ref="favoritesDetails" class="header-favorites">
       <summary>收藏 {{ favorites.length }}</summary>
@@ -71,17 +63,24 @@
       </div>
     </details>
 
-    <form class="header-search" @submit.prevent="search">
-      <input v-model.trim="keyword" type="search" placeholder="搜索召唤师" aria-label="搜索召唤师" />
-    </form>
-
-    <span class="header-spacer"></span>
-
-    <a class="header-link" :href="GITHUB_URL" target="_blank" rel="noopener noreferrer" title="项目 GitHub 主页">GitHub ↗</a>
-    <router-link class="header-link" :to="{ name: 'aram' }" title="海克斯大乱斗数据（ARAMGG）">海克斯数据</router-link>
-    <a class="header-link" :href="officialHelperUrl" target="_blank" rel="noopener noreferrer" title="官方 LOL 助手（同一账号与大区）">官方助手 ↗</a>
+    <button v-if="loggedIn" type="button" class="header-link" @click="handleLogout">注销</button>
+    <button v-else type="button" class="header-button header-button--login" :disabled="loggingIn" @click="handleLogin">
+      {{ loggingIn ? "等待登录…" : "登录" }}
+    </button>
+    <details class="header-more">
+      <summary>更多</summary>
+      <div class="header-more-pop">
+        <a class="header-link" :href="GITHUB_URL" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        <a class="header-link" :href="officialHelperUrl" target="_blank" rel="noopener noreferrer" title="官方 LOL 助手（同一账号与大区）">官方助手 ↗</a>
+        <span class="header-version" title="脚本版本">v{{ version }}</span>
+      </div>
+    </details>
     <button type="button" class="header-link header-settings-link" title="设置与数据" @click="openSettings">设置</button>
-    <span class="header-version" title="脚本版本">v{{ version }}</span>
+    <div v-if="loginError || loggingIn" class="header-login-status" role="status">
+      <span v-if="loginError" role="alert" class="login-error">{{ loginError }}</span>
+      <button v-if="loggingIn" type="button" class="header-button" @click="cancel">取消等待</button>
+      <button type="button" class="header-button" @click="openLink(LOGIN_PAGE_URL)">去官网登录页 ↗</button>
+    </div>
 
     <FavoritesManager v-if="managerOpen" @close="managerOpen = false" />
     <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" @open-favorites="openFavoritesFromSettings" />

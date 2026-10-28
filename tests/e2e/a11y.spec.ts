@@ -13,17 +13,40 @@ test("官方助手面板无 axe 可访问性违规", async ({ page }) => {
 });
 
 for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
-  test(`总览、列表和十人详情各标签无 axe 违规（${viewport.width}px）`, async ({ page }) => {
+  test(`总览、列表和十人详情各标签无 axe 违规（${viewport.width}px）`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport);
     await bootPanel(page);
     await openSummary(page);
+    if (viewport.width === 390) {
+      await expect(page.locator(".battle-list-detail")).toBeHidden();
+      await page.locator("#lol-tft-overlay").screenshot({ path: testInfo.outputPath("summary-mobile.png") });
+    }
     await expectNoAxeViolations(page);
-    await page.locator(".battle-list-item").first().click();
+    const chosenGame = page.locator(".battle-list-item").nth(6);
+    await chosenGame.scrollIntoViewIfNeeded();
+    const listScrollTop = await page.locator(".battle-list-items").evaluate(el => el.scrollTop);
+    const gameId = await chosenGame.getAttribute("data-game-id");
+    await chosenGame.click();
     await expect(page.locator(".detail-team")).toHaveCount(2);
     await expect(page.locator(".detail-team .detail-player")).toHaveCount(10);
     for (const name of ["概要", "伤害", "技能"]) {
       await page.locator(".detail-toolbar").getByRole("button", { name, exact: true }).click();
+      if (viewport.width === 390) {
+        const detailWidth = await page.locator(".battle-list-detail").evaluate(el => ({ content: el.scrollWidth, viewport: el.clientWidth }));
+        expect(detailWidth.content).toBeLessThanOrEqual(detailWidth.viewport + 1);
+      }
       await expectNoAxeViolations(page);
+    }
+    if (viewport.width === 390) {
+      await page.locator("#lol-tft-overlay").screenshot({ path: testInfo.outputPath("detail-mobile.png") });
+      await page.getByRole("button", { name: "返回对局列表" }).click();
+      await expect(page.locator(".battle-list-detail")).toBeHidden();
+      await expect(page.locator(".battle-list-item.selected")).toHaveAttribute("data-game-id", gameId!);
+      await expect(page.locator(".battle-list-items")).toBeFocused();
+      await expect.poll(() => page.locator(".battle-list-items").evaluate(el => el.scrollTop)).toBeCloseTo(listScrollTop, 0);
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("button", { name: "返回对局列表" })).toBeFocused();
+      await expect(page.locator(".battle-list-detail")).toBeVisible();
     }
   });
 
@@ -78,6 +101,34 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
   });
 }
 
+test("共享筛选、统计折叠与数据源设置保持可用", async ({ page }, testInfo) => {
+  await bootPanel(page);
+  await openSummary(page);
+  const modes = page.getByRole("group", { name: "筛选统计与对局模式" });
+  await expect(page.locator(".recent-modes")).toHaveCount(0);
+  await modes.getByRole("button", { name: "大乱斗", exact: true }).click();
+  await expect(page.locator(".recent-title")).toContainText("大乱斗");
+  await expect(page.locator(".battle-queue").first()).toHaveText("大乱斗");
+  await page.getByRole("combobox", { name: "筛选统计与对局时间范围" }).selectOption("7");
+  await expect(page.locator(".recent-title")).toContainText("近 7 天");
+  await page.getByRole("button", { name: "重置", exact: true }).click();
+  await expect(modes.getByRole("button", { name: "全部", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("combobox", { name: "筛选统计与对局时间范围" })).toHaveValue("0");
+  await page.locator(".summoner-stats > summary").click();
+  await expect(page.locator(".summoner-stat-grid")).toBeVisible();
+  await page.locator(".recent-expanded > summary").click();
+  await expect(page.locator(".recent-analysis-grid")).toBeVisible();
+  await expectNoAxeViolations(page);
+  await page.locator("#lol-tft-overlay").screenshot({ path: testInfo.outputPath("summary-expanded.png") });
+  await page.getByRole("link", { name: "海克斯数据" }).click();
+  await expect(page.locator(".aram-source-body")).toBeHidden();
+  await page.locator(".aram-source > summary").click();
+  await expect(page.locator(".aram-source-body")).toBeVisible();
+  await page.getByRole("button", { name: "更换", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "ARAMGG API Key" })).toBeVisible();
+  await expectNoAxeViolations(page);
+});
+
 test("浮层焦点跨 Shadow DOM 循环，Esc 关闭后回到入口", async ({ page }) => {
   await bootPanel(page);
   const close = page.getByRole("button", { name: "关闭战绩面板" });
@@ -88,7 +139,7 @@ test("浮层焦点跨 Shadow DOM 循环，Esc 关闭后回到入口", async ({ p
   await page.keyboard.press("Tab");
   await expect(close).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("combobox", { name: "选择区服" })).toBeFocused();
+  await expect(page.getByRole("link", { name: "海克斯数据" })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.locator("#lol-tft-overlay")).toHaveCount(0);
   await expect(page.locator("#lol-tft-launcher")).toBeFocused();

@@ -1,103 +1,110 @@
 <template>
   <div v-if="games.length" class="recent-stats">
-    <!-- 上半区：左侧标题/模式切换/走势，右侧趋势卡（填住标题右侧空白） -->
-    <div class="recent-top">
-      <div class="recent-top-main">
-        <div class="recent-headline">
-          <span class="recent-title">{{ titleText }}</span>
-          <template v-if="sample.length">
-            <span class="recent-wl"><b class="w">{{ wins }}</b>胜<b class="l">{{ losses }}</b>负</span>
-            <span v-if="remakes" class="recent-remake">（重开 {{ remakes }}）</span>
-            <span class="recent-wr" :title="'胜率 = 胜 /（胜 + 负），重开不计入分母'">{{ winRate }}% 胜率</span>
-            <span class="recent-kda" :title="'KDA =（击杀 + 助攻）/ 死亡；样本：' + titleText">{{ avgKda }} KDA</span>
-            <span v-if="streak" class="recent-streak" :class="{ 'recent-streak--lose': firstIsLose }">{{ streak }}</span>
-          </template>
+    <div class="recent-headline">
+      <span class="recent-title">{{ titleText }}</span>
+      <span v-if="remakes" class="recent-remake">重开 {{ remakes }} 场，不计入胜率</span>
+    </div>
+    <div v-if="mode === undefined" class="mode-filter recent-modes" role="group" aria-label="选择统计模式">
+      <button v-for="option in MODE_OPTIONS" :key="String(option.key)" type="button"
+        class="mode-filter-tab" :class="{ 'mode-filter-tab--cur': selectedMode === option.key }"
+        :aria-pressed="selectedMode === option.key"
+        @click="selectMode(option.key)">{{ option.label }}</button>
+    </div>
+    <div v-if="sample.length" class="recent-kpis">
+      <div class="recent-kpi">
+        <span class="recent-wr" title="胜率 = 胜 /（胜 + 负），重开不计入分母"><b>{{ winRate }}%</b> 胜率</span>
+      </div>
+      <div class="recent-kpi">
+        <span class="recent-kda" :title="'KDA =（击杀 + 助攻）/ 死亡；样本：' + titleText"><b>{{ avgKda }}</b> KDA</span>
+      </div>
+      <div class="recent-kpi">
+        <span class="recent-wl"><b class="w">{{ wins }}</b>胜<b class="l">{{ losses }}</b>负</span>
+        <span class="recent-kpi-label">近期战绩</span>
+      </div>
+      <div class="recent-kpi">
+        <span class="recent-streak" :class="{ 'recent-streak--lose': firstIsLose, 'recent-streak--empty': !streak }">{{ streak || '暂无连胜 / 连败' }}</span>
+        <span class="recent-kpi-label">连续表现</span>
+      </div>
+    </div>
+    <p v-else class="recent-empty">
+      {{ emptyText }}
+      <button v-if="selectedMode !== 'all'" type="button" class="link-button" @click="selectMode('all')">查看全部模式</button>
+    </p>
+    <details v-if="sample.length" class="recent-expanded">
+      <summary>详细统计 <span>对局走势、常用英雄与场均数据</span></summary>
+      <div class="recent-strip-wrap">
+        <span class="strip-end">最早 {{ stripOldestLabel }}</span>
+        <div class="recent-strip" :title="stripTitle">
+          <button v-for="(g, index) in recentGames" :key="g.game_id" type="button"
+            class="strip-block strip-block--btn" :class="{ 'strip-block--cur': g.game_id === activeGameId }"
+            :aria-pressed="g.game_id === activeGameId" :aria-label="stripAriaLabel(g, index)" :title="stripBlockTitle(g, index)"
+            @click="$emit('focusGame', g)">
+            <span class="strip-bar" :class="'strip-bar--' + classifyBattle(g)"></span>
+          </button>
         </div>
-        <div class="mode-filter recent-modes" role="group" aria-label="选择统计模式">
-          <button v-for="option in MODE_OPTIONS" :key="String(option.key)" type="button"
-            class="mode-filter-tab" :class="{ 'mode-filter-tab--cur': selectedMode === option.key }"
-            :aria-pressed="selectedMode === option.key"
-            @click="selectMode(option.key)">{{ option.label }}</button>
-        </div>
-        <div v-if="sample.length" class="recent-strip-wrap">
-          <span class="strip-end">最早 {{ stripOldestLabel }}</span>
-          <div class="recent-strip" :title="stripTitle">
-            <button v-for="(g, index) in recentGames" :key="g.game_id" type="button"
-              class="strip-block strip-block--btn" :class="{ 'strip-block--cur': g.game_id === activeGameId }"
-              :aria-pressed="g.game_id === activeGameId" :aria-label="stripAriaLabel(g, index)" :title="stripBlockTitle(g, index)"
-              @click="$emit('focusGame', g)">
-              <span class="strip-bar" :class="'strip-bar--' + classifyBattle(g)"></span>
-            </button>
+        <span class="strip-end">最新 {{ stripNewestLabel }}</span>
+      </div>
+      <div class="recent-analysis-grid">
+        <div v-if="trend.length" class="recent-side" :title="trendTitle">
+          <p class="recent-side-title">胜率趋势（累计）</p>
+          <div class="recent-trend">
+            <span class="recent-trend-chart">
+              <svg width="196" height="46" viewBox="0 0 196 46" aria-hidden="true">
+                <line x1="4" y1="24" x2="192" y2="24" class="trend-baseline" />
+                <polyline class="trend-line" :points="trendPoints" />
+                <circle v-for="point in trend" :key="point.key" class="trend-dot" :cx="point.x" :cy="point.y" r="1.9">
+                  <title>{{ trendPointTitle(point) }}</title>
+                </circle>
+              </svg>
+            </span>
           </div>
-          <span class="strip-end">最新 {{ stripNewestLabel }}</span>
+          <span class="recent-trend-dates">{{ trendFirstLabel }} → {{ trendLastLabel }}</span>
         </div>
-        <p v-else class="recent-empty">
-          {{ emptyText }}
-          <button v-if="selectedMode !== 'all'" type="button" class="link-button" @click="selectMode('all')">查看全部模式</button>
-        </p>
-      </div>
-      <div v-if="trend.length" class="recent-side" :title="trendTitle">
-        <p class="recent-side-title">胜率趋势（累计）</p>
-        <div class="recent-trend">
-          <span class="recent-trend-chart">
-            <svg width="196" height="46" viewBox="0 0 196 46" aria-hidden="true">
-              <line x1="4" y1="24" x2="192" y2="24" class="trend-baseline" />
-              <polyline class="trend-line" :points="trendPoints" />
-              <circle v-for="point in trend" :key="point.key" class="trend-dot" :cx="point.x" :cy="point.y" r="1.9">
-                <title>{{ trendPointTitle(point) }}</title>
-              </circle>
-            </svg>
-          </span>
+        <div v-if="queueStats.length" class="recent-queues">
+          <p class="recent-queues-title">模式分布</p>
+          <div v-for="q in queueStats" :key="q.id" class="recent-queue-row">
+            <span class="recent-queue-name">{{ q.label }}</span>
+            <span class="recent-queue-track">
+              <span class="recent-queue-fill" :style="{ width: q.percent + '%' }"></span>
+            </span>
+            <span class="recent-queue-count">{{ q.count }} 场</span>
+          </div>
         </div>
-        <span class="recent-trend-dates">{{ trendFirstLabel }} → {{ trendLastLabel }}</span>
-      </div>
-      <div v-if="queueStats.length" class="recent-queues">
-        <p class="recent-queues-title">模式分布</p>
-        <div v-for="q in queueStats" :key="q.id" class="recent-queue-row">
-          <span class="recent-queue-name">{{ q.label }}</span>
-          <span class="recent-queue-track">
-            <span class="recent-queue-fill" :style="{ width: q.percent + '%' }"></span>
-          </span>
-          <span class="recent-queue-count">{{ q.count }} 场</span>
+        <div class="recent-champs">
+          <span class="recent-champs-label">常用英雄（点击筛选）</span>
+          <button v-for="c in topChampions" :key="c.id" type="button" class="recent-champ"
+            :title="c.count + '场 ' + c.wins + '胜 · 点击筛选该英雄战绩'"
+            @click="$emit('filterChampion', c.id)">
+            <GameIcon kind="champion" :id="c.id" />
+            <span class="recent-champ-meta">{{ c.count }}场 {{ c.wins }}胜</span>
+          </button>
+          <button v-if="activeChampion" type="button" class="recent-champ-filter-clear" @click="$emit('filterChampion', null)">
+            清除筛选：{{ championName(activeChampion) }} ×
+          </button>
         </div>
-      </div>
-    </div>
-    <!-- 下半区：常用英雄（自适应）+ 场均摘要 -->
-    <div v-if="sample.length" class="recent-bottom">
-      <div class="recent-champs">
-        <span class="recent-champs-label">常用英雄（点击筛选）</span>
-        <button v-for="c in topChampions" :key="c.id" type="button" class="recent-champ"
-          :title="c.count + '场 ' + c.wins + '胜 · 点击筛选该英雄战绩'"
-          @click="$emit('filterChampion', c.id)">
-          <GameIcon kind="champion" :id="c.id" />
-          <span class="recent-champ-meta">{{ c.count }}场 {{ c.wins }}胜</span>
-        </button>
-        <button v-if="activeChampion" type="button" class="recent-champ-filter-clear" @click="$emit('filterChampion', null)">
-          清除筛选：{{ championName(activeChampion) }} ×
-        </button>
-      </div>
-      <div v-if="teamStats.length" class="recent-teams">
-        <p class="recent-teams-title">组队情况</p>
-        <div v-for="item in teamStats" :key="item.id" class="recent-queue-row">
-          <span class="recent-queue-name">{{ item.label }}</span>
-          <span class="recent-queue-track">
-            <span class="recent-queue-fill" :style="{ width: item.percent + '%' }"></span>
-          </span>
-          <span class="recent-queue-count">{{ item.count }} 场</span>
+        <div v-if="teamStats.length" class="recent-teams">
+          <p class="recent-teams-title">组队情况</p>
+          <div v-for="item in teamStats" :key="item.id" class="recent-queue-row">
+            <span class="recent-queue-name">{{ item.label }}</span>
+            <span class="recent-queue-track">
+              <span class="recent-queue-fill" :style="{ width: item.percent + '%' }"></span>
+            </span>
+            <span class="recent-queue-count">{{ item.count }} 场</span>
+          </div>
+        </div>
+        <div class="recent-metrics">
+          <p class="recent-metrics-title">近 {{ sample.length }} 场场均</p>
+          <div class="recent-metrics-grid">
+            <span class="recent-metric"><b>{{ avgKills }}</b>场均击杀</span>
+            <span class="recent-metric"><b>{{ avgDeaths }}</b>场均死亡</span>
+            <span class="recent-metric"><b>{{ avgAssists }}</b>场均助攻</span>
+            <span class="recent-metric"><b>{{ honorCount }}</b>MVP/SVP</span>
+            <span class="recent-metric"><b>{{ avgDuration }}</b>平均时长</span>
+            <span class="recent-metric"><b>{{ pentaCount }}</b>五杀</span>
+          </div>
         </div>
       </div>
-      <div class="recent-metrics">
-        <p class="recent-metrics-title">近 {{ sample.length }} 场场均</p>
-        <div class="recent-metrics-grid">
-          <span class="recent-metric"><b>{{ avgKills }}</b>场均击杀</span>
-          <span class="recent-metric"><b>{{ avgDeaths }}</b>场均死亡</span>
-          <span class="recent-metric"><b>{{ avgAssists }}</b>场均助攻</span>
-          <span class="recent-metric"><b>{{ honorCount }}</b>MVP/SVP</span>
-          <span class="recent-metric"><b>{{ avgDuration }}</b>平均时长</span>
-          <span class="recent-metric"><b>{{ pentaCount }}</b>五杀</span>
-        </div>
-      </div>
-    </div>
+    </details>
   </div>
   <p v-if="taskError" class="state-text state-text--error recent-error" title="数据来源：WeGame 战绩接口" role="alert">
     <span v-if="games.length">刷新失败，当前展示上次数据：</span>

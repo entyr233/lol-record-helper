@@ -71,7 +71,7 @@ describe("RecentStats 三分类统计口径", () => {
       await flushPromises();
       expect(wrapper.get(".recent-title").text()).toContain("最近 10 场");
       expect(wrapper.get(".recent-wl").text()).toBe("5胜4负");
-      expect(wrapper.text()).toContain("（重开 1）");
+      expect(wrapper.text()).toContain("重开 1 场，不计入胜率");
       expect(wrapper.get(".recent-wr").text()).toBe("56% 胜率");
       // 色块配色按三分类落到内层 strip-bar 上
       expect(wrapper.findAll(".strip-block--btn")).toHaveLength(10);
@@ -253,16 +253,19 @@ describe("RecentStats 模式切换", () => {
     const Parent = defineComponent({
       setup() {
         const mode = ref<ModeFilter>("all");
-        return () => h(RecentStats, {
-          area: "1", accountType: "2", id: "test", mode: mode.value,
-          onModeChange: (value) => { mode.value = value; }
-        });
+        return () => h("div", [
+          h("button", { onClick: () => { mode.value = 420; } }, "单双排"),
+          h(RecentStats, {
+            area: "1", accountType: "2", id: "test", mode: mode.value,
+            onModeChange: (value) => { mode.value = value; }
+          })
+        ]);
       }
     });
     const wrapper = mount(Parent);
     try {
       await flushPromises();
-      await wrapper.findAll(".recent-modes .mode-filter-tab").find((tab) => tab.text() === "单双排")!.trigger("click");
+      await wrapper.get("button").trigger("click");
       await flushPromises();
 
       expect(api.getBattleList.mock.calls.map((call) => (call[1] as { offset: number }).offset)).toEqual([0, 10, 20]);
@@ -332,7 +335,7 @@ describe("RecentStats 模式切换", () => {
     } finally { wrapper.unmount(); }
   });
 
-  it("受控模式下按传入 mode 统计，并对外 emit modeChange", async () => {
+  it("受控模式下使用共享筛选，随传入 mode 更新统计", async () => {
     const recent = [
       battle(1, { game_queue_id: 450, win: "Win" }),
       battle(2, { game_queue_id: 450, win: "Fail" }),
@@ -347,8 +350,11 @@ describe("RecentStats 模式切换", () => {
       expect(wrapper.get(".recent-title").text()).toContain("大乱斗");
       expect(wrapper.findAll(".strip-block--btn")).toHaveLength(2);
 
-      await wrapper.findAll(".recent-modes .mode-filter-tab").find((tab) => tab.text() === "单双排")!.trigger("click");
-      expect(wrapper.emitted("modeChange")).toEqual([[420]]);
+      expect(wrapper.find(".recent-modes").exists()).toBe(false);
+      await wrapper.setProps({ mode: 420 });
+      await flushPromises();
+      expect(wrapper.get(".recent-title").text()).toContain("单双排");
+      expect(wrapper.findAll(".strip-block--btn")).toHaveLength(1);
     } finally { wrapper.unmount(); }
   });
 

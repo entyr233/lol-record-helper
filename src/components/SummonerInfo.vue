@@ -1,6 +1,6 @@
 <template>
   <div class="summoner-info">
-    <Panel title="总览">
+    <Panel title="玩家总览">
       <p v-if="hidden" class="hidden-tip">战绩已隐藏</p>
       <p v-else-if="authExpired" class="state-text state-text--error">
         登录状态已失效，请重新登录
@@ -18,7 +18,7 @@
           <GameIcon class="summoner-avatar" kind="user" :id="summoner.icon_id" />
           <div class="summoner-base">
             <p class="summoner-name">
-              {{ summoner.name }}
+              <span class="summoner-display-name">{{ summoner.name }}</span>
               <button type="button" class="copy-name" @click="copyName">{{ copied ? "已复制" : "复制昵称" }}</button>
               <button
                 type="button"
@@ -36,15 +36,12 @@
               <span class="count-label">段位：</span>
               <span class="count-tier">{{ tierText }}</span>
             </p>
-            <p class="summoner-line">
-              等级: {{ summoner.level }}
-              <span class="summoner-sub">({{ summoner.experience }})</span>
-            </p>
-            <p class="summoner-line">赞: {{ summoner.praise }} | 黑: {{ summoner.discredit }}</p>
+            <p class="summoner-line">{{ getAreaName(Number(area)) }} · 等级 {{ summoner.level }}</p>
           </div>
         </div>
-        <div class="summoner-stats">
-          <p class="summoner-stats-title">场次统计</p>
+        <details class="summoner-stats">
+          <summary class="summoner-stats-title">场次统计与资料 <span v-if="reportError" class="state-text--error">· 加载失败</span></summary>
+          <p class="summoner-line summoner-extra">经验 {{ summoner.experience }} · 赞 {{ summoner.praise }} · 黑 {{ summoner.discredit }}</p>
           <div class="summoner-stat-grid">
             <p v-if="reportLoading" class="summoner-report">统计加载中…</p>
             <p v-else-if="reportError" class="summoner-report summoner-report--error">
@@ -61,7 +58,7 @@
               </p>
             </template>
           </div>
-        </div>
+        </details>
       </div>
       <div class="summoner-recent">
         <RecentStats ref="recentRef" :area="area" :account-type="accountType" :id="id" :active-champion="activeChampion"
@@ -90,6 +87,7 @@ import { useLoginAction } from "../composables/useLoginAction";
 import { MAX_FAVORITES, favoriteKey, useFavorites } from "../composables/useFavorites";
 import { useRecentPlayers } from "../composables/useRecentPlayers";
 import { tierLabel, tierOrder } from "../const/tiers";
+import { getAreaName } from "../const/areas";
 import type { BattleRefreshOptions } from "../composables/useBattleFeed";
 import type { ModeFilter } from "../const/modes";
 import type { DaysFilter } from "../composables/useBattleList";

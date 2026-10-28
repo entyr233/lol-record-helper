@@ -29,17 +29,17 @@ beforeEach(() => {
 afterEach(() => { delete window.WegameLogin; vi.useRealTimers(); });
 
 describe("SummonerInfo independent statistics state", () => {
-  it("场次统计默认可见（无需展开更多资料），并带分类胜率", async () => {
+  it("资料条保留等级，场次统计与其他资料默认折叠并带分类胜率", async () => {
     const wrapper = render();
     try {
       await flushPromises();
       const stats = wrapper.get(".summoner-stats");
       expect(stats.findAll(".count-row")).toHaveLength(4);
       expect(stats.get(".count-rate").text()).toContain("胜率");
-      // 等级/赞黑等资料直接展示，不再折叠进「更多资料」
-      expect(wrapper.text()).toContain("等级:");
-      expect(wrapper.text()).toContain("赞:");
-      expect(wrapper.find(".summoner-more").exists()).toBe(false);
+      expect(stats.element.tagName).toBe("DETAILS");
+      expect(stats.attributes("open")).toBeUndefined();
+      expect(wrapper.get(".summoner-base").text()).toContain("等级");
+      expect(stats.text()).toContain("赞");
     } finally { wrapper.unmount(); }
   });
 
@@ -50,6 +50,7 @@ describe("SummonerInfo independent statistics state", () => {
       try {
         await flushPromises();
         expect(wrapper.text()).toContain(summoner.name);
+        expect(wrapper.get(".summoner-stats-title").text()).toContain("加载失败");
         expect(wrapper.get(".summoner-report").text()).toContain("统计加载失败");
         expect(wrapper.get(".summoner-report").text()).toContain(error.message);
         expect(wrapper.findAll(".count-row")).toHaveLength(0);

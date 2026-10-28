@@ -15,7 +15,8 @@
       </button>
     </div>
 
-    <Panel title="ARAMGG 数据源" class="aram-source">
+    <details class="aram-source">
+      <summary>数据源设置 <span>ARAMGG · 公开数据可直接使用</span></summary>
       <div class="aram-source-body">
         <p class="aram-source-text">
           榜单和英雄推荐优先读取 ARAMGG 公开版本数据，免 API Key，缓存 12 小时。公开英雄数据不可用时，已配置的 Key 可用于开发者接口回退（每次 2 credits）。
@@ -45,7 +46,7 @@
           <a href="https://data.dtodo.cn/developer.html" target="_blank" rel="noopener noreferrer">申请 API Key ↗</a>
         </form>
       </div>
-    </Panel>
+    </details>
 
     <div class="aram-controls">
       <div class="mode-filter aram-filter">

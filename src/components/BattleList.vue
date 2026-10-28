@@ -1,14 +1,16 @@
 <template>
-  <div ref="listRoot" class="battle-list">
+  <div ref="listRoot" class="battle-list" :class="{ 'battle-list--detail-open': isDetailOpen }">
     <Panel title="对局记录">
       <div class="battle-list-body">
         <div class="battle-list-side">
-          <div class="mode-filter">
+          <div v-if="activeMode === undefined" class="mode-filter">
             <button v-for="option in modeOptions" :key="String(option.key)" type="button"
               class="mode-filter-tab" :class="{ 'mode-filter-tab--cur': filter.mode === option.key }"
+              :aria-pressed="filter.mode === option.key"
               @click="emitFilter({ mode: option.key })">{{ option.label }}</button>
           </div>
           <div class="mode-filter mode-filter--extra">
+            <span class="list-filter-label">列表筛选</span>
             <select class="mode-filter-select" aria-label="筛选英雄" :value="filter.champion ?? ''" @change="onChampionChange">
               <option value="">全部英雄</option>
               <option v-for="c in championOptions" :key="c.id" :value="String(c.id)">{{ c.name }}（{{ c.count }}场）</option>
@@ -18,7 +20,7 @@
               <option value="win">只看胜利</option>
               <option value="fail">只看失败</option>
             </select>
-            <select class="mode-filter-select" aria-label="筛选时间范围" :value="String(filter.days)" @change="onDaysChange">
+            <select v-if="activeDays === undefined" class="mode-filter-select" aria-label="筛选时间范围" :value="String(filter.days)" @change="onDaysChange">
               <option value="0">不限时间</option>
               <option value="7">最近 7 天</option>
               <option value="30">最近 30 天</option>
@@ -33,6 +35,7 @@
             tabindex="0"
             @keydown.up.prevent="moveSelection(-1)"
             @keydown.down.prevent="moveSelection(1)"
+            @keydown.enter.prevent="selectedGameId && onSelect(selectedGameId)"
           >
             <template v-if="!battles.length && loading">
               <li v-for="n in 6" :key="n" class="battle-skeleton">
@@ -73,6 +76,7 @@
         </div>
 
         <div class="battle-list-detail">
+          <button ref="backButton" type="button" class="battle-back" @click="returnToList">← 返回对局列表</button>
           <BattleDetail
             v-if="selectedGameId"
             :area="area"
@@ -124,6 +128,10 @@ const emit = defineEmits<{
 }>();
 
 const listRoot = ref<HTMLElement | null>(null);
+const isDetailOpen = ref(false);
+const backButton = ref<HTMLButtonElement | null>(null);
+let listScrollTop = 0;
+let pageScrollTop = 0;
 /** 对局列表容器：键盘 ↑/↓ 与点选后都从这里接管焦点 */
 const listEl = ref<HTMLElement | null>(null);
 const playerParams = computed(() => toPlayerQueryParams({ area: props.area, accountType: props.accountType, id: props.id }));
@@ -242,11 +250,29 @@ const selectedQueueId = computed(() => {
   return source?.game_queue_id;
 });
 
-/** 用户手动点选对局：清掉 focusGame 的兜底数据，并把焦点交给列表（键盘可继续 ↑/↓） */
-function onSelect(gameId: string): void {
+/** 选中对局后，宽屏保留列表键盘操作，窄屏把焦点交给详情返回入口。 */
+async function onSelect(gameId: string): Promise<void> {
   focusedBattle.value = null;
   select(gameId);
-  listEl.value?.focus();
+  listScrollTop = listEl.value?.scrollTop ?? 0;
+  pageScrollTop = listRoot.value?.closest(".lol-tft-main")?.scrollTop ?? 0;
+  isDetailOpen.value = true;
+  await nextTick();
+  if (backButton.value?.getClientRects().length) {
+    backButton.value.focus();
+    backButton.value.scrollIntoView({ block: "start" });
+  } else {
+    listEl.value?.focus({ preventScroll: true });
+  }
+}
+
+async function returnToList(): Promise<void> {
+  isDetailOpen.value = false;
+  await nextTick();
+  const pageContent = listRoot.value?.closest(".lol-tft-main");
+  if (pageContent) pageContent.scrollTop = pageScrollTop;
+  if (listEl.value) listEl.value.scrollTop = listScrollTop;
+  listEl.value?.focus({ preventScroll: true });
 }
 
 /** 重试最近一次请求的页码，保留当前已经展示的列表。 */
@@ -296,12 +322,20 @@ async function focusGame(game: BattleSummary): Promise<FocusGameResult> {
     return result;
   }
   focusedBattle.value = result.battle;
+  listScrollTop = listEl.value?.scrollTop ?? 0;
+  pageScrollTop = listRoot.value?.closest(".lol-tft-main")?.scrollTop ?? 0;
+  isDetailOpen.value = true;
   if (result.filterReset) showNotice("已重置筛选以定位该场对局");
   await nextTick();
   // jsdom 里没有 scrollIntoView，做可选调用保护
   const nodes = listRoot.value?.querySelectorAll<HTMLElement>("[data-game-id]") ?? [];
   const target = Array.from(nodes).find((node) => node.dataset.gameId === result.battle?.game_id);
-  target?.scrollIntoView?.({ block: "nearest" });
+  if (backButton.value?.getClientRects().length) {
+    backButton.value.focus();
+    backButton.value.scrollIntoView({ block: "start" });
+  } else {
+    target?.scrollIntoView?.({ block: "nearest" });
+  }
   return result;
 }
 function applyChampionFilter(id: number | null): void {

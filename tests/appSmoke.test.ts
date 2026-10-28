@@ -206,7 +206,7 @@ describe("整页冒烟（mock 数据）", () => {
     instance.unmount();
   });
 
-  it("总览与列表的模式筛选双向联动", async () => {
+  it("共享模式筛选同时更新总览与列表", async () => {
     const instance = mountLolTft({ host });
     await instance.router.isReady();
     await instance.router.push({ name: "summary", params: { area: "1", accountType: "2", id: "10001" } });
@@ -216,26 +216,27 @@ describe("整页冒烟（mock 数据）", () => {
     }
 
     const shadow = host.shadowRoot as ShadowRoot;
-    const overviewChips = () => Array.from(shadow.querySelectorAll<HTMLElement>(".recent-modes .mode-filter-tab"));
-    const listTabs = () => Array.from(shadow.querySelectorAll<HTMLElement>(".battle-list-side .mode-filter-tab"));
+    const sharedChips = () => Array.from(shadow.querySelectorAll<HTMLElement>(".summary-modes .mode-filter-tab"));
     const activeText = (items: HTMLElement[]) => items.find((item) => item.classList.contains("mode-filter-tab--cur"))?.textContent?.trim();
 
-    // 总览点「大乱斗」→ 列表模式切到同一项
-    overviewChips().find((chip) => chip.textContent?.trim() === "大乱斗")!.click();
+    // 共享筛选同时更新近期样本与列表。
+    sharedChips().find((chip) => chip.textContent?.trim() === "大乱斗")!.click();
     for (let i = 0; i < 15; i++) {
       await flushPromises();
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
-    expect(activeText(listTabs())).toBe("大乱斗");
+    expect(activeText(sharedChips())).toBe("大乱斗");
+    expect(shadow.querySelector(".recent-title")?.textContent).toContain("大乱斗");
+    expect(shadow.querySelector(".recent-modes")).toBeNull();
     expect(shadow.querySelector(".sample-note")?.textContent).toContain("符合条件");
 
-    // 列表点「单双排」→ 总览模式与统计标题跟随
-    listTabs().find((tab) => tab.textContent?.trim() === "单双排")!.click();
+    // 切换模式后，两部分内容继续使用同一条件。
+    sharedChips().find((tab) => tab.textContent?.trim() === "单双排")!.click();
     for (let i = 0; i < 15; i++) {
       await flushPromises();
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
-    expect(activeText(overviewChips())).toBe("单双排");
+    expect(activeText(sharedChips())).toBe("单双排");
     expect(shadow.querySelector(".recent-title")?.textContent).toContain("单双排");
 
     instance.unmount();
@@ -315,7 +316,7 @@ describe("整页冒烟（mock 数据）", () => {
     const clear = shadow.querySelector(".recent-champ-filter-clear") as HTMLElement | null;
     expect(clear).not.toBeNull();
     // 列表侧：英雄下拉进入筛选态，提示文案切到“符合条件”
-    expect((shadow.querySelector(".mode-filter-select") as HTMLSelectElement | null)?.value).not.toBe("");
+    expect((shadow.querySelector('select[aria-label="筛选英雄"]') as HTMLSelectElement | null)?.value).not.toBe("");
     expect(shadow.querySelector(".sample-note")?.textContent).toContain("符合条件");
 
     // 清除后两侧一起回到默认态
@@ -325,7 +326,7 @@ describe("整页冒烟（mock 数据）", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
     expect(shadow.querySelector(".recent-champ-filter-clear")).toBeNull();
-    expect((shadow.querySelector(".mode-filter-select") as HTMLSelectElement | null)?.value).toBe("");
+    expect((shadow.querySelector('select[aria-label="筛选英雄"]') as HTMLSelectElement | null)?.value).toBe("");
     instance.unmount();
   });
 

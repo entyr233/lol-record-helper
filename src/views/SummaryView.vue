@@ -1,6 +1,16 @@
 <template>
   <div class="page page--summary">
     <div class="summary-toolbar">
+      <div class="mode-filter summary-modes" role="group" aria-label="筛选统计与对局模式">
+        <button v-for="option in MODE_FILTER_OPTIONS" :key="String(option.key)" type="button"
+          class="mode-filter-tab" :class="{ 'mode-filter-tab--cur': activeMode === option.key }"
+          :aria-pressed="activeMode === option.key" @click="onModeChange(option.key)">{{ option.label }}</button>
+      </div>
+      <select v-model="activeDays" class="mode-filter-select" aria-label="筛选统计与对局时间范围">
+        <option :value="0">不限时间</option>
+        <option :value="7">最近 7 天</option>
+        <option :value="30">最近 30 天</option>
+      </select>
       <span v-if="updatedAt" class="summary-updated">更新于 {{ updatedText }}</span>
       <button type="button" class="summary-refresh" :disabled="refreshing" @click="refreshAll">
         {{ refreshing ? "刷新中…" : "刷新战绩" }}
@@ -28,6 +38,7 @@
       :id="id"
       :active-champion="activeChampion"
       :active-mode="activeMode"
+      :active-days="activeDays"
       @open-summoner="openSummoner"
       @champion-change="onChampionChange"
       @mode-change="onModeChange"
@@ -45,7 +56,7 @@ import SummonerInfo from "../components/SummonerInfo.vue";
 import BattleList from "../components/BattleList.vue";
 import type { BattleSummary } from "../api/types";
 import type { PlayerDetail } from "../api/types";
-import type { ModeFilter } from "../const/modes";
+import { MODE_FILTER_OPTIONS, type ModeFilter } from "../const/modes";
 import type { DaysFilter } from "../composables/useBattleList";
 import { useBattleFeed } from "../composables/useBattleFeed";
 
