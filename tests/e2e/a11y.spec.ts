@@ -27,7 +27,7 @@ async function seriousViolations(page: Page, selector: string): Promise<string[]
     .map((violation) => violation.id + "：" + violation.help);
 }
 
-test("战绩浮层无 serious/critical 可访问性问题", async ({ page }) => {
+test("战绩浮层无 axe 可访问性违规", async ({ page }) => {
   await boot(page, "https://www.wegame.com.cn/");
   await page.locator("#lol-tft-launcher").click();
   await expect(page.locator("#lol-tft-overlay")).toBeVisible();
@@ -38,7 +38,7 @@ test("战绩浮层无 serious/critical 可访问性问题", async ({ page }) => 
   expect(await seriousViolations(page, "#lol-tft-overlay")).toEqual([]);
 });
 
-test("官方助手面板无 serious/critical 可访问性问题", async ({ page }) => {
+test("官方助手面板无 axe 可访问性违规", async ({ page }) => {
   await boot(page, "https://www.wegame.com.cn/helper/lol/");
   await expect(page.locator("#lol-tft-helper-login")).toHaveCount(1);
   await expect.poll(() => page.evaluate(() => {
