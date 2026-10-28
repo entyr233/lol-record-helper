@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LOL 战绩助手
 // @namespace    mscststs
-// @version      2.14.0
+// @version      2.14.1
 // @description  LOL 战绩助手：英雄联盟国服战绩查询，支持官方助手登录、大区切换与掌盟详情回退
 // @author       mscststs
 // @homepage     https://github.com/entyr233/lol-record-helper
@@ -20,7 +20,7 @@
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
-// @resource     lol-tft-ui https://raw.githubusercontent.com/entyr233/lol-record-helper/v2.14.0/userscript/lol-tft-ui.js
+// @resource     lol-tft-ui https://raw.githubusercontent.com/entyr233/lol-record-helper/v2.14.1/userscript/lol-tft-ui.js
 // @connect      mlol.qt.qq.com
 // @connect      lol.qq.com
 // @connect      game.gtimg.cn
@@ -49,7 +49,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "2.14.0";
+  var VERSION = "2.14.1";
 
   /** 只有 WeGame / lol.qq.com 页面才挂载悬浮按钮和面板 */
   function isWegameHost() {
@@ -211,8 +211,8 @@
 
   var UI_RESOURCE = "lol-tft-ui";
   // 固定到 tag（不可变）而不是 master；UI 内容再用 SHA-256 二次校验
-  var UI_URL = "https://raw.githubusercontent.com/entyr233/lol-record-helper/v2.14.0/userscript/lol-tft-ui.js";
-  var UI_SHA256 = "27c047a2e5ec6181de2ea29bd79c4e16da66f89176ceaf8fb861992465c6586d";
+  var UI_URL = "https://raw.githubusercontent.com/entyr233/lol-record-helper/v2.14.1/userscript/lol-tft-ui.js";
+  var UI_SHA256 = "a577933d24be139f07b1466b31762d3679862159934b7a2e54c9a46f2afb8632";
   var libCache = null;
   var libPromise = null;
 

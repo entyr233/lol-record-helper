@@ -436,7 +436,9 @@ function readOverviewCache(): AramggOverviewCache | null {
 function writeOverviewCache(overview: AramggOverview): AramggOverviewCache {
   const cache: AramggOverviewCache = { savedAt: Date.now(), dataVersion: overview.dataVersion, overview };
   memoryOverview = cache;
-  writeStorage(OVERVIEW_CACHE_STORAGE, cache);
+  if (!writeStorage(OVERVIEW_CACHE_STORAGE, cache)) {
+    console.warn("[lol-tft] ARAMGG 榜单缓存写入失败（可能是 localStorage 配额不足），本次使用内存缓存");
+  }
   return cache;
 }
 

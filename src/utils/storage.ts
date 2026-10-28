@@ -15,11 +15,13 @@ export function readStorage<T>(name: string, fallback: T): T {
   }
 }
 
-export function writeStorage(name: string, value: unknown): void {
+export function writeStorage(name: string, value: unknown): boolean {
   try {
     localStorage.setItem(key(name), JSON.stringify(value));
+    return true;
   } catch {
-    /* ignore */
+    /* 隐私模式或配额满时静默失败，由调用方决定是否提示 */
+    return false;
   }
 }
 
