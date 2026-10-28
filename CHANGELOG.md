@@ -14,7 +14,7 @@
 
 ### Added
 
-- 轻量脚本壳 + `@resource` 按需加载 UI（`lol-tft.user.js` 约 21KB，`lol-tft-ui.js` 约 300KB）。
+- 轻量脚本壳 + `@resource` 按需加载 UI（`lol-tft.user.js` 约 25KB，`lol-tft-ui.js` 约 305KB）。
 - UI 资源固定到版本 tag，并在执行前做 SHA-256 完整性校验。
 - ESLint、Vitest 覆盖率阈值、CI 产物漂移检查、tag 发布工作流。
 - 助手面板加载失败时的可见重试入口。

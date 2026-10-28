@@ -11,6 +11,7 @@
   <a href="https://raw.githubusercontent.com/entyr233/lol-record-helper/master/userscript/lol-tft.user.js">
     <img src="https://img.shields.io/badge/安装-LOL%20战绩助手-b59758?style=for-the-badge" alt="安装 LOL 战绩助手" />
   </a>
+  <a href="https://github.com/entyr233/lol-record-helper/actions/workflows/ci.yml"><img src="https://github.com/entyr233/lol-record-helper/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://github.com/entyr233/lol-record-helper/tags">
     <img src="https://img.shields.io/github/v/tag/entyr233/lol-record-helper?label=version&color=b59758&style=flat-square" alt="version" />
   </a>
@@ -44,14 +45,14 @@
 
 > **不用安装第二个脚本。** `lol-tft-ui.js` 是脚本的 `@resource` UI 资源，安装/更新时会自动下载；请勿把它当作用户脚本单独安装。
 >
-> 脚本壳约 **21KB**，在任意网站只注册菜单；UI 约 **300KB**，只在进入官方助手页或点击「LOL 战绩助手」时才加载。
+> 脚本壳约 **25KB**，在任意网站只注册菜单；UI 约 **305KB**，只在进入官方助手页或点击「LOL 战绩助手」时才加载。
 
 **更新**：脚本会通过 `@updateURL` 自动检查更新，也可以重新打开上面的安装链接覆盖安装。
 ### 权限说明
 
 脚本为了在**任何网站**都能显示脚本菜单，声明了 `http://*/*` + `https://*/*`：
 
-- 非 WeGame / `lol.qq.com` 页面只执行约 21KB 的轻量壳，用于注册菜单，不注入悬浮按钮、不加载 UI、不读取页面内容；
+- 非 WeGame / `lol.qq.com` 页面只执行约 25KB 的轻量壳，用于注册菜单，不注入悬浮按钮、不加载 UI、不读取页面内容；
 - 只有 WeGame / `lol.qq.com` 页面会注入战绩面板或掌盟桥接；
 - 如果你不希望它在某些站点运行，可以在 ScriptCat / Tampermonkey 的脚本设置里按站点排除。
 
