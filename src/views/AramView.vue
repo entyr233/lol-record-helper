@@ -89,7 +89,7 @@
         <template #title-expand>
           <span class="aram-columns-hint">胜率 / 选取率 / 强度</span>
         </template>
-        <div class="aram-table" role="list">
+        <div class="aram-table" role="group" :aria-label="tab === 'augments' ? '强化榜单' : '英雄榜单'">
           <button
             v-for="(item, index) in rows"
             :key="item.id"

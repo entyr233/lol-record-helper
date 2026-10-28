@@ -4,7 +4,25 @@
 
 ## [Unreleased]
 
-- 新增 axe-core Playwright 可访问性门禁、SECURITY/CONTRIBUTING/Issue/PR 模板。
+## [2.17.0] - 2026-10-28
+
+### Added
+
+- Chromium、Firefox、WebKit 端到端测试与 CI 浏览器矩阵。
+- 总览、对局列表、十人详情、搜索、收藏和海克斯页面的全部 axe 违规检查，覆盖桌面与 390px 窄屏。
+- 详情缓存、绑定页和 SDK 注入生命周期测试；README mock 截图生成命令。
+
+### Changed
+
+- 完整用户脚本壳迁移到 TypeScript，元信息统一由 manifest 生成。
+- GitHub Release 采用草稿资产上传、UI 备用源更新、公开发布的顺序，并记录 UI 校验值。
+
+### Fixed
+
+- Shadow DOM 内焦点循环与 WebKit 点击入口后的焦点恢复。
+- 共享详情请求中单个查看者卸载导致其他查看者请求被取消。
+- SDK 加载失败后轮询计时器未释放。
+- 筛选框、收藏备注框、搜索按钮和榜单分组的可访问性语义。
 
 ## [2.16.0] - 2026-10-28
 

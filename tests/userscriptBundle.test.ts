@@ -14,7 +14,7 @@ describe.skipIf(!available)("轻量油猴脚本与按需加载 UI", () => {
     expect(code.startsWith("// ==UserScript==\n") || code.startsWith("// ==UserScript==\r\n")).toBe(true);
     const metadata = code.slice(0, code.indexOf("// ==/UserScript=="));
     expect(metadata.match(/^\/\/ @version[ \t]+(.+)\r?$/m)?.[1]?.trim()).toBe(version);
-    expect(code).toContain('var VERSION = "' + version + '";');
+    expect(code).toContain('const VERSION = "' + version + '";');
     expect(code).not.toContain("__VERSION__");
     expect(code).not.toContain("__BUNDLE__");
     expect(code).toContain("__LOL_TFT__");
@@ -54,7 +54,7 @@ describe.skipIf(!available)("轻量油猴脚本与按需加载 UI", () => {
 
     const shell = readFileSync(FILE, "utf8");
     const uiHash = createHash("sha256").update(normalizeEol(ui), "utf8").digest("hex");
-    expect(shell).toContain('var UI_SHA256 = "' + uiHash + '";');
+    expect(shell).toContain('const UI_SHA256 = "' + uiHash + '";');
     expect(ui.startsWith("var LolTft=")).toBe(true);
     const factory = new Function(
       "process",

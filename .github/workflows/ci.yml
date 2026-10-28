@@ -38,8 +38,10 @@ jobs:
       # 构建后的入库产物必须与源码一致，防止提交旧脚本/旧 UI
       - run: git diff --exit-code -- userscript
       - if: matrix.node == '24.x'
-        run: npx playwright install --with-deps chromium
-      - if: matrix.node == '24.x'
+        run: npx playwright install --with-deps ${{ github.event_name == 'push' && 'chromium' || 'chromium firefox webkit' }}
+      - if: matrix.node == '24.x' && github.event_name == 'push'
+        run: npm run test:e2e -- --project=chromium
+      - if: matrix.node == '24.x' && github.event_name != 'push'
         run: npm run test:e2e
       - if: matrix.node == '22.22.2'
         run: npm test

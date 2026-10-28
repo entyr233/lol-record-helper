@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WeGameLoginSdk } from "../src/types/wegame-login";
-import { getLoginUser, isLoggedIn, isSdkAvailable, LoginError, triggerLogin, waitForLogin, waitForSdk } from "../src/utils/weGameLogin";
+import { getLoginUser, injectLoginSdk, isLoggedIn, isSdkAvailable, LoginError, triggerLogin, waitForLogin, waitForSdk } from "../src/utils/weGameLogin";
 
 function install(overrides: Partial<WeGameLoginSdk> = {}) {
   const api: WeGameLoginSdk = {
@@ -142,5 +142,39 @@ describe("getSelfUinFromCookie（8000101 修复）", () => {
     document.cookie = "uin=; path=/; max-age=0";
     const mod = await import("../src/utils/weGameLogin");
     expect(mod.getSelfUinFromCookie()).toBeNull();
+  });
+});
+
+describe("按需注入 SDK", () => {
+  afterEach(() => document.querySelectorAll('script[src$="/login.sdk.js"]').forEach((script) => script.remove()));
+
+  it("已有 SDK 时不重复注入、不创建计时器", async () => {
+    install();
+    await expect(injectLoginSdk()).resolves.toBe(true);
+    expect(document.querySelectorAll('script[src$="/login.sdk.js"]')).toHaveLength(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("脚本载入后等待 SDK 对象可用，并释放计时器", async () => {
+    const pending = injectLoginSdk();
+    expect(document.querySelectorAll('script[src$="/login.sdk.js"]')).toHaveLength(1);
+    install();
+    await vi.advanceTimersByTimeAsync(300);
+    await expect(pending).resolves.toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("SDK 超时后明确返回失败，并释放计时器", async () => {
+    const pending = injectLoginSdk(600);
+    await vi.advanceTimersByTimeAsync(900);
+    await expect(pending).resolves.toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("网络加载失败立即结束，并释放计时器", async () => {
+    const pending = injectLoginSdk();
+    document.querySelector('script[src$="/login.sdk.js"]')!.dispatchEvent(new Event("error"));
+    await expect(pending).resolves.toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

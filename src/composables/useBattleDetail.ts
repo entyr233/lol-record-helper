@@ -41,7 +41,12 @@ interface GetBattleDetailLike {
 const DETAIL_CACHE_TTL_MS = 60_000;
 const DETAIL_CACHE_MAX = 20;
 const detailCache = new Map<string, { at: number; value: GetBattleDetailLike }>();
-const detailInflight = new Map<string, Promise<GetBattleDetailLike>>();
+interface PendingDetail {
+  controller: AbortController;
+  subscribers: number;
+  promise: Promise<GetBattleDetailLike>;
+}
+const detailInflight = new Map<string, PendingDetail>();
 
 function rememberDetail(key: string, value: GetBattleDetailLike): void {
   detailCache.set(key, { at: Date.now(), value });
@@ -65,72 +70,108 @@ export function useBattleDetail(options: { props: BattleDetailRequestProps }) {
     const cacheKey = [props.area, props.accountType, props.id, props.gameId ?? "", props.startTime ?? ""].join("|");
     const cached = detailCache.get(cacheKey);
     if (cached && Date.now() - cached.at < DETAIL_CACHE_TTL_MS) return cached.value;
-    const pending = detailInflight.get(cacheKey);
-    if (pending) return pending;
+    let pending = detailInflight.get(cacheKey);
+    if (!pending) {
+      const controller = new AbortController();
+      const requestProps = { ...props };
+      const task = (async () => {
+        const signal = controller.signal;
+        const rq = toRqOptions({ area: requestProps.area, accountType: requestProps.accountType, id: requestProps.id });
+        const trail: string[] = [];
+        const codeOf = (error: unknown): string => {
+          if (error instanceof ApiError) return String(error.code) + (error.serverMessage ? " " + error.serverMessage : "");
+          return error instanceof Error ? error.message.slice(0, 40) : String(error);
+        };
 
-    const task = (async () => {
-    const rq = toRqOptions({ area: props.area, accountType: props.accountType, id: props.id });
-    const trail: string[] = [];
-    const codeOf = (error: unknown): string => {
-      if (error instanceof ApiError) return String(error.code) + (error.serverMessage ? " " + error.serverMessage : "");
-      return error instanceof Error ? error.message.slice(0, 40) : String(error);
-    };
-
-    try {
-      // 首选：wegame 同源详情
-      const result = await lolBattleApi.getBattleDetail(rq, String(props.gameId), { signal });
-      return { ...result, source: "wegame" as DetailSource };
-    } catch (error) {
-      trail.push("wegame详情:" + codeOf(error));
-      if (!(error instanceof ApiError) || signal.aborted) throw error;
-      // 回退一：详情接口对 account_type=2+openid 的口径可能仍开放——
-      // 用召唤师名字搜索自己的 openid，换口径重试（仅 self 场景）
-      if (String(rq.account_type) === "1") {
         try {
-          const summoner = await lolBattleApi.getSummonerInfo(rq, { signal });
-          const players = await lolBattleApi.searchPlayer(summoner.name, { signal });
-          const match = players.find((p) => Number(p.area) === Number(props.area));
-          trail.push("搜索:" + (match ? "ok" : "无匹配"));
-          if (match) {
-            const found = await lolBattleApi.getBattleDetail(
-              { ...rq, account_type: 2, id: match.openid },
-              String(props.gameId),
-              { signal }
-            );
-            return { ...found, source: "wegame" as DetailSource };
-          }
+          // 首选：wegame 同源详情
+          const result = await lolBattleApi.getBattleDetail(rq, String(requestProps.gameId), { signal });
+          return { ...result, source: "wegame" as DetailSource };
         } catch (error) {
-          trail.push("搜索:" + codeOf(error));
+          trail.push("wegame详情:" + codeOf(error));
+          if (!(error instanceof ApiError) || signal.aborted) throw error;
+          // 回退一：详情接口对 account_type=2+openid 的口径可能仍开放——
+          // 用召唤师名字搜索自己的 openid，换口径重试（仅 self 场景）
+          if (String(rq.account_type) === "1") {
+            try {
+              const summoner = await lolBattleApi.getSummonerInfo(rq, { signal });
+              const players = await lolBattleApi.searchPlayer(summoner.name, { signal });
+              const match = players.find((p) => Number(p.area) === Number(requestProps.area));
+              trail.push("搜索:" + (match ? "ok" : "无匹配"));
+              if (match) {
+                const found = await lolBattleApi.getBattleDetail(
+                  { ...rq, account_type: 2, id: match.openid },
+                  String(requestProps.gameId),
+                  { signal }
+                );
+                return { ...found, source: "wegame" as DetailSource };
+              }
+            } catch (error) {
+              trail.push("搜索:" + codeOf(error));
+            }
+          }
+          // 回退二：掌盟公开详情（桥）
+          try {
+            const mlol = await fetchMlolBattleDetail({
+              gameId: String(requestProps.gameId),
+              areaId: requestProps.area,
+              startTime: requestProps.startTime
+            }, signal);
+            trail.push("掌盟:ok");
+            if (mlol.player_details.length > 0) {
+              const wrapped: GetBattleDetailLike = { battle_detail: mlol, openid: null, source: "mlol" };
+              return wrapped;
+            }
+            trail.push("掌盟:空数据");
+          } catch (error) {
+            trail.push("掌盟:" + codeOf(error));
+          }
+          throw new ApiError("DETAIL_ALL_FAILED", "GetBattleDetail", "全部详情来源失败 [" + trail.join(" | ") + "]");
         }
-      }
-      // 回退二：掌盟公开详情（桥）
-      try {
-        const mlol = await fetchMlolBattleDetail({
-          gameId: String(props.gameId),
-          areaId: props.area,
-          startTime: props.startTime
-        }, signal);
-        trail.push("掌盟:ok");
-        if (mlol.player_details.length > 0) {
-          const wrapped: GetBattleDetailLike = { battle_detail: mlol, openid: null, source: "mlol" };
-          return wrapped;
-        }
-        trail.push("掌盟:空数据");
-      } catch (error) {
-        trail.push("掌盟:" + codeOf(error));
-      }
-      throw new ApiError("DETAIL_ALL_FAILED", "GetBattleDetail", "全部详情来源失败 [" + trail.join(" | ") + "]");
-    }
-    })();
+      })();
 
-    detailInflight.set(cacheKey, task);
-    try {
-      const value = await task;
-      if (!signal.aborted) rememberDetail(cacheKey, value);
-      return value;
-    } finally {
-      detailInflight.delete(cacheKey);
+      const created: PendingDetail = {
+        controller,
+        subscribers: 0,
+        promise: task.then((value) => {
+          if (!controller.signal.aborted && detailInflight.get(cacheKey) === created) rememberDetail(cacheKey, value);
+          return value;
+        }).finally(() => {
+          if (detailInflight.get(cacheKey) === created) detailInflight.delete(cacheKey);
+        })
+      };
+      pending = created;
+      detailInflight.set(cacheKey, created);
     }
+    const shared = pending;
+    shared.subscribers += 1;
+    return new Promise<GetBattleDetailLike>((resolve, reject) => {
+      let settled = false;
+      const detach = () => {
+        settled = true;
+        signal.removeEventListener("abort", onAbort);
+        shared.subscribers -= 1;
+      };
+      const onAbort = () => {
+        if (settled) return;
+        detach();
+        reject(new DOMException("aborted", "AbortError"));
+        if (shared.subscribers === 0) {
+          if (detailInflight.get(cacheKey) === shared) detailInflight.delete(cacheKey);
+          shared.controller.abort();
+        }
+      };
+      signal.addEventListener("abort", onAbort, { once: true });
+      shared.promise.then((value) => {
+        if (settled) return;
+        detach();
+        resolve(value);
+      }, (error: unknown) => {
+        if (settled) return;
+        detach();
+        reject(error);
+      });
+    });
   });
 
   const detail = computed<BattleDetail | null>(() => request.data.value?.battle_detail ?? null);

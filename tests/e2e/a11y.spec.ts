@@ -1,49 +1,83 @@
-import { readFileSync } from "node:fs";
-import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
-
-const shell = readFileSync("userscript/lol-tft.user.js", "utf8");
-const ui = readFileSync("dist/userscript/lol-tft-ui.js", "utf8");
-const pageHtml = "<!doctype html><html><head><meta charset='utf-8'></head><body><div>mock</div></body></html>";
-
-async function boot(page: Page, url: string): Promise<void> {
-  await page.route("https://www.wegame.com.cn/**", (route) => route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: pageHtml }));
-  await page.addInitScript((uiText) => {
-    const w = window as unknown as {
-      GM_registerMenuCommand: (name: string, run: () => void) => void;
-      GM_getResourceText: () => string;
-    };
-    w.GM_registerMenuCommand = () => {};
-    w.GM_getResourceText = () => uiText;
-  }, ui);
-  await page.goto(url, { waitUntil: "load" });
-  await page.addScriptTag({ content: shell });
-}
-
-async function seriousViolations(page: Page, selector: string): Promise<string[]> {
-  const results = await new AxeBuilder({ page }).include(selector).analyze();
-  return results.violations
-    .filter((violation) => violation.impact === "serious" || violation.impact === "critical")
-    .map((violation) => violation.id + "：" + violation.help);
-}
+import { expect, test } from "@playwright/test";
+import { bootPanel, expectNoAxeViolations, openSummary } from "./fixtures";
 
 test("战绩浮层无 axe 可访问性违规", async ({ page }) => {
-  await boot(page, "https://www.wegame.com.cn/");
-  await page.locator("#lol-tft-launcher").click();
-  await expect(page.locator("#lol-tft-overlay")).toBeVisible();
-  await expect.poll(() => page.evaluate(() => {
-    const host = document.getElementById("lol-tft-overlay-host");
-    return host?.shadowRoot?.textContent?.includes("选择区服") ?? false;
-  })).toBe(true);
-  expect(await seriousViolations(page, "#lol-tft-overlay")).toEqual([]);
+  await bootPanel(page);
+  await expectNoAxeViolations(page);
 });
 
 test("官方助手面板无 axe 可访问性违规", async ({ page }) => {
-  await boot(page, "https://www.wegame.com.cn/helper/lol/");
-  await expect(page.locator("#lol-tft-helper-login")).toHaveCount(1);
-  await expect.poll(() => page.evaluate(() => {
-    const host = document.getElementById("lol-tft-helper-login");
-    return host?.shadowRoot?.textContent?.includes("LOL 助手增强") ?? false;
-  })).toBe(true);
-  expect(await seriousViolations(page, "#lol-tft-helper-login")).toEqual([]);
+  await bootPanel(page, { helper: true });
+  await expect(page.getByText("LOL 助手增强", { exact: true })).toBeVisible();
+  await expectNoAxeViolations(page, "#lol-tft-helper-login");
+});
+
+for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+  test(`总览、列表和十人详情各标签无 axe 违规（${viewport.width}px）`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await bootPanel(page);
+    await openSummary(page);
+    await expectNoAxeViolations(page);
+    await page.locator(".battle-list-item").first().click();
+    await expect(page.locator(".detail-team")).toHaveCount(2);
+    await expect(page.locator(".detail-team .detail-player")).toHaveCount(10);
+    for (const name of ["概要", "伤害", "技能"]) {
+      await page.locator(".detail-toolbar").getByRole("button", { name, exact: true }).click();
+      await expectNoAxeViolations(page);
+    }
+  });
+
+  test(`搜索、收藏和常看玩家无 axe 违规（${viewport.width}px）`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await bootPanel(page, { savedPlayers: true });
+    await expect(page.getByRole("button", { name: /测试玩家.*艾欧尼亚/ })).toBeVisible();
+    await expectNoAxeViolations(page);
+    await page.locator(".header-favorites summary").click();
+    await expect(page.locator(".favorite-row")).toHaveCount(1);
+    await expectNoAxeViolations(page);
+    await page.locator(".favorite-note-edit").click();
+    await expectNoAxeViolations(page);
+    await page.locator(".favorite-note-input").press("Enter");
+    await page.locator(".header-favorites summary").click();
+    await page.getByRole("searchbox", { name: "搜索召唤师" }).fill("测试玩家");
+    await page.getByRole("searchbox", { name: "搜索召唤师" }).press("Enter");
+    await expect(page.locator(".search-item")).toHaveCount(3);
+    await expectNoAxeViolations(page);
+  });
+
+  test(`海克斯榜单和英雄推荐无 axe 违规（${viewport.width}px）`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await bootPanel(page);
+    await page.getByRole("link", { name: "海克斯数据" }).click();
+    const rows = page.locator(".aram-row");
+    await expect(rows).toHaveCount(2);
+    await rows.first().focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".aram-detail-title")).toHaveText("测试强化");
+    await page.keyboard.press("Tab");
+    await expect(rows.nth(1)).toBeFocused();
+    await page.keyboard.press("Space");
+    await expect(page.locator(".aram-detail-title")).toHaveText("测试强化二");
+    await expectNoAxeViolations(page);
+    await page.getByRole("button", { name: "英雄榜", exact: true }).click();
+    await rows.first().click();
+    await expect(page.locator(".aram-aug")).toHaveCount(1);
+    await expectNoAxeViolations(page);
+  });
+}
+
+test("浮层焦点跨 Shadow DOM 循环，Esc 关闭后回到入口", async ({ page }) => {
+  await bootPanel(page);
+  const close = page.getByRole("button", { name: "关闭战绩面板" });
+  const last = page.locator(".app-header .header-link").last();
+  await close.focus();
+  await page.keyboard.press("Shift+Tab");
+  await expect(last).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(close).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("combobox", { name: "选择区服" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#lol-tft-overlay")).toHaveCount(0);
+  await expect(page.locator("#lol-tft-launcher")).toBeFocused();
 });

@@ -1,6 +1,6 @@
 {
   "name": "lol-record-helper",
-  "version": "2.16.0",
+  "version": "2.17.0",
   "private": true,
   "type": "module",
   "description": "LOL 战绩助手：英雄联盟国服战绩查询与官方助手增强（WeGame 页面注入版）",
@@ -13,6 +13,7 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
     "test:e2e": "npm run build:userscript && playwright test",
+    "screenshots": "npm run build:userscript && playwright test --config=playwright.screenshots.config.ts",
     "test:watch": "vitest",
     "preview": "vite preview",
     "build:userscript": "npm run build && node scripts/build-userscript.mjs",

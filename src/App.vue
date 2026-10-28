@@ -1,11 +1,11 @@
 <template>
   <div class="lol-tft-app">
     <AppHeader />
-    <main class="lol-tft-main">
+    <section class="lol-tft-main" aria-label="战绩内容">
       <router-view v-slot="{ Component, route }">
         <component :is="Component" :key="route.fullPath" />
       </router-view>
-    </main>
+    </section>
     <DevDataBar v-if="isDev" />
   </div>
 </template>

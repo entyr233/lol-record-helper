@@ -27,7 +27,7 @@
         <div class="mode-switch">
           <button v-for="m in MODES" :key="m" type="button" class="mode-button" :class="{ active: currentMode === m }" @click="currentMode = m">{{ m }}</button>
         </div>
-        <select class="sort-select" :value="sortBy" @change="onSortChange">
+        <select class="sort-select" aria-label="玩家排序" :value="sortBy" @change="onSortChange">
           <option value="default">默认排序</option>
           <option value="damage">按输出</option>
           <option value="taken">按承伤</option>

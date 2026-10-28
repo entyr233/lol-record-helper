@@ -83,7 +83,7 @@ afterEach(() => {
 
 describe("掌盟桥接消息约定", () => {
   it("userscript 发送的响应类型都能被接收端识别（不会因命名不一致一直等到超时）", () => {
-    const template = readFileSync("userscript/lol-tft.template.js", "utf8");
+    const template = readFileSync("userscript/src/bridge.ts", "utf8");
     const sentTypes = [...template.matchAll(/type:\s*"([^"]+)"/g)].map((match) => match[1]!);
     const responseTypes = sentTypes.filter((type) => type.endsWith("-response"));
     expect(responseTypes.length).toBeGreaterThan(0);

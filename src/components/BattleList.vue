@@ -9,16 +9,16 @@
               @click="emitFilter({ mode: option.key })">{{ option.label }}</button>
           </div>
           <div class="mode-filter mode-filter--extra">
-            <select class="mode-filter-select" :value="filter.champion ?? ''" @change="onChampionChange">
+            <select class="mode-filter-select" aria-label="筛选英雄" :value="filter.champion ?? ''" @change="onChampionChange">
               <option value="">全部英雄</option>
               <option v-for="c in championOptions" :key="c.id" :value="String(c.id)">{{ c.name }}（{{ c.count }}场）</option>
             </select>
-            <select class="mode-filter-select" :value="filter.result" @change="onResultChange">
+            <select class="mode-filter-select" aria-label="筛选胜负" :value="filter.result" @change="onResultChange">
               <option value="all">全部胜负</option>
               <option value="win">只看胜利</option>
               <option value="fail">只看失败</option>
             </select>
-            <select class="mode-filter-select" :value="String(filter.days)" @change="onDaysChange">
+            <select class="mode-filter-select" aria-label="筛选时间范围" :value="String(filter.days)" @change="onDaysChange">
               <option value="0">不限时间</option>
               <option value="7">最近 7 天</option>
               <option value="30">最近 30 天</option>

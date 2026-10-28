@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
-const source = readFileSync("userscript/lol-tft.template.js", "utf8");
+const source = readFileSync("userscript/lol-tft.user.js", "utf8");
 
 describe("脚本桥接端", () => {
   it("只接受详情请求，以 POST 表单发送并回传响应；忽略通用接口请求和非 WeGame 来源", async () => {

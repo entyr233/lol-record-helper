@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { defineComponent, h } from "vue";
 import BattleDetailView from "../src/components/BattleDetail.vue";
@@ -161,6 +161,123 @@ beforeEach(() => {
   getSummonerInfoMock.mockRejectedValue(new Error("需要登录"));
   fetchMlolMock.mockReset();
   fetchMlolMock.mockRejectedValue(new ApiError("MLOL_EMPTY", "GetBattleDetail(mlol)", "掌盟详情无数据"));
+});
+
+afterEach(() => { vi.useRealTimers(); });
+
+describe("BattleDetail 60 秒缓存", () => {
+  it("同 key 再次打开命中缓存，满 60 秒后重新请求", async () => {
+    vi.useFakeTimers();
+    getBattleDetailMock.mockResolvedValue(makeResponse("openid-blue"));
+    const first = await mountDetail();
+    first.unmount();
+    const second = await mountDetail();
+    expect(getBattleDetailMock).toHaveBeenCalledTimes(1);
+    expect(second.get(".detail-summary-name").text()).toBe("蓝方玩家");
+    second.unmount();
+    await vi.advanceTimersByTimeAsync(60_000);
+    const third = await mountDetail();
+    expect(getBattleDetailMock).toHaveBeenCalledTimes(2);
+    third.unmount();
+  });
+
+  it("同时查看同一场只发一次详情请求", async () => {
+    let resolve!: (value: GetBattleDetailResponse) => void;
+    getBattleDetailMock.mockImplementation(() => new Promise((done) => { resolve = done; }));
+    const first = await mountDetail();
+    const second = await mountDetail();
+    expect(getBattleDetailMock).toHaveBeenCalledTimes(1);
+    resolve(makeResponse("openid-blue"));
+    await flushPromises();
+    expect(first.get(".detail-summary-name").text()).toBe("蓝方玩家");
+    expect(second.get(".detail-summary-name").text()).toBe("蓝方玩家");
+    first.unmount();
+    second.unmount();
+  });
+
+  it("失败不缓存，重试可恢复", async () => {
+    getBattleDetailMock.mockRejectedValueOnce(new Error("offline")).mockResolvedValue(makeResponse("openid-blue"));
+    const first = await mountDetail();
+    expect(first.find(".detail-error").exists()).toBe(true);
+    first.unmount();
+    const second = await mountDetail();
+    expect(getBattleDetailMock).toHaveBeenCalledTimes(2);
+    expect(second.get(".detail-summary-name").text()).toBe("蓝方玩家");
+    second.unmount();
+  });
+
+  it.each([{ area: "3" }, { id: "another-player" }, { gameId: "g2" }, { startTime: "different" }])(
+    "不同参数独立缓存 %j", async (props) => {
+      getBattleDetailMock.mockResolvedValue(makeResponse("openid-blue"));
+      const first = await mountDetail();
+      const second = await mountDetail(props);
+      expect(getBattleDetailMock).toHaveBeenCalledTimes(2);
+      first.unmount();
+      second.unmount();
+    }
+  );
+
+  it("一个查看者卸载不取消仍有其他查看者等待的请求", async () => {
+    let resolve!: (value: GetBattleDetailResponse) => void;
+    let requestSignal: AbortSignal | undefined;
+    getBattleDetailMock.mockImplementation((_rq, _gameId, options) => {
+      requestSignal = options?.signal;
+      return new Promise((done, reject) => {
+        resolve = done;
+        requestSignal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+      });
+    });
+    const first = await mountDetail();
+    const second = await mountDetail();
+    first.unmount();
+    expect(requestSignal?.aborted).toBe(false);
+    resolve(makeResponse("openid-blue"));
+    await flushPromises();
+    expect(second.get(".detail-summary-name").text()).toBe("蓝方玩家");
+    second.unmount();
+  });
+
+  it("全部查看者卸载后取消请求，重新打开不复用已取消任务", async () => {
+    const signals: AbortSignal[] = [];
+    const resolves: Array<(value: GetBattleDetailResponse) => void> = [];
+    getBattleDetailMock.mockImplementation((_rq, _gameId, options) => {
+      signals.push(options!.signal!);
+      return new Promise((resolve) => { resolves.push(resolve); });
+    });
+    const first = await mountDetail();
+    first.unmount();
+    expect(signals[0].aborted).toBe(true);
+    const second = await mountDetail();
+    expect(getBattleDetailMock).toHaveBeenCalledTimes(2);
+    resolves[0](makeResponse("openid-red"));
+    await flushPromises();
+    const third = await mountDetail();
+    expect(getBattleDetailMock).toHaveBeenCalledTimes(2);
+    resolves[1](makeResponse("openid-blue"));
+    await flushPromises();
+    expect(second.get(".detail-summary-name").text()).toBe("蓝方玩家");
+    expect(third.get(".detail-summary-name").text()).toBe("蓝方玩家");
+    second.unmount();
+    third.unmount();
+  });
+
+  it("清空缓存后，旧请求完成不写回或移除新任务", async () => {
+    const resolves: Array<(value: GetBattleDetailResponse) => void> = [];
+    getBattleDetailMock.mockImplementation(() => new Promise((resolve) => { resolves.push(resolve); }));
+    const first = await mountDetail();
+    clearBattleDetailCache();
+    const second = await mountDetail();
+    resolves[0](makeResponse("openid-red"));
+    await flushPromises();
+    const third = await mountDetail();
+    expect(getBattleDetailMock).toHaveBeenCalledTimes(2);
+    resolves[1](makeResponse("openid-blue"));
+    await flushPromises();
+    expect(third.get(".detail-summary-name").text()).toBe("蓝方玩家");
+    first.unmount();
+    second.unmount();
+    third.unmount();
+  });
 });
 
 describe("BattleDetail 队伍排序", () => {

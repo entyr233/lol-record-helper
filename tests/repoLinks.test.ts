@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 const REPO = "https://github.com/entyr233/lol-record-helper";
 const RAW = "https://raw.githubusercontent.com/entyr233/lol-record-helper";
 const files = {
-  template: readFileSync("userscript/lol-tft.template.js", "utf8"),
+  shell: readFileSync("userscript/lol-tft.user.js", "utf8"),
+  manifest: JSON.parse(readFileSync("userscript/manifest.json", "utf8")) as { repo: string },
   readme: readFileSync("readme.md", "utf8"),
   pkg: JSON.parse(readFileSync("package.json", "utf8")) as {
     name: string;
@@ -15,9 +16,10 @@ const files = {
 };
 
 describe("仓库元信息一致性", () => {
-  it("模板、README、package.json 都指向当前仓库", () => {
-    expect(files.template).toContain(RAW);
-    expect(files.template).toContain(REPO);
+  it("manifest、脚本、README、package.json 都指向当前仓库", () => {
+    expect(files.shell).toContain(RAW);
+    expect(files.shell).toContain(REPO);
+    expect("https://github.com/" + files.manifest.repo).toBe(REPO);
     expect(files.readme).toContain(REPO);
     expect(files.pkg.repository?.url).toBe("git+" + REPO + ".git");
     expect(files.pkg.homepage).toBe(REPO);

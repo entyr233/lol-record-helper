@@ -31,6 +31,7 @@
     "allowImportingTsExtensions": true
   },
   "include": [
+    "userscript/src/**/*.ts",
     "src/**/*.ts",
     "src/**/*.d.ts",
     "src/**/*.vue",
@@ -38,6 +39,7 @@
     "dev/**/*.ts",
     "vite.config.ts",
     "playwright.config.ts",
+    "playwright.screenshots.config.ts",
     "vitest.config.ts"
   ]
 }

@@ -237,28 +237,32 @@ export function injectLoginSdk(timeoutMs = 6000): Promise<boolean> {
       return;
     }
     const started = Date.now();
+    const finish = (available: boolean) => {
+      clearInterval(timer);
+      resolve(available);
+    };
     const inject = () => {
       try {
         const target = (globalThis as unknown as { unsafeWindow?: { document?: Document } }).unsafeWindow?.document ?? document;
         const script = target.createElement("script");
         script.src = LOGIN_SDK_URL;
         script.async = true;
-        script.onerror = () => resolve(false);
+        script.onerror = () => finish(false);
         (target.head || target.documentElement || target.body).appendChild(script);
       } catch {
         try {
           const script = document.createElement("script");
           script.src = LOGIN_SDK_URL;
           script.async = true;
-          script.onerror = () => resolve(false);
+          script.onerror = () => finish(false);
           (document.head || document.documentElement).appendChild(script);
-        } catch { resolve(false); }
+        } catch { finish(false); }
       }
     };
-    inject();
     const timer = setInterval(() => {
-      if (sdk()) { clearInterval(timer); resolve(true); return; }
-      if (Date.now() - started > timeoutMs) { clearInterval(timer); resolve(false); }
+      if (sdk()) { finish(true); return; }
+      if (Date.now() - started >= timeoutMs) finish(false);
     }, 300);
+    inject();
   });
 }

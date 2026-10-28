@@ -131,7 +131,10 @@ npm install
 npm run dev          # 本地演示站（mock 数据），http://localhost:5173
 npm run typecheck    # vue-tsc
 npm test             # vitest
-npm run test:e2e     # Playwright：懒加载/助手面板/篡改拒绝（需先 build）
+npx playwright install chromium firefox webkit  # 首次安装浏览器
+npm run test:e2e     # 构建并运行三个浏览器的懒加载/可访问性/键盘测试
+npm run test:e2e -- --project=chromium  # 仅 Chromium；PW_EDGE=1 时使用系统 Edge
+npm run screenshots  # 用固定 mock 数据重新生成 README 截图
 npm run build:all    # typecheck + lib 构建 + userscript 打包 + 演示站
 ```
 
@@ -142,6 +145,7 @@ dist/userscript/lol-tft.user.js   # 轻量壳
 dist/userscript/lol-tft-ui.js     # UI，上传到 Release 资产
 userscript/lol-tft.user.js        # 入库副本，GitHub raw 直装/自动更新
 userscript/manifest.json          # 名称/仓库/资源名等单一元信息
+userscript/src/                   # shell/host/menu/launcher/overlay/bridge/loader 的 TypeScript 源码
 ```
 
 - 开发默认走 mock（`sample/*.json` 扩展的示例数据），页面右下角有数据源状态条
@@ -158,7 +162,7 @@ src/composables/  组合式逻辑（翻页列表/异步取消/登录动作/用�
 src/const/        大区/队列/段位/评价 等映射
 src/data/         构建期固化的符文/装备映射（node scripts/sync-static-data.mjs 更新）
 src/styles/       全部样式（仅注入 Shadow DOM）
-userscript/       用户脚本模板 + 构建后的壳/UI
+userscript/       manifest + TypeScript 脚本壳源码 + 构建后的安装脚本
 scripts/          静态数据同步 / userscript 构建
 tests/            契约/策略/生命周期/登录与组件测试
 docs/             代码审查报告 / HAR 分析 / 迁移说明 / README 截图

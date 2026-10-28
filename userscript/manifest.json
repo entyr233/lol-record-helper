@@ -2,5 +2,37 @@
   "name": "LOL 战绩助手",
   "namespace": "mscststs",
   "repo": "entyr233/lol-record-helper",
-  "uiResource": "lol-tft-ui"
+  "uiResource": "lol-tft-ui",
+  "description": "LOL 战绩助手：英雄联盟国服战绩查询，支持官方助手登录、大区切换与掌盟详情回退",
+  "author": "mscststs",
+  "icon": "https://www.google.com/s2/favicons?sz=64&domain=wegame.com.cn",
+  "license": "ISC",
+  "run-at": "document-start",
+  "matches": [
+    "https://www.wegame.com.cn/*",
+    "https://wegame.com.cn/*",
+    "https://lol.qq.com/*",
+    "https://mlol.qt.qq.com/*",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "grants": [
+    "GM_xmlhttpRequest",
+    "GM_getResourceText",
+    "GM_registerMenuCommand",
+    "unsafeWindow"
+  ],
+  "connects": [
+    "mlol.qt.qq.com",
+    "lol.qq.com",
+    "game.gtimg.cn",
+    "www.wegame.com.cn",
+    "wegame.com.cn",
+    "data.dtodo.cn",
+    "github.com",
+    "objects.githubusercontent.com",
+    "cdn.jsdelivr.net",
+    "fastly.jsdelivr.net",
+    "raw.githubusercontent.com"
+  ]
 }

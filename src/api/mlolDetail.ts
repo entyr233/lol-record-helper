@@ -147,7 +147,7 @@ let bridgeReadyPromise: Promise<Window> | null = null;
 const bridgePending = new Map<string, { resolve: (text: string) => void; reject: (error: unknown) => void }>();
 
 /**
- * 桥接页（userscript/lol-tft.template.js 的 installBridge）回传的响应类型。
+ * 桥接页（userscript/src/bridge.ts 的 installBridge）回传的响应类型。
  * 历史上存在两套命名（detail-response / mlol-response），两端必须保持同步；
  * 这里两种都接受，避免「远端已返回、面板却一直等到超时」。
  */

@@ -7,11 +7,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { buildSync } from "esbuild";
+import { resolve } from "node:path";
 
 const BUNDLE = "dist/lol/lol.umd.js";
-const TEMPLATE = "userscript/lol-tft.template.js";
+
 const MANIFEST = "userscript/manifest.json";
-const LOADER = "userscript/src/loader.ts";
+const SHELL = "userscript/src/shell.ts";
 const OUT_DIR = "dist/userscript";
 const OUT = OUT_DIR + "/lol-tft.user.js";
 const OUT_UI = OUT_DIR + "/lol-tft-ui.js";
@@ -38,49 +39,41 @@ if (found.length > 0) {
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const manifest = JSON.parse(readFileSync(MANIFEST, "utf8"));
-const template = readFileSync(TEMPLATE, "utf8");
-
-for (const key of ["name", "namespace", "repo", "uiResource"]) {
-  if (typeof manifest[key] !== "string" || !manifest[key]) {
-    console.error("userscript/manifest.json 缺少字段：" + key);
-    process.exit(1);
+// 元信息来自 manifest；拒绝换行，避免意外生成额外的脚本权限。
+for (const key of ["name", "namespace", "repo", "uiResource", "description", "author", "icon", "license", "run-at"]) {
+  if (typeof manifest[key] !== "string" || !manifest[key].trim() || /[\r\n]/.test(manifest[key])) {
+    throw new Error("userscript/manifest.json 字段无效：" + key);
   }
 }
-
-if (template.split("__VERSION__").length - 1 !== 2 ||
-    template.split("__UI_VERSION__").length - 1 !== 2 ||
-    template.split("__UI_SHA256__").length - 1 !== 1 ||
-    template.split("/*__LOADER__*/").length - 1 !== 1 ||
-    template.split("__REPO__").length - 1 < 1 ||
-    (template.match(/^\/\/ @version[ \t]+__VERSION__\r?$/gm) || []).length !== 1 ||
-    (template.match(/^[ \t]*var VERSION = "__VERSION__";\r?$/gm) || []).length !== 1) {
-  console.error("模板版本/UI 哈希/loader/repo 占位符数量不符合预期");
-  process.exit(1);
+for (const key of ["matches", "grants", "connects"]) {
+  if (!Array.isArray(manifest[key]) || !manifest[key].length ||
+      manifest[key].some((value) => typeof value !== "string" || !value.trim() || /[\r\n]/.test(value))) {
+    throw new Error("userscript/manifest.json 列表无效：" + key);
+  }
 }
-
-if (template.includes("/*__BUNDLE__*/") || template.includes("__BUNDLE__")) {
-  console.error("模板不接受内联 bundle 占位符（UI 已改为 @resource 按需加载）");
-  process.exit(1);
-}
-
-if (!template.includes("// @name         " + manifest.name) ||
-    !template.includes("// @namespace    " + manifest.namespace) ||
-    !template.includes("// @resource     " + manifest.uiResource) ||
-    !template.includes("https://github.com/" + manifest.repo)) {
-  console.error("模板元信息与 userscript/manifest.json 不一致");
-  process.exit(1);
+if (!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(manifest.repo) || !/^[a-zA-Z0-9_-]+$/.test(manifest.uiResource)) {
+  throw new Error("manifest 仓库或资源名称无效");
 }
 
 if (typeof pkg.version !== "string" || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?(?:\+[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/.test(pkg.version)) {
   console.error("package.json version 必须是安全的版本号");
   process.exit(1);
 }
-const loader = buildSync({
-  entryPoints: [LOADER],
+const runtime = buildSync({
+  entryPoints: [resolve(SHELL)],
+  tsconfigRaw: {},
   bundle: true,
+  platform: "browser",
   format: "iife",
-  globalName: "LolTftLoader",
   target: "es2018",
+  charset: "utf8",
+  legalComments: "none",
+  define: {
+    __VERSION__: JSON.stringify(pkg.version),
+    __REPO__: JSON.stringify(manifest.repo),
+    __UI_RESOURCE__: JSON.stringify(manifest.uiResource),
+    __UI_SHA256__: JSON.stringify(uiSha256)
+  },
   write: false,
   logLevel: "silent"
 }).outputFiles[0].text;
@@ -95,17 +88,24 @@ if (!/^\s*var LolTft\s*=/.test(rawBundle) || !rawBundle.includes("mountLolTft"))
   process.exit(1);
 }
 
-const output = template
-  .replaceAll("__VERSION__", () => pkg.version)
-  .replaceAll("__UI_VERSION__", () => pkg.version)
-  .replaceAll("__UI_SHA256__", () => uiSha256)
-  .replaceAll("__REPO__", () => manifest.repo)
-  .replaceAll("/*__LOADER__*/", () => loader);
-
-if (!output.startsWith("// ==UserScript==") ||
-    ["__VERSION__", "__UI_VERSION__", "__UI_SHA256__", "__REPO__", "__LOADER__"].some((token) => output.includes(token))) {
-  console.error("用户脚本起始头无效或仍包含未替换占位符");
-  process.exit(1);
+const home = "https://github.com/" + manifest.repo;
+const installUrl = "https://raw.githubusercontent.com/" + manifest.repo + "/master/userscript/lol-tft.user.js";
+const metadata = [
+  ["name", manifest.name], ["namespace", manifest.namespace], ["version", pkg.version],
+  ["description", manifest.description], ["author", manifest.author],
+  ["homepage", home], ["homepageURL", home], ["supportURL", home + "/issues"], ["source", home],
+  ...manifest.matches.map((value) => ["match", value]),
+  ["icon", manifest.icon], ["license", manifest.license],
+  ...manifest.grants.map((value) => ["grant", value]),
+  ["resource", manifest.uiResource + " " + home + "/releases/download/v" + pkg.version + "/lol-tft-ui.js"],
+  ...manifest.connects.map((value) => ["connect", value]),
+  ["run-at", manifest["run-at"]], ["downloadURL", installUrl], ["updateURL", installUrl]
+];
+const header = ["// ==UserScript==", ...metadata.map(([key, value]) => "// @" + key.padEnd(13) + value), "// ==/UserScript=="];
+const output = header.join("\n") + "\n\n" + runtime;
+if (forbidden.some((token) => runtime.includes(token)) ||
+    ["__VERSION__", "__UI_SHA256__", "__REPO__", "__UI_RESOURCE__"].some((token) => output.includes(token))) {
+  throw new Error("用户脚本包含 Node 引用或未替换的构建标记");
 }
 
 if (Buffer.byteLength(rawBundle, "utf8") > MAX_UI_BYTES) {

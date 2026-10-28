@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Exercise the editable template directly; never rebuild or rewrite a published script.
+// Exercise the generated shell, including its module startup order.
 const source = readFileSync("userscript/lol-tft.user.js", "utf8");
 type PanelApi = { open: () => Promise<void>; close: () => void };
 const page = window as unknown as { __LOL_TFT__?: PanelApi };
@@ -127,10 +127,10 @@ describe("userscript panel lifecycle", () => {
     }
   });
 
-  it("其他网站只注册菜单，不挂载悬浮入口；自建入口改为打开 WeGame 面板", () => {
+  it.each(["example.com", "lol.qq.com", "mlol.qt.qq.com"])("%s 只注册菜单或桥接；自建入口打开 WeGame 面板", (hostname) => {
     document.getElementById("lol-tft-launcher")?.remove();
     document.getElementById("lol-tft-entry-style")?.remove();
-    stubLocation({ hostname: "example.com", href: "https://example.com/", pathname: "/", search: "" });
+    stubLocation({ hostname, href: "https://" + hostname + "/", pathname: "/", search: "" });
     const commands: Record<string, () => void> = {};
     vi.stubGlobal("GM_registerMenuCommand", (title: string, run: () => void) => { commands[title] = run; });
     const open = vi.spyOn(window, "open").mockReturnValue(null);

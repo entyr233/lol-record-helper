@@ -1192,11 +1192,16 @@ button {
   padding: 0;
   list-style: none;
 }
+.search-result-row {
+  display: flex;
+  align-items: center;
+}
 .search-button {
   display: flex;
   align-items: center;
   gap: 16px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 8px 10px;
   border-radius: 4px;
   text-align: left;

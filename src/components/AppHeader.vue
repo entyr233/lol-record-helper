@@ -51,6 +51,7 @@
               <input
                 v-if="noteEditingKey === favoriteKey(f)"
                 class="favorite-note-input"
+                :aria-label="'备注：' + f.name"
                 :value="f.note"
                 placeholder="备注（回车保存）"
                 @input="noteDraft = ($event.target as HTMLInputElement).value"
