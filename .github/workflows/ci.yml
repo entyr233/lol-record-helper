@@ -16,10 +16,6 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        node: ['20.x', '24.x']
     env:
       LOL_TFT_COOKIE: ''
       LOL_TFT_MOCK: '1'
@@ -29,14 +25,12 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          # jsdom 30 / undici 8 需要 Node 22.22+ 或 24.15+，CI 固定用 24.x
+          node-version: '24.x'
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
       - run: npm run build:all
       # 构建后的入库产物必须与源码一致，防止提交旧脚本/旧 UI
       - run: git diff --exit-code -- userscript
-      - if: matrix.node == '20.x'
-        run: npm test
-      - if: matrix.node == '24.x'
-        run: npm run test:coverage
+      - run: npm run test:coverage

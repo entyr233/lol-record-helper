@@ -18,7 +18,7 @@
     "build:all": "npm run typecheck && vite build --mode lib && node scripts/build-userscript.mjs && vite build"
   },
   "engines": {
-    "node": ">=20.19.0"
+    "node": "^22.22.2 || >=24.15.0"
   },
   "repository": {
     "type": "git",
