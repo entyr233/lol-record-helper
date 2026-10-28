@@ -2,7 +2,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import BattleList from "../src/components/BattleList.vue";
 import type { BattleSummary } from "../src/api/types";
-import { clearBattleFeedCache } from "../src/composables/battleFeed";
+import { clearBattleFeedCache } from "../src/composables/useBattleFeed";
 
 const api = vi.hoisted(() => ({ getBattleList: vi.fn() }));
 vi.mock("../src/api/client", () => ({ lolBattleApi: api }));
@@ -40,7 +40,7 @@ function render() {
 
 beforeEach(() => {
   api.getBattleList.mockReset();
-  // 原始战绩页缓存是 battleFeed 的模块级单例：每个用例从空缓存开始，避免上一个用例的数据/空页串入
+  // 原始战绩页缓存是 useBattleFeed 的模块级单例：每个用例从空缓存开始，避免上一个用例的数据/空页串入
   clearBattleFeedCache();
 });
 

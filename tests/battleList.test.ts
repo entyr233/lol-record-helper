@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { watch } from "vue";
-import type { BattleSummary, RqOptions } from "../src/api/types";
+import type { BattleSummary, PlayerQueryParams } from "../src/api/types";
 
 const getBattleList = vi.fn();
 
@@ -11,9 +11,9 @@ vi.mock("../src/api/client", () => ({
 }));
 
 const { useBattleList, PAGE_SIZE } = await import("../src/composables/useBattleList");
-const { useBattleFeed, clearBattleFeedCache } = await import("../src/composables/battleFeed");
+const { useBattleFeed, clearBattleFeedCache } = await import("../src/composables/useBattleFeed");
 
-const rq: RqOptions = { account_type: 2, area: 1, id: "abc", from_src: "lol_helper" };
+const playerParams: PlayerQueryParams = { account_type: 2, area: 1, id: "abc", from_src: "lol_helper" };
 
 function battle(id: string, patch: Partial<BattleSummary> = {}): BattleSummary {
   return {
@@ -32,7 +32,7 @@ function battle(id: string, patch: Partial<BattleSummary> = {}): BattleSummary {
 
 beforeEach(() => {
   getBattleList.mockReset();
-  // 原始页缓存在 battleFeed 模块级共享：每个用例从空缓存开始，避免上一个用例的数据串进来
+  // 原始页缓存在 useBattleFeed 模块级共享：每个用例从空缓存开始，避免上一个用例的数据串进来
   clearBattleFeedCache();
 });
 
@@ -41,11 +41,11 @@ describe("useBattleList（翻页版）", () => {
     const page = Array.from({ length: PAGE_SIZE }, (_, i) => battle(String(i + 1)));
     getBattleList.mockResolvedValueOnce(page);
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
 
     expect(getBattleList).toHaveBeenCalledWith(
-      rq,
+      playerParams,
       { count: PAGE_SIZE, offset: 0 },
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
@@ -60,13 +60,13 @@ describe("useBattleList（翻页版）", () => {
     const pageB = Array.from({ length: PAGE_SIZE }, (_, i) => battle("b" + i));
     getBattleList.mockResolvedValueOnce(pageA).mockResolvedValueOnce(pageB);
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     await state.goToPage(2);
 
     expect(getBattleList).toHaveBeenNthCalledWith(
       2,
-      rq,
+      playerParams,
       { count: PAGE_SIZE, offset: 10 },
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
@@ -77,7 +77,7 @@ describe("useBattleList（翻页版）", () => {
 
   it("不足一页时没有下一页", async () => {
     getBattleList.mockResolvedValueOnce([battle("a")]);
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     expect(state.hasNext.value).toBe(false);
   });
@@ -87,7 +87,7 @@ describe("useBattleList（翻页版）", () => {
     const pageB = Array.from({ length: PAGE_SIZE }, (_, i) => battle("b" + i));
     getBattleList.mockResolvedValueOnce(pageA).mockResolvedValueOnce(pageB);
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     state.select("a3");
     await state.goToPage(2);
@@ -97,14 +97,14 @@ describe("useBattleList（翻页版）", () => {
   it("页内重复 game_id 去重", async () => {
     const dup = battle("x");
     getBattleList.mockResolvedValueOnce([dup, dup, battle("y")]);
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     expect(state.battles.value).toHaveLength(2);
   });
 
   it("请求失败记录错误，可重试", async () => {
     getBattleList.mockRejectedValueOnce(new Error("网络错误")).mockResolvedValueOnce([battle("a")]);
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     expect(state.error.value?.message).toBe("网络错误");
     await state.goToPage(1);
@@ -119,7 +119,7 @@ describe("useBattleList.focusGame（跨页定位）", () => {
     const pageB = Array.from({ length: PAGE_SIZE }, (_, i) => battle("b" + i));
     getBattleList.mockResolvedValueOnce(pageA).mockResolvedValueOnce(pageB);
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     const result = await state.focusGame(battle("b1"));
 
     expect(result.filterReset).toBe(false);
@@ -129,7 +129,7 @@ describe("useBattleList.focusGame（跨页定位）", () => {
     expect(state.error.value).toBeNull();
     expect(getBattleList).toHaveBeenNthCalledWith(
       2,
-      rq,
+      playerParams,
       { count: PAGE_SIZE, offset: 10 },
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
@@ -140,7 +140,7 @@ describe("useBattleList.focusGame（跨页定位）", () => {
     const pageB = Array.from({ length: PAGE_SIZE }, (_, i) => battle("b" + i));
     getBattleList.mockResolvedValueOnce(pageA).mockResolvedValueOnce(pageA).mockResolvedValueOnce(pageB);
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     await state.setFilter({ champion: 17 });
     // 筛选结果第 11 条在第二页：焦点对局会先续拉原始页 2，再翻到筛选结果第 2 页
@@ -161,7 +161,7 @@ describe("useBattleList.focusGame（跨页定位）", () => {
       Promise.resolve(query.offset === 0 ? page0 : query.offset === PAGE_SIZE ? page1 : [])
     );
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     await state.setFilter({ champion: 17 });
     const result = await state.focusGame(target);
@@ -179,7 +179,7 @@ describe("useBattleList.focusGame（跨页定位）", () => {
     const pageB = Array.from({ length: PAGE_SIZE }, (_, i) => battle("b" + i));
     getBattleList.mockResolvedValueOnce(pageA).mockResolvedValueOnce(pageB);
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     await state.goToPage(2);
     getBattleList.mockClear();
@@ -201,7 +201,7 @@ describe("useBattleList.focusGame（跨页定位）", () => {
       Promise.resolve(query.offset === 0 ? pageA : query.offset === PAGE_SIZE ? pageB : [])
     );
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     await state.goToPage(2);
     state.select("b3");
@@ -221,7 +221,7 @@ describe("useBattleList.focusGame（跨页定位）", () => {
       Promise.resolve(query.offset === 0 ? pageA : pageB)
     );
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     await state.goToPage(2);
     getBattleList.mockClear();
@@ -250,7 +250,7 @@ describe("useBattleList.focusGame（跨页定位）", () => {
       return Promise.resolve(pages[offset / PAGE_SIZE] ?? []);
     });
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     expect(state.hasNext.value).toBe(true);
 
@@ -273,7 +273,7 @@ describe("useBattleList.focusGame（跨页定位）", () => {
       return Promise.resolve([]);
     });
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     await state.setFilter({ champion: 17 });
     expect(state.hasNext.value).toBe(true);
@@ -301,7 +301,7 @@ describe("useBattleList.focusGame（跨页定位）", () => {
       return Promise.resolve([]);
     });
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     await state.setFilter({ champion: 17 });
 
@@ -319,7 +319,7 @@ describe("useBattleList.focusGame（跨页定位）", () => {
 
   it("找不到时返回 null 且不改动选中", async () => {
     getBattleList.mockResolvedValue([]);
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     state.select("keep-me");
 
@@ -340,7 +340,7 @@ describe("useBattleList.championPool（英雄下拉池）", () => {
       .mockResolvedValueOnce(pageP2)
       .mockResolvedValue(pageP1);
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     await state.goToPage(2);
     expect(state.championPool.value).toEqual([{ id: 17, count: 10 }, { id: 22, count: 10 }]);
@@ -355,7 +355,7 @@ describe("useBattleList.championPool（英雄下拉池）", () => {
     const pageP1 = Array.from({ length: PAGE_SIZE }, (_, i) => battle("p" + i));
     getBattleList.mockResolvedValueOnce(pageP1).mockResolvedValue(pageP1);
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     expect(state.championPool.value).toEqual([{ id: 17, count: 10 }]);
 
@@ -376,7 +376,7 @@ describe("useBattleList.championPool（英雄下拉池）", () => {
       return Promise.resolve([]);
     });
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     await state.goToPage(2);
     const target = page3[0]!;
@@ -404,7 +404,7 @@ describe("useBattleList 筛选口径与竞态", () => {
     ];
     getBattleList.mockResolvedValue(page);
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
 
     await state.setFilter({ result: "win" });
@@ -418,7 +418,7 @@ describe("useBattleList 筛选口径与竞态", () => {
     const page = [battle("a1"), battle("a2")];
     getBattleList.mockResolvedValue(page);
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     state.select("a2");
     expect(state.selectedGameId.value).toBe("a2");
@@ -436,7 +436,7 @@ describe("useBattleList 筛选口径与竞态", () => {
     const stalePending = new Promise<BattleSummary[]>((resolve) => { resolveStale = resolve; });
     getBattleList.mockReturnValueOnce(stalePending).mockResolvedValueOnce(fresh);
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     const loading = state.goToPage(1);
     const filtering = state.setFilter({ result: "fail" });
     // 旧请求在筛选切换之后才返回：不应覆盖新筛选的结果
@@ -455,7 +455,7 @@ describe("useBattleList 刷新与请求取消", () => {
     const page = Array.from({ length: PAGE_SIZE }, (_, i) => battle("r" + i));
     getBattleList.mockResolvedValue(page);
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     await state.setFilter({ champion: 17 });
     state.select("r3");
@@ -476,7 +476,7 @@ describe("useBattleList 刷新与请求取消", () => {
     const newPage = [battle("y1"), battle("y2")];
     getBattleList.mockResolvedValueOnce(oldPage).mockResolvedValueOnce(newPage);
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
     state.select("x2");
 
@@ -498,7 +498,7 @@ describe("useBattleList 刷新与请求取消", () => {
     );
     getBattleList.mockResolvedValueOnce([]);
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     const loading = state.goToPage(1);
     const filtering = state.setFilter({ result: "win" });
     await Promise.all([loading, filtering]);
@@ -520,7 +520,7 @@ describe("useBattleList 刷新与请求取消", () => {
       })
     );
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     const loading = state.goToPage(1);
     state.dispose();
     await loading;
@@ -531,7 +531,7 @@ describe("useBattleList 刷新与请求取消", () => {
   });
 });
 
-describe("useBattleList 与 battleFeed 共享缓存", () => {
+describe("useBattleList 与 useBattleFeed 共享缓存", () => {
   it("别处（总览）已缓存的原始页不再重复请求，且列表仍会计入英雄池", async () => {
     const sharedPage = Array.from({ length: PAGE_SIZE }, (_, i) => battle("s" + i));
     getBattleList.mockResolvedValueOnce(sharedPage);
@@ -542,7 +542,7 @@ describe("useBattleList 与 battleFeed 共享缓存", () => {
     expect(first.data).toHaveLength(PAGE_SIZE);
     getBattleList.mockClear();
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.goToPage(1);
 
     // 共享缓存命中：列表不再发请求，但展示与英雄池仍然正确
@@ -559,7 +559,7 @@ describe("useBattleList 与 battleFeed 共享缓存", () => {
     await feed.getPage(0);
     getBattleList.mockClear();
 
-    const state = useBattleList(() => rq);
+    const state = useBattleList(() => playerParams);
     await state.setFilter({ champion: 17 });
 
     expect(state.battles.value.map((item) => item.game_id)).toEqual(pageA.map((item) => item.game_id));

@@ -1,5 +1,5 @@
 import { onBeforeUnmount, ref } from "vue";
-import { LoginError } from "../utils/weGameLogin";
+import { LoginError } from "../utils/wegameLogin";
 
 /** 每个组件持有自己的等待；关闭面板或取消时，旧操作不得继续导航。 */
 export function useLoginAction() {

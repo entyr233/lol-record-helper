@@ -23,7 +23,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "lcov"],
       include: ["src/**/*.{ts,vue}"],
-      exclude: ["src/data/**", "src/dev/**", "src/**/*.d.ts"],
+      exclude: ["src/data/**", "src/**/*.d.ts"],
       thresholds: {
         statements: 78,
         branches: 65,

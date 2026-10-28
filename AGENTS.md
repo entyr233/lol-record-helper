@@ -25,6 +25,19 @@
 - 不顺带重写模块、统一全仓库格式、升级依赖或增加第三方库。先说明真实需求和成本，再决定是否引入。
 - 为理论上或低概率的场景增加复杂处理前，先说明具体失败方式、发生可能性和复杂度成本，并取得用户同意。
 
+## 命名规则
+
+- Vue 组件和页面使用 PascalCase，如 `BattleList.vue`、`SummaryView.vue`；普通 TypeScript 文件使用 camelCase。
+- composable 使用 `useXxx`，文件名与主要导出一致，如 `useBattleFeed.ts`、`usePlayerParams.ts`。
+- 函数以用途明确的动词开头：`fetch` 请求远程数据，`get` 读取数据，`parse` 解析输入，`format` 生成展示文本，`ensure` 确保资源就绪。沿用已有行为，不为了名称改变同步或异步接口。
+- 类型和接口使用 PascalCase；内部玩家查询参数统一为 `PlayerQueryParams`，转换函数为 `toPlayerQueryParams`，变量为 `playerParams`，参数获取函数为 `getPlayerParams`。
+- 布尔名称应能读成判断，如 `isLoading`、`hasNext`、`canOpenPlayer`。同一模块保持一致，既有名称在修改相关逻辑时逐步整理。
+- 时间间隔和容量写明单位，如 `timeoutMs`、`maxBytes`；时间点使用 `savedAt` 等名称，并在类型或注释中明确时间戳单位。
+- 跨函数传递的数据避免含义不明的缩写，如 `rq`、`diag`、`box`；局部短函数中的 `id`、`item`、`index` 等常见名称可以保留。
+- 品牌文案和类型使用 `WeGame`，文件使用 `wegameLogin.ts` 等以 `wegame` 为前缀的名称，函数中的品牌片段使用 `WeGame`，如 `isWeGameHost`。
+- 外部协议字段、SDK 全局名称、URL、缓存键和发布资源名保留原值，例如 `account_type`、`game_id`、`window.WegameLogin`、`lol-tft.user.js`，避免破坏接口或已有用户数据。
+- 命名整理与相关模块修改同步进行，批量重命名须有明确范围；更新所有 import、测试 mock 和当前文档，历史归档保留当时的名称。
+
 ## 性能与数据加载
 
 - 优先查清慢在网络、解析、计算还是渲染，再优化；报告请求次数、产物大小或实际测量结果，不凭感觉声称提速百分比。

@@ -3,7 +3,7 @@ import { createLolBattleApi, type LolBattleApi } from "../src/api/client";
 import { route } from "../dev/mockData";
 import type { GetBattleDetailResponse } from "../src/api/types";
 
-const rq = { account_type: 2, area: 1, id: "offline-policy-player", from_src: "lol_helper" };
+const playerParams = { account_type: 2, area: 1, id: "offline-policy-player", from_src: "lol_helper" };
 let api: LolBattleApi;
 
 function response(body: unknown = { players: [] }, status = 200, retryAfter?: string): Response {
@@ -228,8 +228,8 @@ describe("request concurrency and cancellation", () => {
       init.signal!, route(url.split("/").pop()!, JSON.parse(init.body as string))
     )));
     vi.stubGlobal("fetch", fetchMock);
-    const pending = [api.searchPlayer("offline"), api.getSummonerInfo(rq), api.getBattleReport(rq),
-      api.getBattleList(rq, { offset: 0, count: 10 }), api.getBattleDetail(rq, "offline-game")];
+    const pending = [api.searchPlayer("offline"), api.getSummonerInfo(playerParams), api.getBattleReport(playerParams),
+      api.getBattleList(playerParams, { offset: 0, count: 10 }), api.getBattleDetail(playerParams, "offline-game")];
     await vi.advanceTimersByTimeAsync(79);
     expect(fetchMock).toHaveBeenCalledTimes(4);
     await vi.advanceTimersByTimeAsync(81);
@@ -268,8 +268,8 @@ describe("detail request sharing and bounded short-lived memory cache", () => {
 
   it("merges identical in-flight details while giving each subscriber its own result", async () => {
     const fetchMock = slowDetails();
-    const first = api.getBattleDetail(rq, "offline-game");
-    const second = api.getBattleDetail({ ...rq }, "offline-game");
+    const first = api.getBattleDetail(playerParams, "offline-game");
+    const second = api.getBattleDetail({ ...playerParams }, "offline-game");
     await vi.advanceTimersByTimeAsync(80);
     const [a, b] = await Promise.all([first, second]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -277,7 +277,7 @@ describe("detail request sharing and bounded short-lived memory cache", () => {
     expect(a).not.toBe(b);
     a.battle_detail.player_details[0].name = "mutated";
     expect(b.battle_detail.player_details[0].name).not.toBe("mutated");
-    expect((await api.getBattleDetail(rq, "offline-game")).battle_detail.player_details[0].name).not.toBe("mutated");
+    expect((await api.getBattleDetail(playerParams, "offline-game")).battle_detail.player_details[0].name).not.toBe("mutated");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -286,8 +286,8 @@ describe("detail request sharing and bounded short-lived memory cache", () => {
     const fetchMock = slowDetails();
     const controller = new AbortController();
     const removeListener = vi.spyOn(controller.signal, "removeEventListener");
-    const cancelled = api.getBattleDetail(rq, "offline-game", { signal: controller.signal }).catch((error: unknown) => error);
-    const survivor = api.getBattleDetail(rq, "offline-game");
+    const cancelled = api.getBattleDetail(playerParams, "offline-game", { signal: controller.signal }).catch((error: unknown) => error);
+    const survivor = api.getBattleDetail(playerParams, "offline-game");
     await vi.advanceTimersByTimeAsync(0);
     controller.abort("custom");
     expect(await cancelled).toMatchObject({ name: "AbortError" });
@@ -302,10 +302,10 @@ describe("detail request sharing and bounded short-lived memory cache", () => {
   it("all subscribers cancelling aborts transport; the next caller creates fresh work", async () => {
     const fetchMock = slowDetails();
     const controllers = [new AbortController(), new AbortController()];
-    const pending = controllers.map((controller) => api.getBattleDetail(rq, "offline-game", { signal: controller.signal }).catch((error: unknown) => error));
+    const pending = controllers.map((controller) => api.getBattleDetail(playerParams, "offline-game", { signal: controller.signal }).catch((error: unknown) => error));
     await vi.advanceTimersByTimeAsync(0);
     for (const controller of controllers) controller.abort();
-    const next = api.getBattleDetail(rq, "offline-game");
+    const next = api.getBattleDetail(playerParams, "offline-game");
     expect(await Promise.all(pending)).toEqual([expect.objectContaining({ name: "AbortError" }), expect.objectContaining({ name: "AbortError" })]);
     expect(fetchMock.mock.calls[0][1].signal!.aborted).toBe(true);
     await vi.advanceTimersByTimeAsync(80);
@@ -316,11 +316,11 @@ describe("detail request sharing and bounded short-lived memory cache", () => {
 
   it("does not start requests or serve cached data to pre-cancelled callers", async () => {
     const fetchMock = offlineFetch();
-    await api.getBattleDetail(rq, "offline-game");
+    await api.getBattleDetail(playerParams, "offline-game");
     const controller = new AbortController();
     controller.abort();
     for (const gameId of ["offline-game", "uncached-game"]) {
-      await expect(api.getBattleDetail(rq, gameId, { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+      await expect(api.getBattleDetail(playerParams, gameId, { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
     }
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
@@ -328,23 +328,23 @@ describe("detail request sharing and bounded short-lived memory cache", () => {
 
   it.each([
     { account_type: 1 }, { area: 2 }, { id: "other-offline-player" }, { from_src: "other-offline-source" }
-  ])("includes every rq field in both cache and in-flight keys (%j)", async (change) => {
+  ])("includes every playerParams field in both cache and in-flight keys (%j)", async (change) => {
     const fetchMock = slowDetails();
-    const original = api.getBattleDetail(rq, "offline-game");
-    const changed = api.getBattleDetail({ ...rq, ...change }, "offline-game");
+    const original = api.getBattleDetail(playerParams, "offline-game");
+    const changed = api.getBattleDetail({ ...playerParams, ...change }, "offline-game");
     await vi.advanceTimersByTimeAsync(80);
     await Promise.all([original, changed]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    await api.getBattleDetail(rq, "offline-game");
-    await api.getBattleDetail({ ...rq, ...change }, "offline-game");
+    await api.getBattleDetail(playerParams, "offline-game");
+    await api.getBattleDetail({ ...playerParams, ...change }, "offline-game");
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("includes game ID and isolates timeout/retry policies in-flight", async () => {
     const fetchMock = slowDetails();
-    const pending = [api.getBattleDetail(rq, "offline-game"), api.getBattleDetail(rq, "other-game"),
-      api.getBattleDetail(rq, "offline-game", { timeoutMs: 1000 }),
-      api.getBattleDetail(rq, "offline-game", { retries: 0 })];
+    const pending = [api.getBattleDetail(playerParams, "offline-game"), api.getBattleDetail(playerParams, "other-game"),
+      api.getBattleDetail(playerParams, "offline-game", { timeoutMs: 1000 }),
+      api.getBattleDetail(playerParams, "offline-game", { retries: 0 })];
     await vi.advanceTimersByTimeAsync(80);
     expect(await Promise.all(pending)).toHaveLength(4);
     expect(fetchMock).toHaveBeenCalledTimes(4);
@@ -353,30 +353,30 @@ describe("detail request sharing and bounded short-lived memory cache", () => {
 
   it("expires at 15 seconds after success without extending TTL on hits", async () => {
     const fetchMock = offlineFetch();
-    await api.getBattleDetail(rq, "offline-game");
+    await api.getBattleDetail(playerParams, "offline-game");
     await vi.advanceTimersByTimeAsync(14999);
-    await api.getBattleDetail(rq, "offline-game");
+    await api.getBattleDetail(playerParams, "offline-game");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
-    await api.getBattleDetail(rq, "offline-game");
+    await api.getBattleDetail(playerParams, "offline-game");
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(vi.getTimerCount()).toBe(0);
   });
 
   it("retains at most 20 details and evicts the oldest insertion", async () => {
     const fetchMock = offlineFetch();
-    for (let i = 0; i < 21; i++) await api.getBattleDetail(rq, "offline-game-" + i);
-    await api.getBattleDetail(rq, "offline-game-1");
+    for (let i = 0; i < 21; i++) await api.getBattleDetail(playerParams, "offline-game-" + i);
+    await api.getBattleDetail(playerParams, "offline-game-1");
     expect(fetchMock).toHaveBeenCalledTimes(21);
-    await api.getBattleDetail(rq, "offline-game-0");
+    await api.getBattleDetail(playerParams, "offline-game-0");
     expect(fetchMock).toHaveBeenCalledTimes(22);
     expect(vi.getTimerCount()).toBe(0);
   });
 
   it("never shares or caches search, profile, report or list (including offsets)", async () => {
     const fetchMock = offlineFetch();
-    const calls = () => [api.searchPlayer("offline"), api.getSummonerInfo(rq), api.getBattleReport(rq),
-      api.getBattleList(rq, { count: 10, offset: 0 }), api.getBattleList(rq, { count: 10, offset: 10 })];
+    const calls = () => [api.searchPlayer("offline"), api.getSummonerInfo(playerParams), api.getBattleReport(playerParams),
+      api.getBattleList(playerParams, { count: 10, offset: 0 }), api.getBattleList(playerParams, { count: 10, offset: 10 })];
     const first = await Promise.all([...calls(), ...calls()]);
     expect(fetchMock).toHaveBeenCalledTimes(10);
     const second = await Promise.all(calls());
@@ -392,20 +392,20 @@ describe("detail request sharing and bounded short-lived memory cache", () => {
         : response(kind === "business" ? { result: { error_code: 900001 } } : {}));
     }).mockImplementation((url: string, init: RequestInit) => Promise.resolve(response(route(url.split("/").pop()!, JSON.parse(init.body as string)))));
     vi.stubGlobal("fetch", fetchMock);
-    await expect(api.getBattleDetail(rq, "offline-game", { retries: 0 })).rejects.toBeInstanceOf(Error);
-    await api.getBattleDetail(rq, "offline-game", { retries: 0 });
+    await expect(api.getBattleDetail(playerParams, "offline-game", { retries: 0 })).rejects.toBeInstanceOf(Error);
+    await api.getBattleDetail(playerParams, "offline-game", { retries: 0 });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(vi.getTimerCount()).toBe(0);
   });
 
   it("shares a timeout failure, clears the in-flight entry, and lets a later call retry", async () => {
     const fetchMock = slowDetails();
-    const pending = [api.getBattleDetail(rq, "offline-game", { timeoutMs: 20, retries: 0 }).catch((error: unknown) => error),
-      api.getBattleDetail(rq, "offline-game", { timeoutMs: 20, retries: 0 }).catch((error: unknown) => error)];
+    const pending = [api.getBattleDetail(playerParams, "offline-game", { timeoutMs: 20, retries: 0 }).catch((error: unknown) => error),
+      api.getBattleDetail(playerParams, "offline-game", { timeoutMs: 20, retries: 0 }).catch((error: unknown) => error)];
     await vi.advanceTimersByTimeAsync(20);
     expect(await Promise.all(pending)).toEqual([expect.objectContaining({ name: "TimeoutError" }), expect.objectContaining({ name: "TimeoutError" })]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const next = api.getBattleDetail(rq, "offline-game");
+    const next = api.getBattleDetail(playerParams, "offline-game");
     await vi.advanceTimersByTimeAsync(80);
     expect((await next).battle_detail.game_id).toBe("offline-game");
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -414,19 +414,19 @@ describe("detail request sharing and bounded short-lived memory cache", () => {
 
   it.each([8000102, "WG_COMM_ERR_USER_CONFIG_LIMIT", 8000009, 8000021, 8000022])("invalidates cached detail on access/auth failure (%s)", async (code) => {
     const fetchMock = offlineFetch();
-    await api.getBattleDetail(rq, "offline-game");
+    await api.getBattleDetail(playerParams, "offline-game");
     fetchMock.mockResolvedValueOnce(response({ result: { error_code: code } }));
-    await expect(api.getSummonerInfo(rq)).rejects.toMatchObject({ code });
-    await api.getBattleDetail(rq, "offline-game");
+    await expect(api.getSummonerInfo(playerParams)).rejects.toMatchObject({ code });
+    await api.getBattleDetail(playerParams, "offline-game");
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it.each([401, 403])("invalidates cached detail on HTTP access failure (%i)", async (status) => {
     const fetchMock = offlineFetch();
-    await api.getBattleDetail(rq, "offline-game");
+    await api.getBattleDetail(playerParams, "offline-game");
     fetchMock.mockResolvedValueOnce(response({}, status));
-    await expect(api.getSummonerInfo(rq)).rejects.toMatchObject({ code: String(status) });
-    await api.getBattleDetail(rq, "offline-game");
+    await expect(api.getSummonerInfo(playerParams)).rejects.toMatchObject({ code: String(status) });
+    await api.getBattleDetail(playerParams, "offline-game");
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
@@ -434,21 +434,21 @@ describe("detail request sharing and bounded short-lived memory cache", () => {
     let complete!: (value: Response) => void;
     const fetchMock = offlineFetch();
     fetchMock.mockImplementationOnce(() => new Promise<Response>((resolve) => { complete = resolve; }));
-    const old = api.getBattleDetail(rq, "offline-game");
+    const old = api.getBattleDetail(playerParams, "offline-game");
     await vi.advanceTimersByTimeAsync(0);
     fetchMock.mockResolvedValueOnce(response({ result: { error_code: 8000102 } }));
-    await expect(api.getSummonerInfo(rq)).rejects.toMatchObject({ code: 8000102 });
-    complete(response(route("GetBattleDetail", { ...rq, game_id: "offline-game" })));
+    await expect(api.getSummonerInfo(playerParams)).rejects.toMatchObject({ code: 8000102 });
+    complete(response(route("GetBattleDetail", { ...playerParams, game_id: "offline-game" })));
     await old;
-    await api.getBattleDetail(rq, "offline-game");
+    await api.getBattleDetail(playerParams, "offline-game");
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(vi.getTimerCount()).toBe(0);
   });
 
   it("a new API instance has no persisted cache", async () => {
     const fetchMock = offlineFetch();
-    const a: GetBattleDetailResponse = await api.getBattleDetail(rq, "offline-game");
-    const b = await createLolBattleApi().getBattleDetail(rq, "offline-game");
+    const a: GetBattleDetailResponse = await api.getBattleDetail(playerParams, "offline-game");
+    const b = await createLolBattleApi().getBattleDetail(playerParams, "offline-game");
     expect(a.battle_detail.game_id).toBe(b.battle_detail.game_id);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });

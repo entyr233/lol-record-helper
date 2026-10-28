@@ -39,11 +39,11 @@
 
 (() => {
   // userscript/src/host.ts
-  function isWegameHost() {
+  function isWeGameHost() {
     return /^(www\.)?wegame\.com\.cn$/.test(location.hostname);
   }
   function canUsePanelHere() {
-    return isWegameHost() || /^lol\.qq\.com$/.test(location.hostname);
+    return isWeGameHost() || /^lol\.qq\.com$/.test(location.hostname);
   }
   function isHelperPage() {
     return /^\/helper\/lol(?:\/|$)/.test(location.pathname);
@@ -61,7 +61,7 @@
   }
   function registerMenuCommands(openPanel) {
     function openSelfPanelFromMenu() {
-      if (isWegameHost() && window.top === window) {
+      if (isWeGameHost() && window.top === window) {
         void openPanel();
         return;
       }

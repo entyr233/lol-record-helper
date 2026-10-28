@@ -1,5 +1,5 @@
 import { mountLolTft } from "./mount";
-import { installDevLoginMock } from "./dev/mock";
+import { installDevLoginMock } from "../dev/loginMock";
 
 installDevLoginMock();
 

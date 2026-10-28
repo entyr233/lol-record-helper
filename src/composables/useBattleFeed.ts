@@ -1,5 +1,5 @@
 import { lolBattleApi } from "../api/client";
-import { toRqOptions } from "./useUserInfo";
+import { toPlayerQueryParams } from "./usePlayerParams";
 import type { BattleSummary } from "../api/types";
 
 /** 共享战绩页的玩家标识：大区 + 账号类型 + 玩家标识（三者缺一不可） */
@@ -98,7 +98,7 @@ function startRequest(key: BattleFeedKey, entry: FeedEntry, page: number): FeedR
   async function run(): Promise<BattlePage> {
     try {
       const data = await lolBattleApi.getBattleList(
-        toRqOptions(key),
+        toPlayerQueryParams(key),
         { count: PAGE_SIZE, offset: page * PAGE_SIZE },
         { signal: controller.signal }
       );

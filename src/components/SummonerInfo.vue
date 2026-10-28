@@ -83,12 +83,12 @@ import { lolBattleApi } from "../api/client";
 import type { BattleSummary } from "../api/types";
 import { ApiError, toErrorMessage } from "../api/errors";
 import { useAsyncData } from "../composables/useAsyncData";
-import { toRqOptions } from "../composables/useUserInfo";
-import { triggerLogin, waitForLogin } from "../utils/weGameLogin";
+import { toPlayerQueryParams } from "../composables/usePlayerParams";
+import { triggerLogin, waitForLogin } from "../utils/wegameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
 import { useFavorites } from "../composables/useFavorites";
 import { tierLabel, tierOrder } from "../const/tiers";
-import type { BattleRefreshOptions } from "../composables/battleFeed";
+import type { BattleRefreshOptions } from "../composables/useBattleFeed";
 import type { ModeFilter } from "../const/modes";
 import type { DaysFilter } from "../composables/useBattleList";
 
@@ -126,10 +126,10 @@ function toggleFavorite(): void {
 
 const { pending: loggingIn, loginError, run, cancel } = useLoginAction();
 
-const rqOptions = computed(() => toRqOptions({ area: props.area, accountType: props.accountType, id: props.id }));
+const playerParams = computed(() => toPlayerQueryParams({ area: props.area, accountType: props.accountType, id: props.id }));
 
-const summonerTask = useAsyncData((signal) => lolBattleApi.getSummonerInfo(rqOptions.value, { signal }));
-const reportTask = useAsyncData((signal) => lolBattleApi.getBattleReport(rqOptions.value, { signal }));
+const summonerTask = useAsyncData((signal) => lolBattleApi.getSummonerInfo(playerParams.value, { signal }));
+const reportTask = useAsyncData((signal) => lolBattleApi.getBattleReport(playerParams.value, { signal }));
 
 const summoner = computed(() => summonerTask.data.value);
 const counts = computed(() => reportTask.data.value);

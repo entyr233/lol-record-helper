@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import gameidSample from "../sample/gameid_result.json";
-import gamelistSample from "../sample/gamelist_result.json";
+import gameidSample from "./fixtures/wegame/gameid_result.json";
+import gamelistSample from "./fixtures/wegame/gamelist_result.json";
 
 /** 详情页实际渲染的字段（battleDetailPlayer / battleDetail） */
 const PLAYER_FIELDS = [
@@ -22,7 +22,7 @@ const BATTLE_FIELDS = [
   "team_made_size", "battle_type", "penta_kills"
 ];
 
-describe("接口字段契约（基于 sample/*.json 接口样例）", () => {
+describe("接口字段契约（基于 tests/fixtures/wegame/*.json 接口样例）", () => {
   const detail = (gameidSample as any).battle_detail;
   const player = detail.player_details[0];
   const team = detail.team_details[0];

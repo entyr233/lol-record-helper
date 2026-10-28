@@ -87,7 +87,7 @@ import { areas, getAreaName } from "../const/areas";
 import { favoriteKey, useFavorites } from "../composables/useFavorites";
 import type { FavoriteEntry } from "../composables/useFavorites";
 import { readStorage, writeStorage } from "../utils/storage";
-import { getLoginUser, getSelfUinFromCookie, hasLoginState, logout, triggerLogin, waitForLogin } from "../utils/weGameLogin";
+import { getLoginUser, getSelfUinFromCookie, hasLoginState, logout, triggerLogin, waitForLogin } from "../utils/wegameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
 
 const LOGIN_PAGE_URL = "https://www.wegame.com.cn/home/";

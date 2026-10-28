@@ -1,6 +1,6 @@
 # Contributing
 
-感谢参与。这个项目是浏览器用户脚本 + Vue 3 UI，改动前请先看 `readme.md` 的「开发与构建」。
+感谢参与。这个项目是浏览器用户脚本 + Vue 3 UI，改动前请先看 `README.md` 的「开发与构建」。目录职责见 [文档索引](docs/README.md)。
 
 ## 本地开发
 

@@ -1,4 +1,4 @@
-import { isWegameHost } from "./host";
+import { isWeGameHost } from "./host";
 const PROJECT_HOME = "https://github.com/" + __REPO__;
 const OFFICIAL_HELPER_URL = "https://www.wegame.com.cn/helper/lol/";
 const PANEL_HOME_URL = "https://www.wegame.com.cn/?lol_tft_panel=1";
@@ -8,7 +8,7 @@ function openProjectUrl(url: string) {
 
 export function registerMenuCommands(openPanel: () => Promise<void>) {
   function openSelfPanelFromMenu() {
-    if (isWegameHost() && window.top === window) {
+    if (isWeGameHost() && window.top === window) {
       void openPanel();
       return;
     }

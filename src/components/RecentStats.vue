@@ -116,7 +116,7 @@ import type { BattleSummary } from "../api/types";
 import { battleResultLabel, classifyBattle } from "../const/wins";
 import { matchesBattleMode, MODE_FILTER_OPTIONS, type ModeFilter } from "../const/modes";
 import type { DaysFilter } from "../composables/useBattleList";
-import { useBattleFeed, type BattleRefreshOptions } from "../composables/battleFeed";
+import { useBattleFeed, type BattleRefreshOptions } from "../composables/useBattleFeed";
 import { summarizeRecentBattles } from "../utils/recentStats";
 import type { RecentTrendPoint } from "../utils/recentStats";
 import { formatBattleDate } from "../utils/format";

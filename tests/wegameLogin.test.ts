@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WeGameLoginSdk } from "../src/types/wegame-login";
-import { getLoginUser, injectLoginSdk, isLoggedIn, isSdkAvailable, LoginError, triggerLogin, waitForLogin, waitForSdk } from "../src/utils/weGameLogin";
+import { getLoginUser, injectLoginSdk, isLoggedIn, isSdkAvailable, LoginError, triggerLogin, waitForLogin, waitForSdk } from "../src/utils/wegameLogin";
 
 function install(overrides: Partial<WeGameLoginSdk> = {}) {
   const api: WeGameLoginSdk = {
@@ -133,14 +133,14 @@ describe("WeGame SDK readiness and account recovery", () => {
 describe("getSelfUinFromCookie（8000101 修复）", () => {
   it("p_uin 带 o 前缀与前导零时规整为数字 uin", async () => {
     document.cookie = "p_uin=o0643194418; path=/";
-    const mod = await import("../src/utils/weGameLogin");
+    const mod = await import("../src/utils/wegameLogin");
     expect(mod.getSelfUinFromCookie()).toBe("643194418");
   });
 
   it("无相关 cookie 时返回 null", async () => {
     document.cookie = "p_uin=; path=/; max-age=0";
     document.cookie = "uin=; path=/; max-age=0";
-    const mod = await import("../src/utils/weGameLogin");
+    const mod = await import("../src/utils/wegameLogin");
     expect(mod.getSelfUinFromCookie()).toBeNull();
   });
 });

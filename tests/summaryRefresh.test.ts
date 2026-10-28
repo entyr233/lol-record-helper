@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
 import SummaryView from "../src/views/SummaryView.vue";
 import type { BattleSummary } from "../src/api/types";
-import { clearBattleFeedCache } from "../src/composables/battleFeed";
+import { clearBattleFeedCache } from "../src/composables/useBattleFeed";
 
 const api = vi.hoisted(() => ({
   getBattleList: vi.fn(), getSummonerInfo: vi.fn(), getBattleReport: vi.fn()

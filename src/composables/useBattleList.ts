@@ -1,11 +1,11 @@
 import { computed, ref, type Ref } from "vue";
-import { PAGE_SIZE, useBattleFeed, type BattleFeedKey, type BattleRefreshOptions } from "./battleFeed";
+import { PAGE_SIZE, useBattleFeed, type BattleFeedKey, type BattleRefreshOptions } from "./useBattleFeed";
 import { isAbortError } from "../api/errors";
 import { classifyBattle } from "../const/wins";
 import { matchesBattleMode, type ModeFilter } from "../const/modes";
-import type { BattleSummary, RqOptions } from "../api/types";
+import type { BattleSummary, PlayerQueryParams } from "../api/types";
 
-export { PAGE_SIZE } from "./battleFeed";
+export { PAGE_SIZE } from "./useBattleFeed";
 /** 筛选/定位时最多回溯的原始页数（防刷爆） */
 export const MAX_RAW_PAGES = 20;
 
@@ -72,7 +72,7 @@ function isDefaultFilter(f: ListFilter): boolean {
  *   在本地过滤后切片成页；下一页数据不足时自动继续拉取（上限 MAX_RAW_PAGES 页）。
  * - 请求带「代际」：筛选在请求未完成时变化，旧响应会被丢弃，不会把旧条件的结果写回新筛选。
  */
-export function useBattleList(rqOptions: () => RqOptions): BattleListState {
+export function useBattleList(getPlayerParams: () => PlayerQueryParams): BattleListState {
   const rawBattles = ref<BattleSummary[]>([]);
   const page = ref(1);
   const requestedPage = ref(1);
@@ -88,12 +88,12 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   /** 已计入池子的 game_id：同一对局在不同页/重复拉同一页时只算一次 */
   const seenGameIds = new Set<string>();
   /**
-   * 玩家级共享数据层：原始页缓存与在途请求都放在 battleFeed 里，
+   * 玩家级共享数据层：原始页缓存与在途请求都放在 useBattleFeed 里，
    * 与总览（RecentStats）等其它消费者共用同一份「当前玩家」的原始战绩页。
    */
   const feed = useBattleFeed((): BattleFeedKey => {
-    const rq = rqOptions();
-    return { area: String(rq.area), accountType: String(rq.account_type), id: String(rq.id) };
+    const playerParams = getPlayerParams();
+    return { area: String(playerParams.area), accountType: String(playerParams.account_type), id: String(playerParams.id) };
   });
   /** 已累积的原始页数（响应式：参与「下一页」按钮状态计算） */
   const fetchedPages = ref(0);
@@ -174,7 +174,7 @@ export function useBattleList(rqOptions: () => RqOptions): BattleListState {
   });
 
   /**
-   * 取第 n 个原始页（0 基）：走玩家级共享缓存（battleFeed），重复页不重复请求。
+   * 取第 n 个原始页（0 基）：走玩家级共享缓存（useBattleFeed），重复页不重复请求。
    * 只读探测用——不修改当前页面的翻页状态（displayedHasMore），只有正式展示某一页时才更新翻页按钮。
    * gen 用于丢弃「筛选已变化但响应才回来」的旧结果：不更新英雄池；
    * 页数据本身与筛选无关，因此仍由共享层缓存复用。

@@ -96,12 +96,12 @@ import Panel from "./Panel.vue";
 import BattleListItem from "./BattleListItem.vue";
 import BattleDetail from "./BattleDetail.vue";
 import type { BattleSummary, PlayerDetail } from "../api/types";
-import { toRqOptions } from "../composables/useUserInfo";
+import { toPlayerQueryParams } from "../composables/usePlayerParams";
 import { useBattleList, DEFAULT_FILTER, type FocusGameResult, type ModeFilter, type DaysFilter, type ListFilter } from "../composables/useBattleList";
 import { MODE_FILTER_OPTIONS } from "../const/modes";
 import { toErrorMessage } from "../api/errors";
 import { championName, ensureChampionNames } from "../api/staticData";
-import type { BattleRefreshOptions } from "../composables/battleFeed";
+import type { BattleRefreshOptions } from "../composables/useBattleFeed";
 
 const props = defineProps<{
   area: string;
@@ -126,8 +126,8 @@ const emit = defineEmits<{
 const listRoot = ref<HTMLElement | null>(null);
 /** 对局列表容器：键盘 ↑/↓ 与点选后都从这里接管焦点 */
 const listEl = ref<HTMLElement | null>(null);
-const rqOptions = computed(() => toRqOptions({ area: props.area, accountType: props.accountType, id: props.id }));
-const listState = useBattleList(() => rqOptions.value);
+const playerParams = computed(() => toPlayerQueryParams({ area: props.area, accountType: props.accountType, id: props.id }));
+const listState = useBattleList(() => playerParams.value);
 const {
   battles, page, requestedPage, hasPrev, hasNext, loading, error, selectedGameId, filter, sampleSize,
   rawLoaded, championPool, setFilter, goToPage, select, focusGame: locateGame,

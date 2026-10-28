@@ -4,7 +4,7 @@ import { createMemoryHistory, createRouter } from "vue-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import BindAreaView from "../src/views/BindAreaView.vue";
 import type { FavoriteEntry } from "../src/composables/useFavorites";
-import { getSelfUinFromCookie, hasLoginState } from "../src/utils/weGameLogin";
+import { getSelfUinFromCookie, hasLoginState } from "../src/utils/wegameLogin";
 
 const favorites = ref<FavoriteEntry[]>([]);
 const historyNames = ref<string[]>([]);
@@ -12,7 +12,7 @@ vi.mock("../src/composables/useFavorites", () => ({
   useFavorites: () => ({ favorites }), favoriteKey: (entry: FavoriteEntry) => entry.id
 }));
 vi.mock("../src/composables/useSearchHistory", () => ({ useSearchHistory: () => ({ historyNames }) }));
-vi.mock("../src/utils/weGameLogin", () => ({ getSelfUinFromCookie: vi.fn(), hasLoginState: vi.fn() }));
+vi.mock("../src/utils/wegameLogin", () => ({ getSelfUinFromCookie: vi.fn(), hasLoginState: vi.fn() }));
 
 let wrapper: ReturnType<typeof mount> | undefined;
 async function render() {

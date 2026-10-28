@@ -1,5 +1,5 @@
 import type { RequestOptions } from "./client";
-import type { GetBattleDetailResponse, RqOptions } from "./types";
+import type { GetBattleDetailResponse, PlayerQueryParams } from "./types";
 
 const TTL_MS = 15000;
 const MAX_ENTRIES = 20;
@@ -11,7 +11,7 @@ interface PendingDetail {
 }
 
 /** Only completed battle details are reused, never search/profile/report/list state. */
-export function createDetailCache(load: (body: RqOptions & { game_id: string }, options: RequestOptions) => Promise<GetBattleDetailResponse>) {
+export function createDetailCache(load: (body: PlayerQueryParams & { game_id: string }, options: RequestOptions) => Promise<GetBattleDetailResponse>) {
   const cache = new Map<string, { expires: number; json: string }>();
   const pending = new Map<string, PendingDetail>();
   let generation = 0;
@@ -23,10 +23,10 @@ export function createDetailCache(load: (body: RqOptions & { game_id: string }, 
       // Existing subscribers keep their lifecycle; new requests must revalidate access.
       pending.clear();
     },
-    get(rq: RqOptions, gameId: string, options: RequestOptions = {}): Promise<GetBattleDetailResponse> {
+    get(playerParams: PlayerQueryParams, gameId: string, options: RequestOptions = {}): Promise<GetBattleDetailResponse> {
       const { signal, timeoutMs = 12000, retries = 1 } = options;
       if (signal?.aborted) return Promise.reject(new DOMException("aborted", "AbortError"));
-      const body = { account_type: rq.account_type, area: rq.area, id: rq.id, from_src: rq.from_src, game_id: gameId };
+      const body = { account_type: playerParams.account_type, area: playerParams.area, id: playerParams.id, from_src: playerParams.from_src, game_id: gameId };
       const key = JSON.stringify(body);
       const cached = cache.get(key);
       if (cached && cached.expires > Date.now()) return Promise.resolve(JSON.parse(cached.json));

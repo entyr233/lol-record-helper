@@ -29,7 +29,7 @@ import { readStorage } from "../utils/storage";
 import { getAreaName } from "../const/areas";
 import { favoriteKey, useFavorites } from "../composables/useFavorites";
 import type { FavoriteEntry } from "../composables/useFavorites";
-import { getSelfUinFromCookie, hasLoginState } from "../utils/weGameLogin";
+import { getSelfUinFromCookie, hasLoginState } from "../utils/wegameLogin";
 import { useSearchHistory } from "../composables/useSearchHistory";
 
 const router = useRouter();

@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { lolBattleApi } from "../src/api/client";
 import { ApiError } from "../src/api/errors";
-import type { RqOptions } from "../src/api/types";
-import gamelistSample from "../sample/gamelist_result.json";
+import type { PlayerQueryParams } from "../src/api/types";
+import gamelistSample from "./fixtures/wegame/gamelist_result.json";
 import { route } from "../dev/mockData";
 
-const rq: RqOptions = { account_type: 2, area: 1, id: "abc", from_src: "lol_helper" };
+const playerParams: PlayerQueryParams = { account_type: 2, area: 1, id: "abc", from_src: "lol_helper" };
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -44,7 +44,7 @@ describe("lolBattleApi", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const battles = await lolBattleApi.getBattleList(rq, { count: 10, offset: 0 });
+    const battles = await lolBattleApi.getBattleList(playerParams, { count: 10, offset: 0 });
 
     expect(battles).toHaveLength(1);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -59,7 +59,7 @@ describe("lolBattleApi", () => {
       vi.fn().mockResolvedValue(jsonResponse({ result: { error_code: 8000102, error_message: "" } }))
     );
 
-    const error = await lolBattleApi.getSummonerInfo(rq).catch((err: unknown) => err);
+    const error = await lolBattleApi.getSummonerInfo(playerParams).catch((err: unknown) => err);
 
     expect(error).toBeInstanceOf(ApiError);
     const apiError = error as ApiError;
@@ -74,7 +74,7 @@ describe("lolBattleApi", () => {
       vi.fn().mockResolvedValue(jsonResponse({ result: { error_code: 900001, error_message: "" } }))
     );
 
-    const error = (await lolBattleApi.getBattleReport(rq).catch((err: unknown) => err)) as ApiError;
+    const error = (await lolBattleApi.getBattleReport(playerParams).catch((err: unknown) => err)) as ApiError;
 
     expect(error.message).toContain("GetBattleReport");
     expect(error.message.length).toBeGreaterThan(0);
@@ -84,10 +84,10 @@ describe("lolBattleApi", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ message: "boom" }, 502))
-      .mockResolvedValueOnce(jsonResponse(route("GetBattleReport", { ...rq })));
+      .mockResolvedValueOnce(jsonResponse(route("GetBattleReport", { ...playerParams })));
     vi.stubGlobal("fetch", fetchMock);
 
-    const count = await lolBattleApi.getBattleReport(rq);
+    const count = await lolBattleApi.getBattleReport(playerParams);
 
     expect(count.total_games).toBeGreaterThan(0);
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -99,7 +99,7 @@ describe("lolBattleApi", () => {
     const controller = new AbortController();
     controller.abort();
 
-    const error = await lolBattleApi.getBattleList(rq, { count: 10, offset: 0 }, { signal: controller.signal }).catch((err: unknown) => err);
+    const error = await lolBattleApi.getBattleList(playerParams, { count: 10, offset: 0 }, { signal: controller.signal }).catch((err: unknown) => err);
 
     expect((error as Error).name).toBe("AbortError");
     expect(fetchMock).not.toHaveBeenCalled();

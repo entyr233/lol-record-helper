@@ -58,7 +58,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { areas } from "../const/areas";
 import { readStorage, writeStorage } from "../utils/storage";
-import { getSelfUinFromCookie, triggerLogin, waitForLogin } from "../utils/weGameLogin";
+import { getSelfUinFromCookie, triggerLogin, waitForLogin } from "../utils/wegameLogin";
 import { useLoginAction } from "../composables/useLoginAction";
 
 const HOME_URL = "https://www.wegame.com.cn/home/";

@@ -2,7 +2,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { defineComponent, h, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import RecentStats from "../src/components/RecentStats.vue";
-import { clearBattleFeedCache, useBattleFeed } from "../src/composables/battleFeed";
+import { clearBattleFeedCache, useBattleFeed } from "../src/composables/useBattleFeed";
 import type { BattleSummary } from "../src/api/types";
 import type { ModeFilter } from "../src/const/modes";
 
@@ -227,7 +227,7 @@ describe("RecentStats 三分类统计口径", () => {
 });
 
 describe("RecentStats 共享数据层", () => {
-  it("列表已取过的原始页不再重复请求（总览与列表共用 battleFeed）", async () => {
+  it("列表已取过的原始页不再重复请求（总览与列表共用 useBattleFeed）", async () => {
     const feed = useBattleFeed(() => ({ area: "1", accountType: "2", id: "test" }));
     await feed.getPage(0);
     expect(api.getBattleList).toHaveBeenCalledTimes(1);
