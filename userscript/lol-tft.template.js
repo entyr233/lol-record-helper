@@ -12,6 +12,8 @@
 // @match        https://wegame.com.cn/*
 // @match        https://lol.qq.com/*
 // @match        https://mlol.qt.qq.com/*
+// @match        http://*/*
+// @match        https://*/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wegame.com.cn
 // @license      ISC
 // @grant        GM_xmlhttpRequest
@@ -46,18 +48,38 @@
 
   var VERSION = "__VERSION__";
 
+  /** 只有 WeGame / lol.qq.com 页面才挂载悬浮按钮和面板 */
+  function isWegameHost() {
+    return /^(www\.)?wegame\.com\.cn$/.test(location.hostname);
+  }
+  function canUsePanelHere() {
+    return isWegameHost() || /^lol\.qq\.com$/.test(location.hostname);
+  }
+
   // ---------- 脚本管理器菜单（ScriptCat / Tampermonkey） ----------
   // 注册后脚本列表里就能直接看到这些入口，不必进「编辑」界面找链接。
+  // 脚本通过 *://*/* 匹配在任意网站运行，因此菜单在任何网址都可见；
+  // 非 WeGame 页面不会注入悬浮按钮。
   var PROJECT_HOME = "https://github.com/entyr233/lol-tft";
   var OFFICIAL_HELPER_URL = "https://www.wegame.com.cn/helper/lol/";
+  var PANEL_HOME_URL = "https://www.wegame.com.cn/?lol_tft_panel=1";
 
   function openProjectUrl(url) {
     try { window.open(url, "_blank", "noopener"); } catch (e) { /* 忽略 */ }
   }
 
+  function openSelfPanelFromMenu() {
+    if (canUsePanelHere()) {
+      void openPanel();
+      return;
+    }
+    // 在别的网站点菜单：打开 WeGame 并自动弹出面板
+    openProjectUrl(PANEL_HOME_URL);
+  }
+
   function registerMenuCommands() {
     var commands = [
-      { title: "打开自建战绩面板", run: function () { void openPanel(); } },
+      { title: "打开自建战绩面板", run: openSelfPanelFromMenu },
       { title: "打开官方助手页", run: function () { openProjectUrl(OFFICIAL_HELPER_URL); } },
       { title: "打开项目主页", run: function () { openProjectUrl(PROJECT_HOME); } },
       { title: "反馈 / 问题", run: function () { openProjectUrl(PROJECT_HOME + "/issues"); } }
@@ -285,6 +307,10 @@
   }
 
   function mountLauncher() {
+    if (!canUsePanelHere()) {
+      log("非 WeGame 页面：仅注册脚本菜单，不注入悬浮按钮");
+      return;
+    }
     if (document.getElementById("lol-tft-launcher")) return;
     try {
       injectStyle();
@@ -325,15 +351,36 @@
     if (event.key === "Escape" && overlay) closePanel();
   });
 
+  /** 从菜单在其它网站打开时带 ?lol_tft_panel=1，进入 WeGame 后自动弹面板并从地址栏移除 */
+  function consumePanelParam() {
+    try {
+      var search = location.search || "";
+      if (search.indexOf("lol_tft_panel=1") < 0) return false;
+      try {
+        var url = new URL(location.href);
+        url.searchParams.delete("lol_tft_panel");
+        history.replaceState(null, "", url.pathname + url.search + url.hash);
+      } catch (e) { /* 地址清理失败不影响打开面板 */ }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function bootstrap() {
     try {
       expose();
+      var autoOpen = canUsePanelHere() && consumePanelParam();
+      var start = function () {
+        mountLauncher();
+        if (autoOpen) void openPanel();
+      };
       if (!document.body) {
         warn("body 尚未就绪，等待 DOMContentLoaded");
-        document.addEventListener("DOMContentLoaded", mountLauncher, { once: true });
+        document.addEventListener("DOMContentLoaded", start, { once: true });
         return;
       }
-      mountLauncher();
+      start();
     } catch (error) {
       warn("初始化失败：", error);
     }

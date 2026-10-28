@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const FILE = "dist/userscript/lol-tft.user.js";
 const available = existsSync(FILE);
@@ -57,6 +57,9 @@ describe.skipIf(!available)("单文件油猴脚本（构建产物）", () => {
     expect(code).toContain("@match        https://lol.qq.com/*");
     expect(code).toContain("lol-tft-detail-request");
     expect(code).toMatch(/@match\s+https:\/\/www\.wegame\.com\.cn\/\*/);
+    // 任意网站都注入以注册脚本菜单（悬浮入口在非 WeGame 页面自行跳过）
+    expect(code).toMatch(/\/\/ @match[ \t]+http:\/\/\*\/\*/);
+    expect(code).toMatch(/\/\/ @match[ \t]+https:\/\/\*\/\*/);
     // 不再通过 <script src> 加载远端 bundle（bundle 已内联）
     expect(code).not.toContain("BUNDLE_URL");
     // 允许创建 <script>（仅用于加载 WeGame 登录 SDK），但不得再加载远端 UI bundle
@@ -66,10 +69,25 @@ describe.skipIf(!available)("单文件油猴脚本（构建产物）", () => {
     expect(code).not.toContain("process.env");
     expect(code).not.toContain("__dirname");
 
-    const run = new Function("process", "require", "module", "exports", code);
-    run(undefined, undefined, undefined, undefined);
-    const launcher = document.getElementById("lol-tft-launcher");
-    expect(launcher).not.toBeNull();
-    expect(launcher?.textContent).toContain("LOL 战绩");
+    // 仅 WeGame 页面挂悬浮按钮；模拟当前页面为 wegame 首页
+    vi.stubGlobal("location", {
+      hostname: "www.wegame.com.cn",
+      href: "https://www.wegame.com.cn/",
+      pathname: "/",
+      search: "",
+      hash: "",
+      reload: vi.fn()
+    });
+    try {
+      const run = new Function("process", "require", "module", "exports", code);
+      run(undefined, undefined, undefined, undefined);
+      const launcher = document.getElementById("lol-tft-launcher");
+      expect(launcher).not.toBeNull();
+      expect(launcher?.textContent).toContain("LOL 战绩");
+    } finally {
+      vi.unstubAllGlobals();
+      document.getElementById("lol-tft-launcher")?.remove();
+      document.getElementById("lol-tft-entry-style")?.remove();
+    }
   });
 });

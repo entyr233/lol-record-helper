@@ -14,8 +14,21 @@ function scripts(): HTMLScriptElement[] {
   return Array.from(document.querySelectorAll<HTMLScriptElement>('script[src$="/login.sdk.js"]'));
 }
 
+function stubLocation(overrides: Record<string, unknown> = {}): void {
+  vi.stubGlobal("location", {
+    hostname: "www.wegame.com.cn",
+    href: "https://www.wegame.com.cn/",
+    pathname: "/",
+    search: "",
+    hash: "",
+    reload: vi.fn(),
+    ...overrides
+  });
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
+  stubLocation();
   unmount = vi.fn();
   mount = vi.fn(() => ({ unmount }));
   mountHelper = vi.fn();
@@ -113,10 +126,32 @@ describe("userscript panel lifecycle", () => {
     }
   });
 
+  it("其他网站只注册菜单，不挂载悬浮入口；自建入口改为打开 WeGame 面板", () => {
+    document.getElementById("lol-tft-launcher")?.remove();
+    document.getElementById("lol-tft-entry-style")?.remove();
+    stubLocation({ hostname: "example.com", href: "https://example.com/", pathname: "/", search: "" });
+    const commands: Record<string, () => void> = {};
+    vi.stubGlobal("GM_registerMenuCommand", (title: string, run: () => void) => { commands[title] = run; });
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    try {
+      new Function("LolTft", "console", source)(
+        { mountLolTft: mount, mountHelperLogin: mountHelper },
+        { log: vi.fn(), warn: vi.fn(), error: vi.fn() }
+      );
+      expect(commands["打开自建战绩面板"]).toBeTypeOf("function");
+      commands["打开自建战绩面板"]();
+      expect(open).toHaveBeenCalledWith("https://www.wegame.com.cn/?lol_tft_panel=1", "_blank", "noopener");
+      expect(document.getElementById("lol-tft-launcher")).toBeNull();
+    } finally {
+      open.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("官方助手页只保留内嵌助手面板，不再显示悬浮 LOL 战绩按钮", () => {
     document.getElementById("lol-tft-launcher")?.remove();
     document.getElementById("lol-tft-entry-style")?.remove();
-    window.history.replaceState({}, "", "/helper/lol/");
+    stubLocation({ pathname: "/helper/lol/", href: "https://www.wegame.com.cn/helper/lol/" });
     try {
       new Function("LolTft", "console", source)(
         { mountLolTft: mount, mountHelperLogin: mountHelper },
@@ -126,7 +161,7 @@ describe("userscript panel lifecycle", () => {
       expect(mountHelper).toHaveBeenCalledTimes(2);
       expect(document.getElementById("lol-tft-launcher")).toBeNull();
     } finally {
-      window.history.replaceState({}, "", "/");
+      document.getElementById("lol-tft-launcher")?.remove();
     }
   });
 });
