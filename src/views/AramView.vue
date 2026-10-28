@@ -1,11 +1,11 @@
 <template>
-  <div class="page aram-page">
-    <div class="aram-head">
-      <div>
-        <p class="page-title">海克斯大乱斗数据</p>
+  <div class="page page--summary aram-page">
+    <div class="aram-header">
+      <div class="aram-heading">
+        <p class="page-title">海克斯数据</p>
         <p v-if="overview" class="aram-meta">
-          数据来源 ARAMGG · 补丁 {{ overview.gamePatch }} · 数据版本 {{ overview.dataVersion }}
-          <template v-if="statsDate"> · 统计日期 {{ statsDate }}</template>
+          ARAMGG · 补丁 {{ overview.gamePatch }} · 数据版本 {{ overview.dataVersion }}
+          <template v-if="statsDate"> · 统计 {{ statsDate }}</template>
         </p>
         <p v-else-if="loading" class="aram-meta">ARAMGG 榜单加载中…</p>
         <p v-else-if="error" class="aram-meta aram-meta--error">{{ error }}</p>
@@ -15,147 +15,195 @@
       </button>
     </div>
 
-    <details class="aram-key-box" :open="!hasKey">
-      <summary>ARAMGG API Key（仅保存在本机，用于单英雄推荐强化/出装）</summary>
-      <div class="aram-key-row">
-        <input
-          v-model.trim="keyDraft"
-          type="password"
-          autocomplete="off"
-          spellcheck="false"
-          placeholder="hx_live_…"
-          aria-label="ARAMGG API Key"
-        />
-        <button type="button" :disabled="!keyDraft" @click="saveKey">保存</button>
-        <button v-if="hasKey" type="button" @click="removeKey">清除</button>
+    <Panel title="ARAMGG 数据源" class="aram-source">
+      <div class="aram-source-body">
+        <p class="aram-source-text">
+          榜单数据来自 ARAMGG（免 API Key）；填写 API Key 后可查看单英雄推荐强化/出装，每次 2 credits、缓存 12 小时。Key 只保存在本机，不会上传。
+        </p>
+        <p v-if="hasKey && !editingKey" class="aram-source-key">
+          已配置：<code>{{ maskedKey }}</code>
+          <button type="button" class="link-button" @click="editingKey = true">更换</button>
+          <button type="button" class="link-button" @click="removeKey">清除</button>
+          <a href="https://data.dtodo.cn/developer.html" target="_blank" rel="noopener noreferrer">开发者后台 ↗</a>
+        </p>
+        <form v-else class="aram-source-form" @submit.prevent="saveKey">
+          <input
+            v-model.trim="keyDraft"
+            type="password"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="hx_live_…"
+            aria-label="ARAMGG API Key"
+          />
+          <button type="submit" class="summary-refresh" :disabled="!keyDraft">保存</button>
+          <button v-if="hasKey" type="button" class="summary-refresh" @click="editingKey = false">取消</button>
+          <a href="https://data.dtodo.cn/developer.html" target="_blank" rel="noopener noreferrer">申请 API Key ↗</a>
+        </form>
       </div>
-      <p class="aram-key-hint">
-        在
-        <a href="https://data.dtodo.cn/developer.html" target="_blank" rel="noopener noreferrer">ARAMGG 开发者后台</a>
-        用 GitHub 登录后申请；榜单数据免费，单英雄详情每次消耗 2 credits（结果会缓存 12 小时）。
-      </p>
-    </details>
+    </Panel>
 
-    <div class="aram-toolbar">
-      <div class="aram-tabs" role="tablist" aria-label="数据类型">
-        <button type="button" role="tab" :aria-selected="tab === 'augments'" :class="{ 'aram-tab--cur': tab === 'augments' }" @click="tab = 'augments'">强化榜</button>
-        <button type="button" role="tab" :aria-selected="tab === 'champions'" :class="{ 'aram-tab--cur': tab === 'champions' }" @click="tab = 'champions'">英雄榜</button>
+    <div class="aram-controls">
+      <div class="mode-filter aram-filter">
+        <button
+          type="button"
+          class="mode-filter-tab"
+          :class="{ 'mode-filter-tab--cur': tab === 'augments' }"
+          @click="tab = 'augments'"
+        >
+          强化榜
+        </button>
+        <button
+          type="button"
+          class="mode-filter-tab"
+          :class="{ 'mode-filter-tab--cur': tab === 'champions' }"
+          @click="tab = 'champions'"
+        >
+          英雄榜
+        </button>
+        <select v-if="tab === 'augments'" v-model="rarityFilter" class="mode-filter-select" aria-label="强化品质">
+          <option value="all">全部品质</option>
+          <option value="prismatic">棱彩</option>
+          <option value="gold">黄金</option>
+          <option value="silver">白银</option>
+        </select>
       </div>
-      <select v-if="tab === 'augments'" v-model="rarityFilter" class="aram-select" aria-label="强化品质">
-        <option value="all">全部品质</option>
-        <option value="prismatic">棱彩</option>
-        <option value="gold">黄金</option>
-        <option value="silver">白银</option>
-      </select>
-      <input v-model.trim="query" type="search" class="aram-search" :placeholder="tab === 'augments' ? '搜索强化名称' : '搜索英雄名称'" aria-label="搜索" />
+      <div class="aram-controls-right">
+        <input
+          v-model.trim="query"
+          type="search"
+          class="aram-search"
+          :placeholder="tab === 'augments' ? '搜索强化' : '搜索英雄'"
+          aria-label="搜索"
+        />
+        <span class="summary-updated">{{ rows.length }} 条</span>
+      </div>
     </div>
 
-    <ol v-if="tab === 'augments'" class="aram-list" aria-label="海克斯强化胜率榜">
-      <li v-for="(item, index) in augmentRows" :key="item.id">
-        <button type="button" class="aram-row" @click="selectedAugmentId = item.id">
-          <span class="aram-rank">{{ index + 1 }}</span>
-          <img v-if="item.iconUrl" class="aram-icon" :src="item.iconUrl" :alt="item.name" loading="lazy" referrerpolicy="no-referrer" />
-          <span v-else class="aram-icon aram-icon--empty" aria-hidden="true" />
-          <span class="aram-main">
-            <b>{{ item.name }}</b>
-            <small>{{ rarityOf(item) }}<template v-if="item.stats?.tier"> · 强度 {{ item.stats.tier }}</template></small>
-          </span>
-          <span class="aram-stat"><b>{{ pct(item.stats?.winRate) }}</b><small>胜率</small></span>
-          <span class="aram-stat"><b>{{ pct(item.stats?.pickRate) }}</b><small>选取率</small></span>
-        </button>
-      </li>
-      <li v-if="!augmentRows.length" class="aram-empty">{{ overview ? "没有匹配的强化" : "暂无数据" }}</li>
-    </ol>
-
-    <ol v-else class="aram-list" aria-label="海克斯大乱斗英雄榜">
-      <li v-for="(item, index) in championRows" :key="item.id">
-        <button type="button" class="aram-row" :class="{ 'aram-row--cur': item.id === selectedChampionId }" @click="selectChampion(item.id)">
-          <span class="aram-rank">{{ index + 1 }}</span>
-          <img class="aram-icon" :src="item.iconUrl" :alt="item.name" loading="lazy" referrerpolicy="no-referrer" />
-          <span class="aram-main">
-            <b>{{ item.name }}</b>
-            <small>{{ item.title || item.roles.join(" / ") }}<template v-if="item.stats?.tier"> · 强度 {{ item.stats.tier }}</template></small>
-          </span>
-          <span class="aram-stat"><b>{{ pct(item.stats?.winRate) }}</b><small>胜率</small></span>
-          <span class="aram-stat"><b>{{ pct(item.stats?.pickRate) }}</b><small>选取率</small></span>
-        </button>
-      </li>
-      <li v-if="!championRows.length" class="aram-empty">{{ overview ? "没有匹配的英雄" : "暂无数据" }}</li>
-    </ol>
-
-    <section v-if="tab === 'augments' && selectedAugment" class="aram-detail" aria-label="强化详情">
-      <header class="aram-detail-head">
-        <img v-if="selectedAugment.iconUrl" class="aram-icon" :src="selectedAugment.iconUrl" :alt="selectedAugment.name" referrerpolicy="no-referrer" />
-        <div>
-          <p class="aram-detail-title">{{ selectedAugment.name }}</p>
-          <p class="aram-detail-sub">
-            {{ rarityOf(selectedAugment) }} · 胜率 {{ pct(selectedAugment.stats?.winRate) }} · 选取率 {{ pct(selectedAugment.stats?.pickRate) }}
-            <template v-if="selectedAugment.stats?.games"> · {{ selectedAugment.stats.games }} 场</template>
-          </p>
-        </div>
-        <button type="button" class="aram-close" @click="selectedAugmentId = null">关闭</button>
-      </header>
-      <p v-if="selectedAugment.description" class="aram-detail-text">{{ selectedAugment.description }}</p>
-      <div v-if="selectedAugment.topChampions.length" class="aram-top-champions">
-        <p class="aram-detail-label">该强化胜率最高的英雄</p>
-        <span v-for="champ in selectedAugment.topChampions.slice(0, 6)" :key="champ.id" class="aram-top-chip" :title="champ.name">
-          <img v-if="champ.iconUrl" :src="champ.iconUrl" :alt="champ.name" loading="lazy" referrerpolicy="no-referrer" />
-          <span>{{ champ.name }}</span>
-        </span>
-      </div>
-    </section>
-
-    <section v-if="tab === 'champions' && selectedChampionId !== null" class="aram-detail" aria-label="英雄详情">
-      <header class="aram-detail-head">
-        <div>
-          <p class="aram-detail-title">{{ selectedChampion?.name || "英雄 " + selectedChampionId }} · 推荐搭配</p>
-          <p class="aram-detail-sub">按官方推荐顺序 / 胜率展示；数据来自 ARAMGG 开发者接口</p>
-        </div>
-        <button type="button" class="aram-close" @click="selectedChampionId = null">关闭</button>
-      </header>
-      <p v-if="detailLoading" class="aram-detail-text">加载推荐数据…</p>
-      <p v-else-if="detailError" class="aram-detail-text aram-meta--error">
-        {{ detailError }}
-        <a v-if="!hasKey" href="https://data.dtodo.cn/developer.html" target="_blank" rel="noopener noreferrer">去申请 API Key ↗</a>
-      </p>
-      <template v-else-if="detail">
-        <div class="aram-detail-label">推荐海克斯</div>
-        <div class="aram-aug-grid">
-          <span v-for="aug in detail.augments.slice(0, 9)" :key="aug.id" class="aram-aug-chip" :title="aug.description || aug.name">
-            <img v-if="aug.iconUrl" :src="aug.iconUrl" :alt="aug.name" loading="lazy" referrerpolicy="no-referrer" />
-            <span class="aram-aug-name">{{ aug.name }}</span>
-            <small>{{ pct(aug.stats?.winRate) }}<template v-if="aug.stats?.pickRate !== null && aug.stats?.pickRate !== undefined"> · 选取 {{ pct(aug.stats?.pickRate) }}</template></small>
-          </span>
-        </div>
-        <template v-if="detail.builds.length">
-          <div class="aram-detail-label">推荐出装（{{ detail.builds[0].tags.join(" / ") || "主流" }}）</div>
-          <div class="aram-build">
-            <span class="aram-build-label">核心装</span>
-            <span v-for="item in detail.builds[0].coreItems" :key="item.id" class="aram-item" :title="item.name || String(item.id)">
-              <img :src="item.iconUrl || itemIcon(item.id)" :alt="item.name || String(item.id)" loading="lazy" referrerpolicy="no-referrer" />
-            </span>
-            <span v-if="detail.builds[0].startingItems.length" class="aram-build-label">出门装</span>
-            <span v-for="item in detail.builds[0].startingItems" :key="'s' + item.id" class="aram-item" :title="item.name || String(item.id)">
-              <img :src="item.iconUrl || itemIcon(item.id)" :alt="item.name || String(item.id)" loading="lazy" referrerpolicy="no-referrer" />
-            </span>
-          </div>
-          <div v-if="detail.builds[0].skillOrders.length" class="aram-build">
-            <span class="aram-build-label">技能加点</span>
-            <span class="aram-skill-order">{{ detail.builds[0].skillOrders[0].skillKeys.join(" ") }}</span>
-          </div>
+    <div class="aram-layout">
+      <Panel :title="tab === 'augments' ? '强化榜' : '英雄榜'" class="aram-list-panel">
+        <template #title-expand>
+          <span class="aram-columns-hint">胜率 / 选取率 / 强度</span>
         </template>
-      </template>
-    </section>
+        <div class="aram-table" role="list">
+          <button
+            v-for="(item, index) in rows"
+            :key="item.id"
+            type="button"
+            class="aram-row"
+            :class="{ 'aram-row--cur': item.id === selectedId }"
+            @click="select(item.id)"
+          >
+            <span class="aram-rank">{{ index + 1 }}</span>
+            <img
+              v-if="item.iconUrl"
+              class="aram-icon"
+              :src="item.iconUrl"
+              :alt="item.name"
+              loading="lazy"
+              referrerpolicy="no-referrer"
+            />
+            <span v-else class="aram-icon aram-icon--empty" aria-hidden="true" />
+            <span class="aram-name">
+              <b>{{ item.name }}</b>
+              <small v-if="tab === 'augments'">{{ rarityOf(item as AramggAugment) }}</small>
+              <small v-else>{{ (item as AramggChampion).title || (item as AramggChampion).roles.join(" / ") }}</small>
+            </span>
+            <span class="aram-value">{{ pct(item.stats?.winRate) }}</span>
+            <span class="aram-value">{{ pct(item.stats?.pickRate) }}</span>
+            <span class="aram-tier" :title="item.stats?.tier ? '强度 ' + item.stats.tier + '（1 最强）' : ''">{{ item.stats?.tier ?? "--" }}</span>
+          </button>
+          <p v-if="!rows.length" class="state-text">{{ overview ? "没有匹配结果" : "暂无数据" }}</p>
+        </div>
+      </Panel>
+
+      <Panel :title="detailTitle" class="aram-detail-panel">
+        <section v-if="tab === 'augments' && selectedAugment" aria-label="强化详情">
+          <header class="aram-detail-head">
+            <img
+              v-if="selectedAugment.iconUrl"
+              class="aram-detail-icon"
+              :src="selectedAugment.iconUrl"
+              :alt="selectedAugment.name"
+              referrerpolicy="no-referrer"
+            />
+            <div>
+              <p class="aram-detail-title">{{ selectedAugment.name }}</p>
+              <p class="aram-detail-sub">
+                {{ rarityOf(selectedAugment) }} · 胜率 {{ pct(selectedAugment.stats?.winRate) }} · 选取率
+                {{ pct(selectedAugment.stats?.pickRate) }}
+                <template v-if="selectedAugment.stats?.games"> · {{ selectedAugment.stats.games }} 场</template>
+              </p>
+            </div>
+          </header>
+          <p v-if="selectedAugment.description" class="aram-detail-text">{{ selectedAugment.description }}</p>
+          <template v-if="selectedAugment.topChampions.length">
+            <p class="aram-section-label">该强化胜率最高的英雄</p>
+            <div class="aram-chips">
+              <span v-for="champ in selectedAugment.topChampions.slice(0, 8)" :key="champ.id" class="aram-chip" :title="champ.name">
+                <img v-if="champ.iconUrl" :src="champ.iconUrl" :alt="champ.name" loading="lazy" referrerpolicy="no-referrer" />
+                <span>{{ champ.name }}</span>
+              </span>
+            </div>
+          </template>
+        </section>
+
+        <section v-else-if="tab === 'champions' && selectedChampionId !== null" aria-label="英雄详情">
+          <header class="aram-detail-head">
+            <div>
+              <p class="aram-detail-title">{{ selectedChampion?.name || "英雄 " + selectedChampionId }}</p>
+              <p class="aram-detail-sub">{{ selectedChampion?.title || "" }} · 海克斯大乱斗推荐</p>
+            </div>
+          </header>
+          <p v-if="detailLoading" class="state-text">加载推荐数据…</p>
+          <p v-else-if="detailError" class="state-text state-text--error">
+            {{ detailError }}
+            <a v-if="!hasKey" href="https://data.dtodo.cn/developer.html" target="_blank" rel="noopener noreferrer">去申请 API Key</a>
+          </p>
+          <template v-else-if="detail">
+            <p class="aram-section-label">推荐海克斯</p>
+            <div class="aram-aug-list">
+              <span v-for="aug in detail.augments.slice(0, 9)" :key="aug.id" class="aram-aug" :title="aug.description || aug.name">
+                <img v-if="aug.iconUrl" :src="aug.iconUrl" :alt="aug.name" loading="lazy" referrerpolicy="no-referrer" />
+                <span class="aram-aug-name">{{ aug.name }}</span>
+                <small>{{ pct(aug.stats?.winRate) }}</small>
+              </span>
+            </div>
+            <template v-if="detail.builds.length">
+              <p class="aram-section-label">推荐出装 · {{ detail.builds[0].tags.join(" / ") || "主流" }}</p>
+              <div class="aram-build-row">
+                <span class="aram-build-label">核心</span>
+                <span v-for="item in detail.builds[0].coreItems" :key="item.id" class="aram-item" :title="item.name || String(item.id)">
+                  <img :src="item.iconUrl || itemIcon(item.id)" :alt="item.name || String(item.id)" loading="lazy" referrerpolicy="no-referrer" />
+                </span>
+                <template v-if="detail.builds[0].startingItems.length">
+                  <span class="aram-build-label">出门</span>
+                  <span v-for="item in detail.builds[0].startingItems" :key="'s' + item.id" class="aram-item" :title="item.name || String(item.id)">
+                    <img :src="item.iconUrl || itemIcon(item.id)" :alt="item.name || String(item.id)" loading="lazy" referrerpolicy="no-referrer" />
+                  </span>
+                </template>
+              </div>
+              <div v-if="detail.builds[0].skillOrders.length" class="aram-build-row">
+                <span class="aram-build-label">加点</span>
+                <span class="aram-skills">{{ detail.builds[0].skillOrders[0].skillKeys.join(" ") }}</span>
+              </div>
+            </template>
+          </template>
+        </section>
+
+        <p v-else class="state-text">{{ tab === "augments" ? "选择左侧强化查看详情" : "选择左侧英雄查看推荐搭配" }}</p>
+      </Panel>
+    </div>
 
     <p class="aram-note">
       数据来源：<a href="https://aramgg.com/" target="_blank" rel="noopener noreferrer">ARAMGG</a>
-      （腾讯国服公开统计，仅供参考）；API Key 只保存在本机 localStorage，不会上传。
+      （腾讯国服公开统计，仅供参考）；API Key 仅保存在本机 localStorage。
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import Panel from "../components/Panel.vue";
 import {
   AramggError,
   clearAramggApiKey,
@@ -169,7 +217,7 @@ import {
 } from "../api/aramgg";
 import { useAramgg } from "../composables/useAramgg";
 
-const { overview, loading, error, ensure, championOf } = useAramgg();
+const { overview, loading, error, ensure } = useAramgg();
 
 const tab = ref<"augments" | "champions">("augments");
 const rarityFilter = ref<"all" | "prismatic" | "gold" | "silver">("all");
@@ -181,6 +229,7 @@ const detailLoading = ref(false);
 const detailError = ref<string | null>(null);
 
 const hasKey = ref(hasAramggApiKey());
+const editingKey = ref(false);
 const keyDraft = ref(getAramggApiKey());
 
 onMounted(() => {
@@ -199,6 +248,11 @@ function rarityOf(item: AramggAugment): string {
   if (item.rarityDisplayName) return item.rarityDisplayName;
   return item.rarity === 2 ? "棱彩" : item.rarity === 1 ? "黄金" : item.rarity === 0 ? "白银" : "未知品质";
 }
+
+const maskedKey = computed(() => {
+  const key = hasKey.value ? getAramggApiKey() : "";
+  return key.length > 10 ? key.slice(0, 6) + "…" + key.slice(-4) : key;
+});
 
 const statsDate = computed(() => {
   const first = overview.value?.augments.find((item) => item.stats?.date);
@@ -223,15 +277,32 @@ const championRows = computed(() => {
   return list.sort((a, b) => (b.stats?.winRate ?? -1) - (a.stats?.winRate ?? -1));
 });
 
+const rows = computed<Array<AramggAugment | AramggChampion>>(() => (tab.value === "augments" ? augmentRows.value : championRows.value));
+
+const selectedId = computed<number | null>(() => (tab.value === "augments" ? selectedAugmentId.value : selectedChampionId.value));
+
+const detailTitle = computed(() => (tab.value === "augments" ? "强化详情" : "英雄推荐"));
+
 const selectedAugment = computed<AramggAugment | null>(() => {
   if (selectedAugmentId.value === null) return null;
   return overview.value?.augments.find((item) => item.id === selectedAugmentId.value) ?? null;
 });
 
-const selectedChampion = computed<AramggChampion | null>(() => championOf(selectedChampionId.value));
+const selectedChampion = computed<AramggChampion | null>(() => {
+  if (selectedChampionId.value === null) return null;
+  return overview.value?.champions.find((item) => item.id === selectedChampionId.value) ?? null;
+});
 
 function itemIcon(id: number): string {
   return "https://cdn.dtodo.cn/hextech/item-icons/" + id + ".png";
+}
+
+function select(id: number): void {
+  if (tab.value === "augments") {
+    selectedAugmentId.value = id;
+    return;
+  }
+  void selectChampion(id);
 }
 
 async function selectChampion(id: number): Promise<void> {
@@ -256,6 +327,7 @@ function saveKey(): void {
   setAramggApiKey(keyDraft.value);
   hasKey.value = hasAramggApiKey();
   keyDraft.value = getAramggApiKey();
+  editingKey.value = false;
   if (hasKey.value && selectedChampionId.value !== null) void selectChampion(selectedChampionId.value);
 }
 
@@ -263,316 +335,8 @@ function removeKey(): void {
   clearAramggApiKey();
   hasKey.value = false;
   keyDraft.value = "";
+  editingKey.value = true;
   detail.value = null;
-  detailError.value = hasKey.value ? null : "API Key 已清除，单英雄推荐不可用。";
+  detailError.value = null;
 }
 </script>
-
-<style scoped>
-.aram-page {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-bottom: 24px;
-}
-.aram-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-.aram-meta {
-  margin: 6px 0 0;
-  color: #6c7683;
-  font-size: 12px;
-}
-.aram-meta--error {
-  color: #e07070;
-}
-.aram-key-box {
-  border: 1px solid #2f3844;
-  border-radius: 6px;
-  padding: 8px 12px;
-  background: #ffffff05;
-}
-.aram-key-box > summary {
-  color: #b59758;
-  cursor: pointer;
-  font-size: 12px;
-}
-.aram-key-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-  flex-wrap: wrap;
-}
-.aram-key-row input,
-.aram-search {
-  flex: 1 1 220px;
-  min-width: 0;
-  padding: 5px 10px;
-  color: #ddd;
-  background: #1c232d;
-  border: 1px solid #2f3844;
-  border-radius: 4px;
-  font: inherit;
-}
-.aram-key-row button {
-  padding: 5px 12px;
-  color: #d8bd7e;
-  background: #242c37;
-  border: 1px solid #4c463d;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.aram-key-hint {
-  margin: 8px 0 0;
-  color: #6c7683;
-  font-size: 11px;
-  line-height: 1.6;
-}
-.aram-key-hint a,
-.aram-note a {
-  color: #d8bd7e;
-}
-.aram-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.aram-tabs {
-  display: flex;
-  gap: 6px;
-}
-.aram-tabs button {
-  padding: 5px 14px;
-  color: #9aa4b2;
-  background: #242c37;
-  border: 1px solid #2f3844;
-  border-radius: 14px;
-  cursor: pointer;
-}
-.aram-tabs .aram-tab--cur {
-  color: #e6c37a;
-  border-color: #b59758;
-  background: #b5975833;
-}
-.aram-select {
-  padding: 5px 10px;
-  color: #c6cfda;
-  background: #1c232d;
-  border: 1px solid #2f3844;
-  border-radius: 4px;
-}
-.aram-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 420px;
-  overflow: auto;
-  border: 1px solid #202831;
-  border-radius: 6px;
-  background: #161a20;
-}
-.aram-list li {
-  border-bottom: 1px solid #202831;
-}
-.aram-list li:last-child {
-  border-bottom: 0;
-}
-.aram-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 12px;
-  color: inherit;
-  background: transparent;
-  border: 0;
-  text-align: left;
-  cursor: pointer;
-}
-.aram-row:hover,
-.aram-row--cur {
-  background: #ffffff0d;
-}
-.aram-rank {
-  width: 26px;
-  color: #56606c;
-  font-size: 12px;
-  flex: none;
-}
-.aram-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 4px;
-  flex: none;
-  object-fit: cover;
-  background: #202831;
-}
-.aram-icon--empty {
-  display: inline-block;
-}
-.aram-main {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.aram-main b {
-  color: #e8edf2;
-  font-size: 13px;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.aram-main small {
-  color: #6c7683;
-  font-size: 11px;
-}
-.aram-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 1px;
-  flex: none;
-  width: 60px;
-}
-.aram-stat b {
-  color: #e6c37a;
-  font-size: 13px;
-}
-.aram-stat small {
-  color: #56606c;
-  font-size: 10px;
-}
-.aram-empty {
-  color: #8f99a6;
-  padding: 14px;
-  font-size: 12px;
-}
-.aram-detail {
-  border: 1px solid #2f3844;
-  border-radius: 6px;
-  background: #ffffff05;
-  padding: 12px 14px;
-}
-.aram-detail-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-.aram-detail-title {
-  margin: 0;
-  color: #e8edf2;
-  font-size: 14px;
-  font-weight: 600;
-}
-.aram-detail-sub {
-  margin: 3px 0 0;
-  color: #8f99a6;
-  font-size: 11px;
-}
-.aram-close {
-  margin-left: auto;
-  color: #8f99a6;
-  background: transparent;
-  border: 1px solid #2f3844;
-  border-radius: 4px;
-  padding: 2px 8px;
-  cursor: pointer;
-}
-.aram-detail-text {
-  margin: 8px 0 0;
-  color: #cfd6df;
-  font-size: 12px;
-  line-height: 1.6;
-}
-.aram-detail-label {
-  margin: 10px 0 6px;
-  color: #56606c;
-  font-size: 11px;
-}
-.aram-top-champions {
-  margin-top: 8px;
-}
-.aram-top-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin: 0 8px 6px 0;
-  padding: 2px 8px 2px 2px;
-  color: #cfd6df;
-  background: #1c232d;
-  border: 1px solid #2f3844;
-  border-radius: 12px;
-  font-size: 11px;
-}
-.aram-top-chip img {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-}
-.aram-aug-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 6px;
-}
-.aram-aug-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  background: #1c232d;
-  border: 1px solid #2f3844;
-  border-radius: 4px;
-  font-size: 11px;
-}
-.aram-aug-chip img {
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
-  flex: none;
-}
-.aram-aug-name {
-  flex: 1 1 auto;
-  color: #e8edf2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.aram-aug-chip small {
-  color: #e6c37a;
-  flex: none;
-}
-.aram-build {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 6px;
-}
-.aram-build-label {
-  color: #56606c;
-  font-size: 11px;
-}
-.aram-item img {
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  display: block;
-}
-.aram-skill-order {
-  color: #cfd6df;
-  font-family: Consolas, Monaco, monospace;
-  font-size: 12px;
-}
-.aram-note {
-  margin: 8px 0 0;
-  color: #56606c;
-  font-size: 11px;
-}
-</style>

@@ -2083,3 +2083,330 @@ summary:focus-visible,
 .rank-chart-axis { stroke: #3b4757; }
 .rank-chart-line { fill: none; stroke: #d8bd7e; stroke-width: 2; }
 .rank-chart-dot { fill: #d8bd7e; }
+
+/* ---------- aram data (ARAMGG) ---------- */
+.aram-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.aram-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.aram-heading {
+  min-width: 0;
+}
+.aram-meta {
+  margin: 6px 0 0;
+  color: #6c7683;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.aram-meta--error {
+  color: #e07070;
+}
+.aram-source {
+  padding: 12px 16px;
+}
+.aram-source-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.aram-source-text {
+  margin: 0;
+  color: #8f99a6;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.aram-source-key {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0;
+  color: #9aa4b2;
+  font-size: 12px;
+}
+.aram-source-key code {
+  color: #e6c37a;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 11px;
+}
+.aram-source-key a,
+.aram-source-form a {
+  color: #b59758;
+  font-size: 12px;
+}
+.aram-source-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.aram-source-form input,
+.aram-search {
+  min-width: 0;
+  padding: 5px 10px;
+  color: #ddd;
+  background: #1c232d;
+  border: 1px solid #2f3844;
+  border-radius: 4px;
+  font: inherit;
+}
+.aram-source-form input {
+  flex: 1 1 220px;
+}
+.aram-search {
+  flex: 0 0 240px;
+}
+.aram-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.aram-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+.aram-filter {
+  margin-bottom: 0;
+  align-items: center;
+}
+.aram-filter .mode-filter-select {
+  margin-left: 2px;
+}
+.aram-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: 12px;
+  align-items: start;
+}
+.aram-list-panel {
+  min-width: 0;
+}
+.aram-columns-hint {
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.aram-table {
+  max-height: 560px;
+  overflow: auto;
+  margin: -4px -8px;
+}
+.aram-row {
+  display: grid;
+  grid-template-columns: 26px 30px minmax(0, 1fr) 64px 64px 40px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  text-align: left;
+  cursor: pointer;
+}
+.aram-row:hover {
+  background: #ffffff0d;
+}
+.aram-row--cur {
+  background: #28344e;
+}
+.aram-rank {
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  text-align: right;
+}
+.aram-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: #202831;
+  flex: none;
+}
+.aram-icon--empty {
+  display: inline-block;
+}
+.aram-name {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.aram-name b {
+  color: #e8edf2;
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aram-name small {
+  color: #6c7683;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aram-value {
+  color: #e6c37a;
+  font-size: 12px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  text-align: right;
+}
+.aram-tier {
+  color: #111;
+  background: #b59758;
+  border-radius: 8px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  justify-self: center;
+}
+.aram-detail-panel {
+  min-height: 320px;
+}
+.aram-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.aram-detail-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #202831;
+  flex: none;
+}
+.aram-detail-title {
+  margin: 0;
+  color: #e8edf2;
+  font-size: 14px;
+  font-weight: 600;
+}
+.aram-detail-sub {
+  margin: 3px 0 0;
+  color: #8f99a6;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.aram-detail-text {
+  margin: 10px 0 0;
+  color: #cfd6df;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.aram-section-label {
+  margin: 12px 0 6px;
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.aram-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.aram-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 3px;
+  color: #cfd6df;
+  background: #1c232d;
+  border: 1px solid #2f3844;
+  border-radius: 12px;
+  font-size: 11px;
+}
+.aram-chip img {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+.aram-aug-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.aram-aug {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 54px;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  background: #1c232d;
+  border: 1px solid #2f3844;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.aram-aug img {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+}
+.aram-aug-name {
+  color: #e8edf2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aram-aug small {
+  color: #e6c37a;
+  text-align: right;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.aram-build-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.aram-build-label {
+  color: #56606c;
+  font-size: 11px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+.aram-item img {
+  display: block;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  background: #202831;
+}
+.aram-skills {
+  color: #cfd6df;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+}
+.aram-note {
+  margin: 0;
+  color: #56606c;
+  font-size: 11px;
+}
+.aram-note a {
+  color: #b59758;
+}
+@media (max-width: 1100px) {
+  .aram-layout {
+    grid-template-columns: 1fr;
+  }
+  .aram-table {
+    max-height: 420px;
+  }
+}
+

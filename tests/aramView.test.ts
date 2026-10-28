@@ -77,7 +77,7 @@ describe("海克斯数据视图", () => {
   it("展示强化榜并按胜率排序，显示数据来源与补丁", () => {
     const wrapper = mount(AramView);
     const text = wrapper.text();
-    expect(text).toContain("海克斯大乱斗数据");
+    expect(text).toContain("海克斯数据");
     expect(text).toContain("16.21.2");
     expect(text).toContain("尖端发明家");
     expect(text).toContain("泰坦的坚决");
