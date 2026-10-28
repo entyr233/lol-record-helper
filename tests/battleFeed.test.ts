@@ -116,6 +116,24 @@ describe("useBattleFeed.getPage（共享缓存与在途请求）", () => {
     now.mockRestore();
   });
 
+  it("连续浏览时最多缓存 8 个玩家，每个玩家最多缓存 20 页", async () => {
+    getBattleList.mockResolvedValue(page("a"));
+    for (let id = 0; id < 9; id++) await useBattleFeed(() => ({ ...key, id: String(id) })).getPage(0);
+    await useBattleFeed(() => ({ ...key, id: "8" })).getPage(0);
+    expect(getBattleList).toHaveBeenCalledTimes(9);
+    await useBattleFeed(() => ({ ...key, id: "0" })).getPage(0);
+    expect(getBattleList).toHaveBeenCalledTimes(10);
+
+    clearBattleFeedCache();
+    getBattleList.mockClear();
+    const feed = useBattleFeed(() => key);
+    for (let page = 0; page < 21; page++) await feed.getPage(page);
+    await feed.getPage(20);
+    expect(getBattleList).toHaveBeenCalledTimes(21);
+    await feed.getPage(0);
+    expect(getBattleList).toHaveBeenCalledTimes(22);
+  });
+
   it("invalidate 后重新请求，且旧的在途结果不写回缓存", async () => {
     let resolveOld!: (items: BattleSummary[]) => void;
     let resolveNew!: (items: BattleSummary[]) => void;

@@ -242,6 +242,45 @@ describe("ARAMGG 请求与缓存", () => {
     expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe("Bearer test-key");
   });
 
+  it("英雄缓存清理过期和旧版本，只保留 20 条且重开页面可以复用", async () => {
+    const prefix = "lol_tft:aramgg-champion-v2:";
+    const cache = { savedAt: Date.now(), detail: parseChampionDetail(katarina) };
+    localStorage.setItem(prefix + "old:55", JSON.stringify(cache));
+    localStorage.setItem(prefix + "current:999", JSON.stringify({ ...cache, savedAt: Date.now() - 12 * 60 * 60 * 1000 }));
+    localStorage.setItem("lol_tft:search-history", '["保留搜索记录"]');
+    const fetchMock = vi.fn(async (url: string) => {
+      const id = Number(/\/(\d+)\.json$/.exec(url)![1]);
+      return jsonResponse({ champion: { ...katarina.data.champion, id }, augments: [], builds: [] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    for (let id = 1; id <= 22; id++) await fetchAramggChampionDetail(id, { dataVersion: "current" });
+    const keys = Object.keys(localStorage).filter(key => key.startsWith(prefix));
+    expect(keys).toHaveLength(20);
+    expect(keys.every(key => key.startsWith(prefix + "current:"))).toBe(true);
+    expect(localStorage.getItem(prefix + "current:999")).toBeNull();
+    expect(localStorage.getItem(prefix + "current:1")).toBeNull();
+    expect(localStorage.getItem("lol_tft:search-history")).toBe('["保留搜索记录"]');
+    clearAramggMemoryCache();
+    await fetchAramggChampionDetail(22, { dataVersion: "current" });
+    expect(fetchMock).toHaveBeenCalledTimes(22);
+  });
+
+  it("恢复缓存时按文本预算淘汰较早的大详情，后续点击不再读取磁盘", async () => {
+    const prefix = "lol_tft:aramgg-champion-v2:current:";
+    for (let id = 1; id <= 4; id++) {
+      localStorage.setItem(prefix + id, JSON.stringify({ savedAt: Date.now() - 10 + id,
+        detail: { champion: { id }, augments: [{ id: 1001, description: "x".repeat(100_000) }], builds: [] } }));
+    }
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(katarina)));
+    await fetchAramggChampionDetail(55, { dataVersion: "current" });
+    const keys = Object.keys(localStorage).filter(key => key.startsWith(prefix));
+    expect(keys.reduce((bytes, key) => bytes + localStorage.getItem(key)!.length * 2, 0)).toBeLessThanOrEqual(512 * 1024);
+    expect(localStorage.getItem(prefix + "1")).toBeNull();
+    const getItem = vi.spyOn(Storage.prototype, "getItem");
+    await fetchAramggChampionDetail(55, { dataVersion: "current" });
+    expect(getItem.mock.calls.some(([key]) => key.startsWith(prefix))).toBe(false);
+  });
+
   it("401/429 响应转换为可读错误", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({}, 401)));
     await expect(fetchAramggOverview(true)).rejects.toMatchObject({ status: 401 });

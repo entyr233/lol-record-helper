@@ -1,5 +1,6 @@
 import { ref, shallowRef } from "vue";
 import { gmGet } from "./transport";
+import { readStorage, writeStorage } from "../utils/storage";
 import runeMap from "../data/runes.json";
 import itemMap from "../data/items.json";
 import type { ChampionSpell } from "./types";
@@ -17,6 +18,7 @@ const VERSION_TTL = 12 * 60 * 60 * 1000;
 
 /** ddragon 版本号：用于让物品图标走版本化、可长缓存的 URL */
 export const ddragonVersion = ref<string | null>(null);
+let versionRequest: Promise<void> | null = null;
 
 export function getRuneInfo(id: number | string): { name: string; icon: string } | undefined {
   const info = RUNES[String(id)];
@@ -78,25 +80,31 @@ function writeCachedVersion(version: string): void {
 }
 
 /** 拉取 ddragon 版本号（失败不影响主流程，物品图标会退化为 gtimg） */
-export async function ensureDdragonVersion(): Promise<void> {
-  if (ddragonVersion.value) return;
+export function ensureDdragonVersion(): Promise<void> {
+  if (ddragonVersion.value) return Promise.resolve();
+  if (versionRequest) return versionRequest;
   const cached = readCachedVersion();
   if (cached) {
     ddragonVersion.value = cached;
-    return;
+    return Promise.resolve();
   }
-  try {
-    const res = await fetch(DDDRAGON + "/api/versions.json");
-    if (!res.ok) return;
-    const versions = (await res.json()) as string[];
-    const latest = versions && versions[0];
-    if (latest) {
-      ddragonVersion.value = latest;
-      writeCachedVersion(latest);
+  versionRequest = (async () => {
+    try {
+      const res = await fetch(DDDRAGON + "/api/versions.json");
+      if (!res.ok) return;
+      const versions: unknown = await res.json();
+      const latest = Array.isArray(versions) ? versions[0] : null;
+      if (typeof latest === "string" && /^\d+\.\d+\.\d+$/.test(latest)) {
+        ddragonVersion.value = latest;
+        writeCachedVersion(latest);
+      }
+    } catch {
+      /* offline: keep gtimg fallback */
+    } finally {
+      versionRequest = null;
     }
-  } catch {
-    /* offline: keep gtimg fallback */
-  }
+  })();
+  return versionRequest;
 }
 
 const spellCache = new Map<number, Promise<ChampionSpell[]>>();
@@ -118,6 +126,12 @@ export function getChampionSpells(championId: number): Promise<ChampionSpell[]> 
 
 const championNames = shallowRef<ReadonlyMap<number, string> | null>(null);
 let championNamesRequest: Promise<void> | null = null;
+const CHAMPION_NAMES_KEY = "champion-names-v1";
+const CHAMPION_NAMES_TTL = 24 * 60 * 60 * 1000;
+interface ChampionNamesCache {
+  savedAt: number;
+  entries: Array<[number, string]>;
+}
 
 /**
  * 拉一次英雄中文名映射（英雄筛选/近期英雄用）。
@@ -126,6 +140,12 @@ let championNamesRequest: Promise<void> | null = null;
 export function ensureChampionNames(): Promise<void> {
   if (championNames.value) return Promise.resolve();
   if (championNamesRequest) return championNamesRequest;
+  const cached = readStorage<ChampionNamesCache | null>(CHAMPION_NAMES_KEY, null);
+  if (cached && typeof cached.savedAt === "number" && Array.isArray(cached.entries) && cached.entries.length > 0
+    && cached.entries.every((entry) => Array.isArray(entry) && Number.isFinite(entry[0]) && typeof entry[1] === "string")) {
+    championNames.value = new Map(cached.entries);
+    if (Date.now() - cached.savedAt < CHAMPION_NAMES_TTL) return Promise.resolve();
+  }
   championNamesRequest = (async () => {
     try {
       const raw = await gmGet("https://game.gtimg.cn/images/lol/act/img/js/heroList/hero_list.js");
@@ -139,7 +159,9 @@ export function ensureChampionNames(): Promise<void> {
         const id = Number(h.heroId);
         if (Number.isFinite(id) && h.name) entries.push([id, h.name]);
       }
+      if (!entries.length) throw new Error("empty champion names");
       championNames.value = new Map(entries);
+      writeStorage(CHAMPION_NAMES_KEY, { savedAt: Date.now(), entries });
     } catch {
       // 名称加载失败不阻塞页面，下次调用可以重试。
     } finally {

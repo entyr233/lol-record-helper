@@ -1,12 +1,22 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import runes from "../src/data/runes.json";
 import augments from "../src/data/kiwi-augments.json";
 
 const gmGet = vi.hoisted(() => vi.fn());
 vi.mock("../src/api/transport", () => ({ gmGet }));
 
-beforeEach(() => { vi.resetModules(); gmGet.mockReset(); });
+const saved = new Map<string, string>();
+beforeEach(() => {
+  vi.resetModules();
+  gmGet.mockReset();
+  saved.clear();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => saved.get(key) ?? null,
+    setItem: (key: string, value: string) => saved.set(key, value)
+  });
+});
+afterEach(() => { vi.unstubAllGlobals(); });
 
 describe("静态名称与图标", () => {
   it("两个消费者共享英雄名请求，异步加载完成后名称计算自动更新", async () => {
@@ -33,6 +43,48 @@ describe("静态名称与图标", () => {
     expect(championName(1)).toBe("");
     await ensureChampionNames();
     expect(championName(1)).toBe("安妮");
+  });
+
+  it("重新打开页面复用英雄名缓存，过期时先显示缓存再更新同一个存储条目", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    gmGet.mockResolvedValueOnce('[{"heroId":1,"name":"安妮"}]');
+    await (await import("../src/api/staticData")).ensureChampionNames();
+    vi.resetModules();
+    const fresh = await import("../src/api/staticData");
+    await fresh.ensureChampionNames();
+    expect(fresh.championName(1)).toBe("安妮");
+    expect(gmGet).toHaveBeenCalledTimes(1);
+
+    now.mockReturnValue(1_000_000 + 24 * 60 * 60 * 1000);
+    vi.resetModules();
+    const stale = await import("../src/api/staticData");
+    let resolve!: (text: string) => void;
+    gmGet.mockReturnValueOnce(new Promise<string>(done => { resolve = done; }));
+    const refreshing = stale.ensureChampionNames();
+    expect(stale.championName(1)).toBe("安妮");
+    resolve('[{"heroId":1,"name":"安妮"},{"heroId":2,"name":"奥拉夫"}]');
+    await refreshing;
+    expect(stale.championName(2)).toBe("奥拉夫");
+    expect(saved.size).toBe(1);
+    expect(gmGet).toHaveBeenCalledTimes(2);
+  });
+
+  it("并发版本查询只发一次请求，失败后仍可重试", async () => {
+    const { ddragonVersion, ensureDdragonVersion } = await import("../src/api/staticData");
+    const fetchMock = vi.fn().mockRejectedValueOnce(new Error("offline"));
+    vi.stubGlobal("fetch", fetchMock);
+    await ensureDdragonVersion();
+    let resolve!: (response: unknown) => void;
+    fetchMock.mockReturnValueOnce(new Promise(done => { resolve = done; }));
+    const first = ensureDdragonVersion();
+    const second = ensureDdragonVersion();
+    expect(first).toBe(second);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    resolve({ ok: true, json: async () => ["16.21.1"] });
+    await Promise.all([first, second]);
+    await ensureDdragonVersion();
+    expect(ddragonVersion.value).toBe("16.21.1");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("紧凑图标记录恢复为完整地址，已有绝对地址保持不变", async () => {

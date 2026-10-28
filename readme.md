@@ -204,6 +204,7 @@ docs/             代码审查报告 / HAR 分析 / 迁移说明 / README 截图
 - 上游 Vue 2 审查归档：`docs/code-review-2026-10.md`
 - HAR 分析（掌盟接口族逆向）：`docs/har-analysis-20261027.md`
 - Vue2 → Vue3 迁移说明：`docs/migration-vue2-to-vue3.md`
+- 网页性能与缓存：`docs/performance.md`
 - 变更记录：`CHANGELOG.md`
 
 ---

@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [2.19.0] - 2026-10-28
+
+### Changed
+
+- 战绩原始页缓存增加玩家数（8）与页数（20）上限，访问/请求完成时按 30 秒 TTL 清理，在途请求不取消。
+- ARAMGG 推荐详情缓存改为按数据版本加载，最多 20 条、约 512 KiB，按 LRU 淘汰，写入前先清理旧版本/过期/超预算条目。
+- 英雄中文名增加 24 小时 localStorage 缓存（先展示已有名称再刷新）；Data Dragon 版本号请求并发去重。
+- 海克斯英雄详情使用 `shallowRef`，避免深层响应式代理。
+- 新增 `docs/performance.md` 记录缓存范围与验证边界。
+
+
 ### Changed
 
 - 测试与 CI 收敛：CI 只在 master/PR 触发，常规 CI 跑一次完整单测 + Chromium；发布 workflow 复用 CI 成功结果并跑一次三浏览器 E2E。

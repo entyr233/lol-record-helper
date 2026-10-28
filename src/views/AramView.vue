@@ -214,7 +214,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref, shallowRef } from "vue";
 import Panel from "../components/Panel.vue";
 import {
   AramggError,
@@ -238,7 +238,7 @@ const query = ref("");
 const selectedAugmentId = ref<number | null>(null);
 const selectedChampionId = ref<number | null>(null);
 const championHeading = ref<HTMLElement | null>(null);
-const detail = ref<AramggChampionDetail | null>(null);
+const detail = shallowRef<AramggChampionDetail | null>(null);
 const recommendedBuild = computed(() => detail.value?.builds.find((build) => build.queueId === 2400 || build.queueId == null));
 const detailLoading = ref(false);
 const detailError = ref<string | null>(null);

@@ -28,6 +28,8 @@ export interface BattleRefreshOptions {
 }
 /** 原始页缓存有效期：同一交互内复用，也不至于长期记住旧战绩 */
 const PAGE_TTL_MS = 30000;
+const MAX_CACHED_PLAYERS = 8;
+const MAX_CACHED_PAGES = 20;
 
 interface CachedPage {
   data: BattleSummary[];
@@ -54,12 +56,26 @@ interface FeedEntry {
 /** 模块级：同一玩家（key）的战绩页缓存与在途请求在所有组件间共享 */
 const feedEntries = new Map<string, FeedEntry>();
 
-function entryOf(keyText: string): FeedEntry {
-  let entry = feedEntries.get(keyText);
-  if (!entry) {
-    entry = { pages: new Map(), inflight: new Map() };
-    feedEntries.set(keyText, entry);
+function pruneFeedCache(keepPlayer: string): void {
+  const now = Date.now();
+  for (const [player, cached] of feedEntries) {
+    for (const [page, value] of cached.pages) {
+      if (now - value.at >= PAGE_TTL_MS) cached.pages.delete(page);
+    }
+    if (!cached.pages.size && !cached.inflight.size && player !== keepPlayer) feedEntries.delete(player);
   }
+  for (const [player, cached] of feedEntries) {
+    if (feedEntries.size <= MAX_CACHED_PLAYERS) break;
+    // 在途请求仍由现有等待方共享，不因缓存淘汰被取消。
+    if (!cached.inflight.size && player !== keepPlayer) feedEntries.delete(player);
+  }
+}
+
+function entryOf(keyText: string): FeedEntry {
+  const entry = feedEntries.get(keyText) ?? { pages: new Map(), inflight: new Map() };
+  feedEntries.delete(keyText);
+  feedEntries.set(keyText, entry);
+  pruneFeedCache(keyText);
   return entry;
 }
 
@@ -88,11 +104,16 @@ function startRequest(key: BattleFeedKey, entry: FeedEntry, page: number): FeedR
       );
       const result: BattlePage = { data, hasMore: data.length >= PAGE_SIZE };
       // 被 invalidate 过（或被新请求取代）的响应不写缓存：否则刷新会看到旧数据
-      if (!request.stale && !controller.signal.aborted) entry.pages.set(page, { data, hasMore: result.hasMore, at: Date.now() });
+      if (!request.stale && !controller.signal.aborted) {
+        entry.pages.delete(page);
+        entry.pages.set(page, { data, hasMore: result.hasMore, at: Date.now() });
+        if (entry.pages.size > MAX_CACHED_PAGES) entry.pages.delete(entry.pages.keys().next().value!);
+      }
       return result;
     } finally {
       request.settled = true;
       if (entry.inflight.get(page) === request) entry.inflight.delete(page);
+      pruneFeedCache(battleFeedKey(key));
     }
   }
 }

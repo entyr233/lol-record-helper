@@ -17,6 +17,8 @@ const OVERVIEW_CACHE_STORAGE = "aramgg-overview-v2";
 const CHAMPION_CACHE_PREFIX = "aramgg-champion-v2:";
 const OVERVIEW_TTL_MS = 6 * 60 * 60 * 1000;
 const CHAMPION_TTL_MS = 12 * 60 * 60 * 1000;
+const CHAMPION_CACHE_MAX = 20;
+const CHAMPION_CACHE_MAX_BYTES = 512 * 1024;
 const REQUEST_TIMEOUT_MS = 15000;
 
 export class AramggError extends Error {
@@ -455,8 +457,68 @@ async function getJson(url: string, headers: Record<string, string> = {}, useGm 
 
 let memoryOverview: AramggOverviewCache | null = null;
 let overviewInflight: Promise<AramggOverview> | null = null;
-const memoryChampions = new Map<string, { savedAt: number; detail: AramggChampionDetail }>();
+interface CachedChampion {
+  savedAt: number;
+  detail: AramggChampionDetail;
+  bytes: number;
+}
+const memoryChampions = new Map<string, CachedChampion>();
 const championInflight = new Map<string, Promise<AramggChampionDetail>>();
+let championCacheVersion: string | null = null;
+
+/** 仅清理推荐详情缓存；历史记录、收藏和账号设置不参与淘汰。 */
+function pruneChampionCache(): void {
+  const now = Date.now();
+  let bytes = 0;
+  for (const [key, cached] of memoryChampions) {
+    if (now - cached.savedAt >= CHAMPION_TTL_MS) {
+      memoryChampions.delete(key);
+      removeStorage(key);
+    } else {
+      bytes += cached.bytes;
+    }
+  }
+  for (const [key, cached] of memoryChampions) {
+    if (memoryChampions.size <= CHAMPION_CACHE_MAX && bytes <= CHAMPION_CACHE_MAX_BYTES) break;
+    memoryChampions.delete(key);
+    removeStorage(key);
+    bytes -= cached.bytes;
+  }
+}
+
+/** 每个数据版本只读取一次磁盘，后续点击直接使用内存。 */
+function loadChampionCache(version: string): void {
+  if (championCacheVersion === version) return;
+  championCacheVersion = version;
+  memoryChampions.clear();
+  try {
+    const prefix = "lol_tft:" + CHAMPION_CACHE_PREFIX;
+    const currentPrefix = prefix + version + ":";
+    const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
+      .filter((key): key is string => key !== null && key.startsWith(prefix));
+    const entries: Array<[string, CachedChampion]> = [];
+    for (const key of keys) {
+      if (!key.startsWith(currentPrefix)) {
+        localStorage.removeItem(key);
+        continue;
+      }
+      const raw = localStorage.getItem(key);
+      let cached: CachedChampion | null = null;
+      try { cached = raw ? JSON.parse(raw) as CachedChampion : null; } catch { /* 损坏的缓存条目按未命中处理。 */ }
+      if (!raw || !cached || !Number.isFinite(cached.savedAt)
+        || !Array.isArray(cached.detail?.augments) || !Array.isArray(cached.detail?.builds)) {
+        localStorage.removeItem(key);
+        continue;
+      }
+      entries.push([key.slice("lol_tft:".length), { ...cached, bytes: raw.length * 2 }]);
+    }
+    entries.sort((a, b) => a[1].savedAt - b[1].savedAt);
+    for (const [key, cached] of entries) memoryChampions.set(key, cached);
+    pruneChampionCache();
+  } catch {
+    /* 存储不可用时仍可使用本次会话的内存缓存。 */
+  }
+}
 
 function readOverviewCache(): AramggOverviewCache | null {
   if (memoryOverview) return memoryOverview;
@@ -507,16 +569,10 @@ export async function fetchAramggChampionDetail(championId: number, options: { f
   const key = getAramggApiKey();
   const version = options.dataVersion ?? readOverviewCache()?.dataVersion ?? "";
   if (!version && !key) throw new AramggError(401, "请先加载榜单，或配置 ARAMGG API Key");
+  loadChampionCache(version);
   const cacheKey = CHAMPION_CACHE_PREFIX + version + ":" + championId;
   const memory = memoryChampions.get(cacheKey);
   if (memory && Date.now() - memory.savedAt < CHAMPION_TTL_MS && !options.force) return memory.detail;
-  if (!options.force) {
-    const cached = readStorage<{ savedAt: number; detail: AramggChampionDetail } | null>(cacheKey, null);
-    if (cached && Date.now() - cached.savedAt < CHAMPION_TTL_MS) {
-      memoryChampions.set(cacheKey, cached);
-      return cached.detail;
-    }
-  }
   const pending = championInflight.get(cacheKey);
   if (pending) return pending;
   const task = (async () => {
@@ -540,10 +596,16 @@ export async function fetchAramggChampionDetail(championId: number, options: { f
   championInflight.set(cacheKey, task);
   try {
     const detail = await task;
-    if (championInflight.get(cacheKey) === task) {
+    if (championInflight.get(cacheKey) === task && championCacheVersion === version) {
       const cached = { savedAt: Date.now(), detail };
-      memoryChampions.set(cacheKey, cached);
-      writeStorage(cacheKey, cached);
+      const json = JSON.stringify(cached);
+      memoryChampions.delete(cacheKey);
+      memoryChampions.set(cacheKey, { ...cached, bytes: json.length * 2 });
+      // 先淘汰再写入，避免旧详情占满存储空间。
+      pruneChampionCache();
+      if (memoryChampions.has(cacheKey)) {
+        try { localStorage.setItem("lol_tft:" + cacheKey, json); } catch { /* 配额不足时保留内存结果。 */ }
+      }
     }
     return detail;
   }
@@ -556,4 +618,5 @@ export function clearAramggMemoryCache(): void {
   overviewInflight = null;
   memoryChampions.clear();
   championInflight.clear();
+  championCacheVersion = null;
 }
