@@ -1349,6 +1349,9 @@ button {
   object-fit: cover;
   display: block;
 }
+.game-icon--empty {
+  background: #20262e;
+}
 
 /* ---------- search ---------- */
 .search-hint {

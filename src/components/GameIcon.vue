@@ -1,5 +1,6 @@
 <template>
-  <span class="game-icon" :class="'game-icon--' + kind">
+  <span v-if="kind === 'item' && !(Number(id) > 0)" class="game-icon game-icon--item game-icon--empty" role="img" aria-label="没有装备" title="没有装备"></span>
+  <span v-else class="game-icon" :class="'game-icon--' + kind">
     <img
       class="game-icon-img"
       :src="imageSrc"
@@ -17,6 +18,7 @@ import { computed, ref, watch } from "vue";
 import {
   championIconUrl,
   getChampionSpells,
+  getFallbackItemIconUrl,
   getItemName,
   getRuneInfo,
   itemIconUrl,
@@ -43,6 +45,7 @@ const FALLBACK_ICON =
 
 const failed = ref(false);
 const userIconFailed = ref(false);
+const fallbackItemSrc = ref<string | null>(null);
 const spellIcon = ref<string | null>(null);
 const spellTitle = ref<string | null>(null);
 
@@ -55,7 +58,7 @@ const baseSrc = computed(() => {
     case "user":
       return userIconFailed.value ? userIconFallbackUrl(props.id) : userIconUrl(props.id);
     case "item":
-      return itemIconUrl(props.id);
+      return fallbackItemSrc.value ?? itemIconUrl(props.id);
     case "rune":
       return getRuneInfo(props.id)?.icon ?? FALLBACK_ICON;
     case "summon-spell":
@@ -83,6 +86,7 @@ watch(
     onCleanup(() => { active = false; });
     failed.value = false;
     userIconFailed.value = false;
+    fallbackItemSrc.value = null;
     spellIcon.value = null;
     spellTitle.value = null;
     if (kind !== "champion-spell" || !championId) return;
@@ -101,7 +105,17 @@ watch(
   { immediate: true }
 );
 
-function handleError(): void {
+async function handleError(): Promise<void> {
+  if (failed.value) return;
+  if (props.kind === "item" && !fallbackItemSrc.value) {
+    const id = props.id;
+    const url = await getFallbackItemIconUrl(id);
+    if (props.kind !== "item" || props.id !== id) return;
+    if (url) {
+      fallbackItemSrc.value = url;
+      return;
+    }
+  }
   if (spellIcon.value) {
     spellIcon.value = null;
     return;

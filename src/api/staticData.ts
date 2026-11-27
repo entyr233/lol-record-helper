@@ -54,10 +54,12 @@ export function summonSpellIconUrl(id: number | string): string {
 }
 
 export function itemIconUrl(id: number | string): string {
-  if (ddragonVersion.value) {
-    return DDDRAGON + "/cdn/" + ddragonVersion.value + "/img/item/" + id + ".png";
-  }
   return GTIMG_ICON + "items/" + id + ".png";
+}
+
+export async function getFallbackItemIconUrl(id: number | string): Promise<string | null> {
+  await ensureDdragonVersion();
+  return ddragonVersion.value ? DDDRAGON + "/cdn/" + ddragonVersion.value + "/img/item/" + id + ".png" : null;
 }
 
 function readCachedVersion(): string | null {
@@ -81,7 +83,7 @@ function writeCachedVersion(version: string): void {
   }
 }
 
-/** 拉取 ddragon 版本号（失败不影响主流程，物品图标会退化为 gtimg） */
+/** 仅在装备主图加载失败时解析备用图源的版本。 */
 export function ensureDdragonVersion(): Promise<void> {
   if (ddragonVersion.value) return Promise.resolve();
   if (versionRequest) return versionRequest;
@@ -101,7 +103,7 @@ export function ensureDdragonVersion(): Promise<void> {
         writeCachedVersion(latest);
       }
     } catch {
-      /* offline: keep gtimg fallback */
+      /* 网络不可用时，备用图源无法解析。 */
     } finally {
       versionRequest = null;
     }

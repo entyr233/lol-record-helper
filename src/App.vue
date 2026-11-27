@@ -11,14 +11,9 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
 import AppHeader from "./components/AppHeader.vue";
 import DevDataBar from "./components/DevDataBar.vue";
-import { ensureDdragonVersion } from "./api/staticData";
 
 const isDev = import.meta.env.DEV;
 
-onMounted(() => {
-  void ensureDdragonVersion();
-});
 </script>

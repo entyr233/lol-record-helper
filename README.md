@@ -135,7 +135,7 @@
 - 2026 现任格式：列表 `GetBattleList`；资料 `GetSummonerInfo`（含 `season` 段位）；统计 `GetBattleReport`
 - 老接口被限制时（8000120 等）：先弹**官方人机验证**（TCaptcha + VerifyRecongnition）后自动重试；详情再失败则回退掌盟接口（`postMessage` 桥：脚本同时在 lol.qq.com 上运行，替面板做同源请求绕过 CORS）
 - 登录态判断**以 cookie 为准**（`uin/p_uin`），不依赖 SDK 的 `isLogin()`（它在刷新后经常误报）
-- 静态映射（符文/装备名）构建期固化，图标走版本化 CDN
+- 符文和装备名随脚本内置。战绩详情优先使用腾讯 WeGame 装备图，单张缺图时再尝试 Riot Data Dragon。
 - 诊断工具 `__LOL_TFT_DUMP__` 只读取被拒响应的结构，不包含 cookie
 
 ## 历史段位说明

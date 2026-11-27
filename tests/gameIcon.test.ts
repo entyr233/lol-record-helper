@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import GameIcon from "../src/components/GameIcon.vue";
-import { getChampionSpells } from "../src/api/staticData";
+import { ddragonVersion, getChampionSpells } from "../src/api/staticData";
 import type { ChampionSpell } from "../src/api/types";
 
 vi.mock("../src/api/staticData", async (importOriginal) => ({
@@ -9,6 +9,37 @@ vi.mock("../src/api/staticData", async (importOriginal) => ({
 }));
 
 describe("GameIcon 悬停标题", () => {
+  it("已有 Riot 版本时仍先请求腾讯，只对缺图的装备回退一次", async () => {
+    const previous = ddragonVersion.value;
+    ddragonVersion.value = "16.23.1";
+    const wrapper = mount(GameIcon, { props: { kind: "item", id: 1001 } });
+    try {
+      const img = wrapper.get("img");
+      expect(img.attributes("src")).toMatch(/^https:\/\/wegame\.gtimg\.com\/.*\/items\/1001\.png$/);
+      await img.trigger("error");
+      await flushPromises();
+      expect(img.attributes("src")).toBe("https://ddragon.leagueoflegends.com/cdn/16.23.1/img/item/1001.png");
+      expect(img.attributes("title")).toBe("鞋子");
+      await img.trigger("error");
+      expect(img.attributes("title")).toBe("图标加载失败");
+      await wrapper.setProps({ id: 3006 });
+      expect(img.attributes("src")).toContain("/items/3006.png");
+    } finally {
+      wrapper.unmount();
+      ddragonVersion.value = previous;
+    }
+  });
+
+  it("空装备格不生成图片，切换装备后恢复正常图标和提示", async () => {
+    const wrapper = mount(GameIcon, { props: { kind: "item", id: 0 } });
+    expect(wrapper.find("img").exists()).toBe(false);
+    expect(wrapper.get('[role="img"]').attributes("title")).toBe("没有装备");
+    await wrapper.setProps({ id: 1001 });
+    expect(wrapper.get("img").attributes("title")).toBe("鞋子");
+    await wrapper.setProps({ id: "0" });
+    expect(wrapper.find("img").exists()).toBe(false);
+    expect(wrapper.attributes("aria-label")).toBe("没有装备");
+  });
   it("切换英雄后迟到的旧技能响应不能覆盖新图标，改成装备后也不能回写", async () => {
     let resolveOld!: (spells: ChampionSpell[]) => void;
     let resolveNew!: (spells: ChampionSpell[]) => void;
