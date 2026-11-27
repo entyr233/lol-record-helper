@@ -2,10 +2,11 @@ export function installHelperTgpBridge() {
   try {
     if (!/^(www\.)?wegame\.com\.cn$/.test(location.hostname)) return;
     if (!/^\/helper\/lol(?:\/|$)/.test(location.pathname)) return;
-    const uinMatch = document.cookie.match(/(?:^|;\s*)(?:p_)?uin=(o?[0-9]+)/);
+    const cookies = document.cookie;
+    const uinMatch = cookies.match(/(?:^|;\s*)(?:p_)?uin=(o?[0-9]+)/);
     const uin = uinMatch ? String(Number(uinMatch[1].replace(/^o/, ""))) : "";
-    if (uin) {
-      // 官方页面的兜底逻辑会读 p_uin 推断大区；这里补一份，减少首次初始化失败
+    if (uin && !/(?:^|;\s*)p_uin=/.test(cookies)) {
+      // 官方页面用 p_uin 推断大区。仅在缺失时补写，以保留站点设置的有效期和作用域。
       try { document.cookie = "p_uin=o" + uin + "; path=/"; } catch (e) { /* ignore */ }
     }
     let area = 0;

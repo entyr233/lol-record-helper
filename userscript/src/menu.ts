@@ -1,4 +1,5 @@
 import { isWeGameHost } from "./host";
+import { rememberLogin } from "./rememberLogin";
 const PROJECT_HOME = "https://github.com/" + __REPO__;
 const OFFICIAL_HELPER_URL = "https://www.wegame.com.cn/helper/lol/";
 const PANEL_HOME_URL = "https://www.wegame.com.cn/?lol_tft_panel=1";
@@ -22,6 +23,9 @@ export function registerMenuCommands(openPanel: () => Promise<void>) {
     { title: "打开项目主页", run: function () { openProjectUrl(PROJECT_HOME); } },
     { title: "反馈 / 问题", run: function () { openProjectUrl(PROJECT_HOME + "/issues"); } }
   ];
+  if (isWeGameHost() && location.protocol === "https:" && window.top === window) {
+    commands.push({ title: "保持本机登录（最多 7 天）", run: async () => { window.alert(await rememberLogin()); } });
+  }
   try {
     if (typeof GM_registerMenuCommand === "function") {
       commands.forEach(function (command) {
